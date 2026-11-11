@@ -2,9 +2,13 @@
 
 namespace App\Ai\Support;
 
+use App\Ai\AiManager;
+use App\Ai\Budgets\BudgetExhausted;
+use App\Ai\Budgets\Ladder;
 use App\Ai\Cache\CachePolicy;
 use App\Ai\Cache\SemanticCache;
 use App\Ai\Context\AssembledPrompt;
+use App\Ai\Context\ContextBlock;
 use App\Ai\Contracts\ChatRequest;
 use App\Ai\Contracts\ChatResponse;
 use App\Ai\Contracts\FinishReason;
@@ -58,6 +62,7 @@ final class SupportAssistant
         private ToolRegistry $registry,
         private ProviderHealth $health,
         private AnswerGuard $guard,
+        private AiManager $ai,
     ) {}
 
     public function answerStreaming(Conversation $c, string $question, Closure $onDelta, ?Closure $onToolStart = null, ?Message $reply = null): ToolRunResult
@@ -149,6 +154,16 @@ final class SupportAssistant
             }
 
             return $this->unavailable($conversation, $question, $reply, recorded: true);   // the first calls of an outage fail before the breaker opens; they get the same honest answer, not a failed job
+        } catch (BudgetExhausted $e) {
+            $degraded = $this->degraded($e, $conversation, $question, $reply, $chunks, $options, $ctx, $route, $stream, $user, $history, $conversation->summary, $candidate?->system, $eligible);
+
+            if ($degraded['final']) {
+                return $degraded['result'];                                        // the cache or the search page answered: nothing more to check or store
+            }
+
+            [$result, $prompt] = [$degraded['result'], $degraded['prompt']];
+
+            $sent = count($prompt->messages);
         }
 
         $result = $this->verify($result, $prompt, $sent, $ctx, $options, $conversation);
@@ -186,6 +201,99 @@ final class SupportAssistant
         }
 
         return Cache::remember("{$step}:{$reply->id}", 3600, $work);
+    }
+
+    // Chapter 36, Topic 5, Figure 36-5: a budget is spent (or the kill switch is on). The feature falls down its ladder from the rung BudgetGuard named, and a rung that cannot help (no cheaper role, no cached answer) hands over to the next.
+    // The first two rungs still make a model call, on a cheaper role or with tighter limits, and the answer goes through the usual checks; the last two never reach a model.
+    private function degraded(BudgetExhausted $exhausted, Conversation $conversation, string $question, ?Message $reply, array $chunks, array $options, ToolContext $ctx, Route $route, ?StreamListener $stream, User $user, array $history, ?string $summary, ?string $system, bool $eligible): array
+    {
+        $ladder = app(Ladder::class);
+
+        foreach ($ladder->from('support.reply', $exhausted->rung) as $rung) {
+            ModelCalled::dispatch('support.reply', 'degraded', "budget:{$rung}", ['prompt_tokens' => 0, 'completion_tokens' => 0], 'budget', 0, $conversation->id, SupportPrompt::VERSION);
+
+            try {
+                $attempt = match ($rung) {
+                    Ladder::CHEAPER_ROLE => $this->onCheaperRole($question, $chunks, $options, $ctx, $route, $stream, $history, $summary, $system, $user, $eligible),
+                    Ladder::TIGHTER_LIMITS => $this->withTighterLimits($question, $chunks, $options, $ctx, $route, $stream, $history, $summary, $system, $user, $eligible),
+                    Ladder::CACHE_ONLY => $this->fromCacheOnly($conversation, $question, $reply, $user),
+                    default => null,
+                };
+            } catch (BudgetExhausted) {
+                $attempt = null;                                                   // this rung is spent too: the next one down
+            }
+
+            if ($attempt !== null) {
+                return $attempt;
+            }
+        }
+
+        return ['result' => $this->searchAndAPerson($conversation, $question, $reply, $chunks), 'prompt' => null, 'final' => true];
+    }
+
+    private function onCheaperRole(string $question, array $chunks, array $options, ToolContext $ctx, Route $route, ?StreamListener $stream, array $history, ?string $summary, ?string $system, User $user, bool $eligible): ?array
+    {
+        $cheaper = $this->ai->cheaperThan($this->ai->providerFor('support.reply'), 'support.reply');
+
+        if ($cheaper === null) {
+            return null;
+        }
+
+        $prompt = $this->promptFor($question, $chunks, $history, $summary, $system, $user, $eligible);
+
+        $result = $this->runner->run(messages: $prompt->messages, ctx: $ctx, options: ['provider' => $cheaper] + $options, feature: 'support.reply', tools: $this->tools($route), stream: $stream);
+
+        return ['result' => $result, 'prompt' => $prompt, 'final' => false];
+    }
+
+    private function withTighterLimits(string $question, array $chunks, array $options, ToolContext $ctx, Route $route, ?StreamListener $stream, array $history, ?string $summary, ?string $system, User $user, bool $eligible): ?array
+    {
+        $prompt = $this->promptFor($question, array_slice($chunks, 0, (int) config('ai.budgets.ladder.tight_passages', 2)), $history, $summary, $system, $user, $eligible);
+
+        $tight = ['max_tokens' => (int) config('ai.budgets.ladder.tight_max_tokens', 200)] + $options;
+
+        $result = $this->runner->run(messages: $prompt->messages, ctx: $ctx, options: $tight, feature: 'support.reply', tools: $this->tools($route), stream: $stream);
+
+        return ['result' => $result, 'prompt' => $prompt, 'final' => false];
+    }
+
+    // Rung 3: only answers that were already written. For a first, generic question the cache is asked before any model is (Chapter 14), so this rung matters for the questions that lookup skipped; it never serves an answer to a question the cache policy keeps out.
+    private function fromCacheOnly(Conversation $conversation, string $question, ?Message $reply, User $user): ?array
+    {
+        if (! $this->policy->enabled() || ! $this->policy->isGeneric($question)) {
+            return null;
+        }
+
+        $hit = $this->cache->find($question, $user->tenant_id);
+
+        if ($hit === null) {
+            return null;
+        }
+
+        return ['result' => $this->serveFromCache($conversation, $question, $hit, $reply), 'prompt' => null, 'final' => true];
+    }
+
+    // The bottom rung, and what the kill switch shows: the closest help-center articles and a way to reach a person. Never an error.
+    private function searchAndAPerson(Conversation $conversation, string $question, ?Message $reply, array $chunks): ToolRunResult
+    {
+        $this->recordQuestion($conversation, $question, $reply);
+
+        $message = $this->finish($conversation, $reply, ['role' => 'assistant', 'content' => SupportPrompt::budgetMessage()]);
+
+        $shown = ContextBlock::labels(array_slice($chunks, 0, 3));
+
+        if ($shown !== []) {
+            $this->store->recordSources($message, $shown);
+        }
+
+        $response = new ChatResponse('budget-search', 'degraded', SupportPrompt::budgetMessage(), [], FinishReason::Stop, new Usage(0, 0), []);
+
+        return new ToolRunResult(response: $response, messages: [], rounds: 0);
+    }
+
+    private function promptFor(string $question, array $chunks, array $history, ?string $summary, ?string $system, User $user, bool $eligible): AssembledPrompt
+    {
+        return SupportPrompt::assemble(question: $question, contextChunks: $chunks, history: $history, user: $eligible ? null : $user, summary: $summary, system: $system);
     }
 
     // Chapter 30, Topic 4: during an A/B test a customer is sticky in one variant; the treatment brings its own system prompt. [null, null] when no test runs.
@@ -296,16 +404,20 @@ final class SupportAssistant
             return $result->withCitations($report);
         }
 
-        $retry = $this->runner->run(
-            messages: [
-                ...$result->messages,
-                ['role' => 'assistant', 'content' => $result->response->content],
-                ['role' => 'user', 'content' => RepairPrompt::citations($report)],
-            ],
-            ctx: $ctx,
-            options: $options + ['repaired' => true],
-            feature: 'support.reply',
-        );
+        try {
+            $retry = $this->runner->run(
+                messages: [
+                    ...$result->messages,
+                    ['role' => 'assistant', 'content' => $result->response->content],
+                    ['role' => 'user', 'content' => RepairPrompt::citations($report)],
+                ],
+                ctx: $ctx,
+                options: $options + ['repaired' => true],
+                feature: 'support.reply',
+            );
+        } catch (BudgetExhausted) {
+            return $result->withContent(SupportPrompt::escapeHatch())->withCitations($report);      // the budget will not pay for a repair: say so instead of showing a claim we could not check
+        }
 
         if ($retry->response === null || $retry->response->toolCalls !== [] || $retry->pendingApprovals !== []) {
             return $retry->withContent(SupportPrompt::escapeHatch())->withCitations($report);

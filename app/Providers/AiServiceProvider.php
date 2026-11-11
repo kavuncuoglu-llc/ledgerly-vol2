@@ -2,7 +2,14 @@
 
 namespace App\Providers;
 
+use App\Ai\Budgets\ArrayCounters;
+use App\Ai\Budgets\Counters;
+use App\Ai\Budgets\RedisCounters;
+use App\Ai\Events\BudgetThresholdReached;
+use App\Ai\Events\EmergencyKillSwitchActivated;
 use App\Ai\Events\ToolCalled;
+use App\Ai\Listeners\AnnounceKillSwitch;
+use App\Ai\Listeners\NotifyBudgetThreshold;
 use App\Ai\Listeners\RecordToolCall;
 use App\Ai\Privacy\AllowList;
 use App\Ai\Privacy\Detectors\CardNumber;
@@ -33,6 +40,7 @@ use App\Ai\Tools\RetryPayment\RetryPayment;
 use App\Ai\Tools\SearchHelpCenter\SearchHelpCenter;
 use App\Ai\Tools\ToolKind;
 use App\Ai\Tools\ToolRegistry;
+use App\Livewire\Pulse\AiBudgets;
 use App\Livewire\Pulse\AiHealth;
 use App\Livewire\Pulse\AiSpend;
 use App\Models\PendingToolCall;
@@ -50,6 +58,10 @@ class AiServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->registerPrivacy();
+
+        $this->app->singleton(Counters::class, fn () => config('ai.budgets.store') === 'array'
+            ? new ArrayCounters
+            : RedisCounters::fromConfig());
 
         $this->app->bind(SandboxRunner::class, fn () => SandboxRunner::fromConfig());
         $this->app->bind(ToolCredentials::class, fn () => ToolCredentials::fromConfig());
@@ -115,12 +127,16 @@ class AiServiceProvider extends ServiceProvider
 
         $this->registerProviderLimiters();
 
+        Event::listen(EmergencyKillSwitchActivated::class, AnnounceKillSwitch::class);
+        Event::listen(BudgetThresholdReached::class, NotifyBudgetThreshold::class);
+
         Gate::policy(PendingToolCall::class, PendingActionPolicy::class);
 
         Gate::define('viewPulse', fn (?User $user = null) => $user?->role === 'support');       // Pulse shows tenants' busiest users and slow queries: Ledgerly staff only
 
         Livewire::component('ai-spend', AiSpend::class);
         Livewire::component('ai-health', AiHealth::class);
+        Livewire::component('ai-budgets', AiBudgets::class);
 
         Gate::define('use-tool', function (User $user, string $tool): bool {
             if ($user->customer_id === null) {

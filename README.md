@@ -37,6 +37,7 @@ Each chapter of this volume is a tag, `ch26` through `ch51`, taken at the end of
 | `ch33` | Tool guardrails: `ToolGate::dispatch` (schema, policy, budget, execution by declared risk, result scan, audit), the `ledgerly_tool_read` and `ledgerly_tool_write` Postgres roles with column grants, `pending_tool_actions` with single-use confirmation tokens, the new tools `check_payment_status`, `resend_invoices`, `retry_payment`, `change_billing_email` and `issue_credit`, the support agents' approval queue (`/staff/approvals`), per-tool restricted keys and scoped STS credentials, and the `ledgerly-sandbox` image with `sandbox:run`. |
 | `ch34` | Data privacy and PII redaction: `RedactingModel` in the provider chain (detect, tokenize through an encrypted per-conversation vault, call, restore, streams included; hosted calls fail closed to `local` when names cannot be screened), validated detectors for cards, SSNs, emails, phones (libphonenumber) and IBANs with an allow-list for invoice and ticket numbers, the `privacy` Compose profile (Presidio behind `/pii/analyze`), a `privacy` block per provider and `allowed_providers`/`requires` per feature, declared fields per prompt, a log processor and an error-report scrubber, and `user:forget` for every deletable copy with an expiry report and an `erasure_requests` receipt (`--group=privacy`). |
 | `ch35` | The anatomy of an AI surprise bill: `config/ai-pricing.php` and `CallCost` (every call priced from its logged usage; an unpriced model fails), `cached_input_tokens` and `cache_write_tokens` on `model_calls`, `ai:cost-audit` (cost per successful action, the toxic tail, five signature detectors) with `ai:cost-replay` for each postmortem, code ceilings on agent rounds, tokens and time and a stop on repeated tool errors, a hard token budget for retrieved sources and a chunk-size gate on `help:ingest`, the cacheable-prefix test, per-provider rate limits, cached steps and a freshness check on `AnswerQuestion`, and the public `/widget` (local role only, short answers, a proof-of-work challenge, its own budgets). |
+| `ch36` | Real-time cost observability and budget governance: the append-only `ai_ledger` (integer micro-dollars, price version, five labels) written from a Redis stream by `ai:ledger-consume` and `WriteLedgerBatch` on a `ledger` Horizon queue, `BudgetedModel` (kill switch, token bucket, atomic all-or-none reservation with `reserve_all.lua`, settlement, release on failure), nested budgets per tenant, feature, anonymous traffic and the app hour, a degrade ladder for the support assistant (cheaper role, tighter limits, cache only, search and a person) and a pause for background features, `ai:spend-breaker`, `ai:kill`, `ai:spend`, `ai:showback` and `ai:reconcile`, and a Pulse budgets card. |
 
 ## Set up `vol2-start`
 
@@ -193,6 +194,22 @@ vendor/bin/pest tests/Feature/Ai/Cost                # each detector must flag i
 ```
 
 Prices live in `config/ai-pricing.php` (illustrative round numbers, dated, versioned; copy your provider's rates into `FRONTIER_RATE_IN`, `FRONTIER_RATE_OUT` and the cache rates, `.env.example` explains). A hosted model with no price is not free: the audit refuses it. The public page is `/widget`; it answers from shared help-center passages on the `local` role only, with a proof-of-work challenge solved in the browser, eight questions per session and a daily token budget (`AI_WIDGET_*`).
+
+### From `ch36`: the ledger, the budgets and the kill switch
+
+```bash
+php artisan migrate                                           # ai_ledger
+php artisan horizon                                           # the `ledger` queue is one of its supervisors (config/horizon.php)
+php artisan ai:ledger-consume                                 # the stream to Postgres, in batches; also scheduled every minute with --once
+php artisan ai:spend --by=tenant,feature --since=1h           # live spend by any label, breaker state, the app hour against its ceiling
+php artisan ai:spend-breaker                                  # scheduled every minute: 15 minutes of spend against the normal for this hour
+php artisan ai:kill --provider=frontier --reason="spend 40x baseline"      # and: ai:kill --reset --provider=frontier --reason="..."   ai:kill --list
+php artisan ai:showback --send                                # Mondays: each team's week
+php artisan ai:reconcile --usage=usage-2026-11-10.json        # nightly: the ledger against the provider's export, and the counters rebuilt from the ledger
+docker compose --env-file .env -f ops/compose/base.yml -f ops/compose/app.yml --profile app up -d ledger-consume    # the consumer as a service
+```
+
+Budgets are in `config/ai.php` under `budgets` (dollars; plans, features, anonymous traffic, the app's hour) and are enforced from Redis counters on keys that share the hash tag `{ai-budget}`, with the two Lua scripts in `resources/redis/`. At 80% the owning team (and a tenant's admin) is mailed; at 100% the support assistant falls down its ladder: a cheaper role, then shorter answers, then a cached answer, then help-center articles and a link to a person. `AI_BUDGETS_ENABLED=false` removes the decorator from the chain; `AI_BUDGETS_STORE=array` keeps the counters in memory for a machine with no Redis. `ai:reconcile` needs a usage export (JSON rows of `date`, `provider`, `model`, `input_tokens`, `output_tokens`, `cost_usd`) or a `usage_url` on the provider; no hosted provider was called while building this chapter.
 
 ## The app as Volume 1 left it
 

@@ -7,9 +7,25 @@ final class PriceMap
 {
     public function find(string $provider, string $model): ?array
     {
-        $models = config('ai-pricing.models', []);
+        $models = config('ai-pricing.models', []);                                      // model names contain dots ("llama3.1:8b"): array keys, not config paths
 
-        return $models[$model] ?? config('ai-pricing.providers', [])[$provider] ?? null;     // model names contain dots ("llama3.1:8b"): array keys, not config paths
+        return $models[$model] ?? $this->dated($models, $model) ?? config('ai-pricing.providers', [])[$provider] ?? null;
+    }
+
+    // A provider may answer with a dated or tagged variant of the model you named ("gpt-x-2026-11-01" for "gpt-x"): the longest priced name the answer starts with.
+    private function dated(array $models, string $model): ?array
+    {
+        $best = null;
+
+        foreach ($models as $name => $price) {
+            if ($name !== '' && strlen((string) $name) > strlen((string) $best) && preg_match('/^'.preg_quote((string) $name, '/').'[-:@]/', $model) === 1) {
+                $best = $name;
+            }
+        }
+
+        return $best === null
+            ? null
+            : $models[$best];
     }
 
     public function for(string $provider, string $model): array

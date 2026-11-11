@@ -48,6 +48,13 @@ class FakeStreams implements Streams
         return $batch;
     }
 
+    public function readPending(string $stream, string $group, string $consumer, int $count = 8): array
+    {
+        $pending = array_keys($this->groups[$stream][$group]['pending'] ?? []);
+
+        return array_slice(array_values(array_filter($this->entries[$stream] ?? [], fn (array $entry) => in_array($entry['id'], $pending, true))), 0, $count);
+    }
+
     public function ack(string $stream, string $group, string $id): void
     {
         unset($this->groups[$stream][$group]['pending'][$id]);

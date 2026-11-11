@@ -3,6 +3,7 @@
 namespace App\Ai\Widget;
 
 use App\Ai\AiManager;
+use App\Ai\Budgets\BudgetExhausted;
 use App\Ai\Contracts\ChatRequest;
 use App\Ai\Contracts\FinishReason;
 use App\Ai\Prompts\SupportPrompt;
@@ -61,6 +62,8 @@ final class PublicWidget
 
         try {
             $response = $this->ai->for(self::FEATURE)->chat($request);
+        } catch (BudgetExhausted) {
+            return $this->searchResults($chunks);                                  // Chapter 36: the anonymous budget, a breaker or the kill switch: search results, not an error
         } catch (Throwable $e) {
             report($e);
 

@@ -70,6 +70,12 @@ final class SupportPrompt
         return 'Sorry for the delay in getting back to you. Are you still there? Ask again and I will answer straight away, or open a ticket and a person will reply.';
     }
 
+    // Chapter 36, Topic 5: the bottom rung of the degrade ladder, and what the kill switch shows. Never a blank error: the closest help-center articles and a way to reach a person.
+    public static function budgetMessage(): string
+    {
+        return 'I cannot write an answer right now. These help-center articles are the closest match, or you can open a ticket and a person will reply.';
+    }
+
     public static function widgetSessionLimitMessage(): string
     {
         return 'That is all the questions I can take from this page for now. Sign up for a free account to keep asking, or browse the help center.';

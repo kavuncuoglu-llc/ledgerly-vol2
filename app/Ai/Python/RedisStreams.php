@@ -66,6 +66,27 @@ final class RedisStreams implements Streams
         return $entries;
     }
 
+    public function readPending(string $stream, string $group, string $consumer, int $count = 8): array
+    {
+        $reply = $this->command(['XREADGROUP', 'GROUP', $group, $consumer, 'COUNT', (string) $count, 'STREAMS', $stream, '0']);       // id 0: this consumer's own pending list
+
+        if (! is_array($reply)) {
+            return [];
+        }
+
+        $entries = [];
+
+        foreach ($reply as [$name, $streamEntries]) {
+            foreach ($streamEntries as [$id, $flat]) {
+                if (is_array($flat)) {
+                    $entries[] = ['id' => (string) $id, 'fields' => $this->pairs($flat)];
+                }
+            }
+        }
+
+        return $entries;
+    }
+
     public function ack(string $stream, string $group, string $id): void
     {
         $this->command(['XACK', $stream, $group, $id]);

@@ -81,7 +81,15 @@ final class ToolRunner
             $options['tools'] = $definitions;
         }
 
-        $final = $this->ai->for($feature)->chat(ChatRequest::make($result->state->messages, ['tool_choice' => 'none'] + $options, $feature));   // a budget ran out: one last call with tools forbidden
+        $provider = $options['provider'] ?? null;                                  // Chapter 36: a degraded run names the cheaper role it was sent to
+
+        unset($options['provider']);
+
+        $model = $provider === null
+            ? $this->ai->for($feature)
+            : $this->ai->chat($provider);
+
+        $final = $model->chat(ChatRequest::make($result->state->messages, ['tool_choice' => 'none'] + $options, $feature));   // a budget ran out: one last call with tools forbidden
 
         return new ToolRunResult($final, $result->state->messages, rounds: $result->rounds, hitCap: true);
     }

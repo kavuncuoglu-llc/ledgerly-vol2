@@ -5,6 +5,8 @@
 
     <livewire:ai-health cols="6" />
 
+    <livewire:ai-budgets cols="6" />
+
     <livewire:pulse.usage cols="4" rows="2" />
 
     <livewire:pulse.queues cols="4" />

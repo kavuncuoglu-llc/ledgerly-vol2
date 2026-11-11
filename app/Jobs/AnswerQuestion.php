@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Ai\Budgets\BucketEmpty;
 use App\Ai\Conversations\ConversationStore;
 use App\Ai\Conversations\NoTenant;
 use App\Ai\Events\ModelCalled;
@@ -24,6 +25,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Queue\Middleware\ThrottlesExceptions;
+use Illuminate\Support\Facades\Context;
 use Throwable;
 
 final class AnswerQuestion implements ShouldBeUnique, ShouldQueue
@@ -53,7 +55,7 @@ final class AnswerQuestion implements ShouldBeUnique, ShouldQueue
     {
         return [
             new RateLimited('ai:'.Ai::providerFor('support.reply')),
-            (new ThrottlesExceptions(3, 5 * 60))->when(fn (Throwable $e) => $e instanceof RateLimitedByProvider)->backoff(1),
+            (new ThrottlesExceptions(3, 5 * 60))->when(fn (Throwable $e) => $e instanceof RateLimitedByProvider || $e instanceof BucketEmpty)->backoff(1),
         ];
     }
 
@@ -76,6 +78,10 @@ final class AnswerQuestion implements ShouldBeUnique, ShouldQueue
 
             return;
         }
+
+        Context::add('tenant_id', $user->tenant_id);                               // Chapter 36: whose spend this is, whether the job runs in a worker or inline
+        Context::add('user_id', $user->id);
+        Context::add('channel', 'app');
 
         $tenants->run($user->tenant_id, fn () => $this->answer($assistant, $reply->id));
     }

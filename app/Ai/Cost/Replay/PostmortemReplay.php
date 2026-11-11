@@ -2,6 +2,7 @@
 
 namespace App\Ai\Cost\Replay;
 
+use App\Ai\Budgets\Teams;
 use App\Ai\Cost\CallCost;
 use App\Ai\Cost\PriceMap;
 use App\Ai\Prompts\SupportPrompt;
@@ -54,6 +55,8 @@ final class PostmortemReplay
 
         DB::table('triage_runs')->where('event_id', 'like', self::TAG.'-%')->delete();
 
+        DB::table('ai_ledger')->where('reason', self::TAG)->delete();
+
         DB::table('answer_signals')->whereIn('conversation_id', $conversations)->delete();
 
         DB::table('messages')->whereIn('conversation_id', $conversations)->delete();
@@ -85,11 +88,13 @@ final class PostmortemReplay
     // The agent that never stopped: twelve investigations of forty-one rounds, each carrying every earlier failed attempt, with no cache hit and no resolution.
     private function loop(CarbonImmutable $now): void
     {
+        $started = $now->subMinutes(14);                                              // it started fourteen minutes ago and has not stopped: what Chapter 36's breaker is for
+
         for ($i = 0; $i < 12; $i++) {
-            $conversation = $this->conversation($now->subDays($i % 3)->subHours(1), 'loop');
+            $conversation = $this->conversation($started, 'loop');
 
             for ($round = 1; $round <= 41; $round++) {
-                $this->call($conversation, 'triage.investigate', 'frontier', $this->frontierModel(), 3_000 + $round * 225, 150, version: 'investigate-v7');
+                $this->call($conversation, 'triage.investigate', 'frontier', $this->frontierModel(), 3_000 + $round * 225, 150, version: 'investigate-v7', at: $started->addSeconds((int) round((($i * 41) + $round) * 840 / 492)));
             }
 
             $this->outcome($conversation, resolved: false);
@@ -176,6 +181,8 @@ final class PostmortemReplay
 
         $row = new ModelCall(['prompt_tokens' => $input, 'completion_tokens' => $output, 'cached_input_tokens' => $cached, 'cache_write_tokens' => 0]);
 
+        $this->ledgerRow($feature, $provider, $model, $input, $output, $cached, CallCost::microUsd($row, $price), $at, $conversation);
+
         DB::table('model_calls')->insert([
             'feature' => $feature,
             'provider' => $provider,
@@ -195,6 +202,33 @@ final class PostmortemReplay
             'variant' => self::TAG,
             'created_at' => $at,
             'updated_at' => $at,
+        ]);
+    }
+
+    // The ledger row the app would have written for this call (Chapter 36), so the spend breaker has something to read. Marked by its reason.
+    private function ledgerRow(string $feature, string $provider, string $model, int $input, int $output, int $cached, int $micros, CarbonImmutable $at, ?int $conversation): void
+    {
+        $tenant = $conversation === null
+            ? null
+            : DB::table('conversations')->where('id', $conversation)->value('tenant_id');
+
+        DB::table('ai_ledger')->insert([
+            'occurred_at' => $at,
+            'trace_id' => md5('replay-trace-'.($this->sequence + 1)),
+            'tenant_id' => $tenant,
+            'user_id' => $conversation === null ? null : $this->user()->id,
+            'feature' => $feature,
+            'team' => Teams::of($feature),
+            'provider' => $provider,
+            'model' => $model,
+            'input_tokens' => $input,
+            'cached_input_tokens' => $cached,
+            'cache_write_tokens' => 0,
+            'output_tokens' => $output,
+            'price_version' => $this->prices->version(),
+            'cost_micro_usd' => $micros,
+            'kind' => 'call',
+            'reason' => self::TAG,
         ]);
     }
 

@@ -2,6 +2,8 @@
 
 namespace Tests;
 
+use App\Ai\Budgets\ArrayCounters;
+use App\Ai\Budgets\Counters;
 use App\Ai\Privacy\ArrayVaultStore;
 use App\Ai\Privacy\Ner;
 use App\Ai\Privacy\VaultStore;
@@ -32,5 +34,6 @@ abstract class TestCase extends BaseTestCase
 
         $this->app->instance(Ner::class, new FakeNer);   // Chapter 34: no test needs Presidio, Redis for the vault, or the privacy profile
         $this->app->instance(VaultStore::class, new ArrayVaultStore);
+        $this->app->instance(Counters::class, new ArrayCounters);                       // Chapter 36: budgets, the kill switch and the breaker keep their counters in memory
     }
 }

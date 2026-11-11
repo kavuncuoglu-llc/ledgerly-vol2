@@ -212,11 +212,12 @@ return [
     'features' => [
         'ticket.classify' => ['provider' => 'local', 'profile' => 'deterministic'],
         'ticket.extract' => ['provider' => 'local', 'profile' => 'deterministic'],
-        'support.reply' => ['provider' => 'local', 'profile' => 'assistant', 'escalate_to' => 'frontier', 'allowed_providers' => ['local', 'local-70b', 'frontier'], 'requires' => ['dpa_signed']],
-        'triage.draft' => ['provider' => 'local', 'profile' => 'grounded', 'escalate_to' => 'frontier'],
+        'support.reply' => ['provider' => 'local', 'profile' => 'assistant', 'escalate_to' => 'frontier', 'allowed_providers' => ['local', 'local-70b', 'frontier'], 'requires' => ['dpa_signed'], 'ladder' => ['cheaper_role', 'tighter_limits', 'cache_only', 'search']],
+        'triage.draft' => ['provider' => 'local', 'profile' => 'grounded', 'escalate_to' => 'frontier', 'background' => true],          // Chapter 36: nobody is waiting on a draft: over budget it pauses instead of degrading
         'invoice.extract' => ['provider' => 'vision', 'profile' => 'deterministic', 'allowed_providers' => ['local', 'vision']],   // scanned documents never leave
-        'conversation.summarize' => ['provider' => 'local', 'profile' => 'deterministic'],
-        'widget.ask' => ['provider' => 'local', 'profile' => 'grounded', 'allowed_providers' => ['local']],     // Chapter 35: the public widget never reaches a hosted model, whatever anyone configures
+        'conversation.summarize' => ['provider' => 'local', 'profile' => 'deterministic', 'background' => true],
+        'reminder.draft' => ['background' => true, 'team' => 'billing'],
+        'widget.ask' => ['provider' => 'local', 'profile' => 'grounded', 'allowed_providers' => ['local'], 'ladder' => ['search']],     // Chapter 35: the public widget never reaches a hosted model, whatever anyone configures
     ],
 
     // Chapter 34: what may leave the app, what is found before it does, and how long the copies we cannot delete on request live.
@@ -290,6 +291,47 @@ return [
         'margin_pct' => 0.05,
         'context' => 3500,
         // history = window - (answer + system + margin + context)
+    ],
+
+    // Chapter 36: the ledger, the budgets and the breaker. Amounts are dollars here and integer micro-dollars everywhere else.
+    // `enabled` puts BudgetedModel in the provider chain; with Redis unreachable a call goes through unguarded and the failure is logged. `store` = array keeps the counters in memory (one process: tests, a machine with no Redis).
+    'budgets' => [
+        'enabled' => (bool) env('AI_BUDGETS_ENABLED', true),
+        'store' => env('AI_BUDGETS_STORE', 'redis'),
+        'redis_connection' => env('AI_BUDGETS_REDIS_CONNECTION', 'default'),
+        'warn_at' => 0.8,                                                    // the owning team (and a tenant's admin) is told here; features degrade at 100%
+        'default_max_tokens' => 1024,                                        // a request that names no max_tokens is reserved for this many output tokens
+        'unpriced_usd_per_million' => 15.0,                                  // what a hosted model nobody priced is reserved at, so it is never free by accident
+        'tenant_month_usd' => ['starter' => 5, 'pro' => 25, 'enterprise' => 100, 'default' => 25],      // by plan: illustrative, set your own
+        'tenant_day_share' => 0.2,                                           // one day may spend at most this share of the month
+        'feature_day_usd' => ['support.reply' => 50, 'triage.draft' => 10, 'support.shadow' => 5, '*' => 10],
+        'anonymous_day_usd' => 5,
+        'app_hour_usd' => 250,                                               // far above normal: hitting it fires the global kill switch
+        'anonymous_features' => ['widget.ask'],
+        'breaker' => ['window_minutes' => 15, 'ratio' => 5, 'floor_usd' => 0.50, 'open_minutes' => 30, 'trickle_every' => 10],
+        'notify' => [
+            'oncall_email' => env('AI_ONCALL_EMAIL'),
+            'channel_webhook' => env('AI_TEAM_CHANNEL_WEBHOOK'),
+        ],
+        'reconcile' => ['tolerance' => 0.02, 'usage_file' => env('AI_PROVIDER_USAGE_FILE')],          // a gap above this share of the provider's figure is reported
+    ],
+
+    'ledger' => [
+        'enabled' => (bool) env('AI_LEDGER_ENABLED', true),
+        'stream' => '{ai-budget}:ledger',
+        'group' => 'ledger-writers',
+        'batch' => 500,
+        'queue' => 'ledger',
+        'hardware_usd_per_million_tokens' => ['*' => (float) env('AI_HARDWARE_USD_PER_M', 0)],      // an amortized rate for your own hardware, so local use shows in a team's spend; 0 = tokens only
+    ],
+
+    // Who owns a feature: the prefixes of its name. A team is mailed its breaker and 80% notices and gets the weekly showback. An entry in ai.features.<name>.team wins.
+    'teams' => [
+        'support' => ['prefixes' => ['support.', 'ticket.', 'triage.', 'conversation.', 'retrieval.'], 'email' => [env('TEAM_SUPPORT_EMAIL')]],
+        'billing' => ['prefixes' => ['invoice.', 'reminder.'], 'email' => [env('TEAM_BILLING_EMAIL')]],
+        'growth' => ['prefixes' => ['widget.'], 'email' => [env('TEAM_GROWTH_EMAIL')]],
+        'platform' => ['prefixes' => ['ai.', 'compare.', 'eval.', 'judge.'], 'email' => [env('TEAM_PLATFORM_EMAIL')]],
+        'finance' => ['prefixes' => [], 'email' => [env('TEAM_FINANCE_EMAIL')]],
     ],
 
     // Chapter 35, Topic 9: the thresholds ai:cost-audit holds the five postmortems' signatures to.

@@ -94,3 +94,18 @@ services:
         condition: service_completed_successfully
     stop_grace_period: 120s
     restart: unless-stopped
+
+  # Chapter 36: reads the ledger stream and hands batches to the `ledger` queue that Horizon runs. If it is down, entries wait in the stream and nothing is lost; the scheduler's `ai:ledger-consume --once` is a safety net behind it.
+  ledger-consume:
+    <<: *app
+    profiles: ["app"]
+    command: ["php", "artisan", "ai:ledger-consume"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 30s
+    restart: unless-stopped

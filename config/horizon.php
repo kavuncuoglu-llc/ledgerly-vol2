@@ -221,6 +221,16 @@ return [
             'tries' => 1,
         ],
 
+        'ledger' => [                                                         // Chapter 36: ai:ledger-consume hands batches of ledger entries to this queue; they never wait behind a customer's answer
+            'connection' => 'redis',
+            'queue' => ['ledger'],
+            'balance' => 'simple',
+            'processes' => 1,
+            'memory' => 128,
+            'timeout' => 60,
+            'tries' => 5,
+        ],
+
         'default' => [
             'connection' => 'redis',
             'queue' => ['default'],

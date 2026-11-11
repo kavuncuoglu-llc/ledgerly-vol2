@@ -19,7 +19,7 @@ it('keeps background model work on ai-batch so it never delays a reply', functio
     expect(config('horizon.defaults.ai-batch.queue'))->toBe(['ai-batch'])
         ->and(config('horizon.defaults.ai-batch.maxProcesses'))->toBe(2)
         ->and(config('horizon.defaults.default.queue'))->toBe(['default'])
-        ->and(array_keys(config('horizon.defaults')))->toBe(['ai-interactive', 'ai-batch', 'default']);
+        ->and(array_keys(config('horizon.defaults')))->toBe(['ai-interactive', 'ai-batch', 'ledger', 'default']);
 });
 
 it('reads the worker count from the environment in every environment that runs workers', function () {

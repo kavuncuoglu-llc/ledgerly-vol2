@@ -5,6 +5,7 @@ namespace App\Ai\Listeners;
 use App\Ai\Cost\CallCost;
 use App\Ai\Cost\PriceMap;
 use App\Ai\Events\ModelCalled;
+use App\Ai\Ledger\LedgerWriter;
 use App\Models\ModelCall;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Log;
@@ -47,6 +48,8 @@ final class RecordModelCall
         $e->modelCallId = $row->id;
 
         $e->costMicros = $row->cost_micros;
+
+        app(LedgerWriter::class)->append($e);                                        // Chapter 36: one ledger entry per call, on a Redis stream
 
         if ($e->finishReason === 'length') {
             Log::warning('Completion truncated', ['feature' => $e->feature, 'usage' => $e->usage]);

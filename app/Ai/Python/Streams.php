@@ -13,6 +13,9 @@ interface Streams
     /** @return array<int, array{id: string, fields: array<string, string>}> */
     public function readGroup(string $stream, string $group, string $consumer, int $count = 8, int $blockMilliseconds = 0): array;
 
+    /** @return array<int, array{id: string, fields: array<string, string>}> entries this consumer was given and never acknowledged (Chapter 36: a consumer that was killed reads them again on restart) */
+    public function readPending(string $stream, string $group, string $consumer, int $count = 8): array;
+
     public function ack(string $stream, string $group, string $id): void;
 
     public function length(string $stream): int;

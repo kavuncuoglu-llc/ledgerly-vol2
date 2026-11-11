@@ -7,6 +7,7 @@ use App\Ai\Experiments\Experiment;
 use App\Ai\Prompts\SupportPrompt;
 use App\Evals\Gates;
 use App\Facades\Ai;
+use App\Jobs\Middleware\PauseWhenBudgetSpent;
 use App\Models\Message;
 use App\Models\ShadowAnswerRecord;
 use App\Models\User;
@@ -24,6 +25,11 @@ final class ShadowAnswer implements ShouldQueue
     public function __construct(public readonly int $messageId)
     {
         $this->onQueue('ai-batch');
+    }
+
+    public function middleware(): array
+    {
+        return [new PauseWhenBudgetSpent];                                         // Chapter 36: nobody is waiting on a shadow answer
     }
 
     public function handle(): void

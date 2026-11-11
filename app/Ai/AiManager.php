@@ -2,9 +2,13 @@
 
 namespace App\Ai;
 
+use App\Ai\Budgets\BudgetGuard;
+use App\Ai\Budgets\Counters;
+use App\Ai\Budgets\KillSwitch;
 use App\Ai\Contracts\ChatModel;
 use App\Ai\Contracts\EmbeddingModel;
 use App\Ai\Contracts\Reranker;
+use App\Ai\Decorators\BudgetedModel;
 use App\Ai\Decorators\ProfileMergingModel;
 use App\Ai\Decorators\RedactingModel;
 use App\Ai\Decorators\RetryingEmbeddings;
@@ -15,6 +19,7 @@ use App\Ai\Drivers\FakeDriver;
 use App\Ai\Drivers\OpenAiCompatibleDriver;
 use App\Ai\Exceptions\ProviderNotConfigured;
 use App\Ai\Health\ProviderHealth;
+use App\Ai\Ledger\Costing;
 use App\Ai\Privacy\PersonalDataDetector;
 use App\Ai\Privacy\VaultFactory;
 use App\Ai\Retrieval\SidecarReranker;
@@ -66,6 +71,32 @@ final class AiManager
         return $this->configured($target)
             ? (string) $target
             : null;
+    }
+
+    // Chapter 36, Topic 5, rung 1: the next provider down the tiers (frontier, mid, small) that is set up and that the feature may use, or null when this one is already the cheapest.
+    public function cheaperThan(string $provider, ?string $feature = null): ?string
+    {
+        $order = array_values(array_filter([config('ai.tiers.frontier'), config('ai.tiers.mid'), config('ai.tiers.small')]));
+
+        $position = array_search($provider, $order, true);
+
+        if ($position === false) {
+            return null;
+        }
+
+        foreach (array_slice($order, $position + 1) as $candidate) {
+            if (! $this->configured($candidate)) {
+                continue;
+            }
+
+            if ($feature !== null && ! $this->mayReceive($feature, $candidate)) {
+                continue;
+            }
+
+            return $candidate;
+        }
+
+        return null;
     }
 
     // Chapter 34, Topic 2: may this feature's data go to this provider? The feature's list of allowed providers, and the answers recorded beside the provider that the feature requires (a signed DPA, for example).
@@ -259,10 +290,20 @@ final class AiManager
     private function decorate(string $name, ChatModel $driver): ChatModel
     {
         if ($this->faking) {
-            return new TracingModel($this->redacting($name, new ProfileMergingModel(new FakeDriver($name, $this->fake()))));  // a fake logs nothing and never sleeps, but a test can still assert on the merged profile, and on its span (Chapter 31)
+            return new TracingModel($this->budgeted($name, $this->redacting($name, new ProfileMergingModel(new FakeDriver($name, $this->fake())))));  // a fake logs nothing and never sleeps, but a test can still assert on the merged profile, and on its span (Chapter 31)
         }
 
-        return new TracingModel($this->redacting($name, new UsageLoggingModel(new RetryingModel(new ProfileMergingModel($driver)))));      // tracing outermost: its span is the current one when usage is logged (Chapter 31)
+        return new TracingModel($this->budgeted($name, $this->redacting($name, new UsageLoggingModel(new RetryingModel(new ProfileMergingModel($driver))))));      // tracing outermost: its span is the current one when usage is logged (Chapter 31)
+    }
+
+    // Chapter 36: the budget decorator sits just inside tracing and outside redaction, so a refused call never reaches the redactor and the budget span is the current one. Off (the default in the test suite) it is not in the chain at all.
+    private function budgeted(string $name, ChatModel $inner): ChatModel
+    {
+        if (! config('ai.budgets.enabled')) {
+            return $inner;
+        }
+
+        return new BudgetedModel($inner, app(BudgetGuard::class), app(KillSwitch::class), app(Counters::class), app(Costing::class), $name, (string) ($this->resolved($name)['model'] ?? ''));
     }
 
     private function redacting(string $name, ChatModel $inner): ChatModel

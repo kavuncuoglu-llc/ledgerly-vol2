@@ -56,6 +56,9 @@
         <env name="AI_GPU_USD_PER_HOUR" value="0" force="true"/>
         <env name="AI_70B_GPU_USD_PER_HOUR" value="0" force="true"/>
         <env name="AI_RECORD_REQUESTS" value="false" force="true"/>
+        <env name="AI_BUDGETS_ENABLED" value="false" force="true"/>
+        <env name="AI_BUDGETS_STORE" value="array" force="true"/>
+        <env name="AI_LEDGER_ENABLED" value="false" force="true"/>
         <env name="AI_EVAL_ENABLED" value="false" force="true"/>
         <env name="EVAL_TOKEN" value="" force="true"/>
         <env name="OTEL_PHP_AUTOLOAD_ENABLED" value="false" force="true"/>

@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Ai\AiManager;
 use App\Ai\Contracts\ChatRequest;
 use App\Ai\Prompts\ReminderPrompt;
+use App\Jobs\Middleware\PauseWhenBudgetSpent;
 use App\Models\Invoice;
 use App\Models\ReminderDraft;
 use Illuminate\Bus\Batchable;
@@ -23,6 +24,11 @@ final class DraftReminder implements ShouldQueue
     public function __construct(public readonly int $invoiceId)
     {
         $this->onQueue('ai-batch');
+    }
+
+    public function middleware(): array
+    {
+        return [new PauseWhenBudgetSpent];                                         // Chapter 36: a reminder draft waits for the budget to reset instead of failing
     }
 
     public function handle(AiManager $ai): void
