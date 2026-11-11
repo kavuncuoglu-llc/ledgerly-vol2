@@ -1,0 +1,118 @@
+# Project Gutenberg ebook ids for the tiny model's corpus (public domain in the USA).
+# prepare_corpus.py downloads each once into a cache outside git and checks the "Language: English" header.
+1342  # Pride and Prejudice
+158   # Emma
+161   # Sense and Sensibility
+105   # Persuasion
+121   # Northanger Abbey
+141   # Mansfield Park
+84    # Frankenstein
+11    # Alice's Adventures in Wonderland
+12    # Through the Looking-Glass
+1661  # The Adventures of Sherlock Holmes
+834   # The Memoirs of Sherlock Holmes
+108   # The Return of Sherlock Holmes
+244   # A Study in Scarlet
+2097  # The Sign of the Four
+2852  # The Hound of the Baskervilles
+2701  # Moby-Dick
+98    # A Tale of Two Cities
+1400  # Great Expectations
+766   # David Copperfield
+730   # Oliver Twist
+46    # A Christmas Carol
+580   # The Pickwick Papers
+1023  # Bleak House
+786   # Hard Times
+967   # Nicholas Nickleby
+700   # The Old Curiosity Shop
+963   # Little Dorrit
+883   # Our Mutual Friend
+821   # Dombey and Son
+345   # Dracula
+174   # The Picture of Dorian Gray
+844   # The Importance of Being Earnest
+76    # Adventures of Huckleberry Finn
+74    # The Adventures of Tom Sawyer
+86    # A Connecticut Yankee in King Arthur's Court
+245   # Life on the Mississippi
+1837  # The Prince and the Pauper
+3176  # The Innocents Abroad
+1260  # Jane Eyre
+768   # Wuthering Heights
+145   # Middlemarch
+550   # Silas Marner
+6688  # The Mill on the Floss
+110   # Tess of the d'Urbervilles
+107   # Far from the Madding Crowd
+153   # Jude the Obscure
+43    # Strange Case of Dr Jekyll and Mr Hyde
+120   # Treasure Island
+421   # Kidnapped
+35    # The Time Machine
+36    # The War of the Worlds
+5230  # The Invisible Man
+159   # The Island of Doctor Moreau
+164   # Twenty Thousand Leagues under the Sea
+103   # Around the World in Eighty Days
+83    # From the Earth to the Moon
+1268  # The Mysterious Island
+1184  # The Count of Monte Cristo
+1257  # The Three Musketeers
+1259  # Twenty Years After
+2610  # Notre-Dame de Paris
+135   # Les Miserables
+2600  # War and Peace
+1399  # Anna Karenina
+2554  # Crime and Punishment
+28054 # The Brothers Karamazov
+996   # Don Quixote
+2814  # Dubliners
+4217  # A Portrait of the Artist as a Young Man
+219   # Heart of Darkness
+215   # The Call of the Wild
+910   # White Fang
+55    # The Wonderful Wizard of Oz
+16    # Peter Pan
+113   # The Secret Garden
+45    # Anne of Green Gables
+514   # Little Women
+289   # The Wind in the Willows
+236   # The Jungle Book
+209   # The Turn of the Screw
+432   # The Ambassadors
+541   # The Age of Innocence
+284   # The House of Mirth
+160   # The Awakening
+33    # The Scarlet Letter
+829   # Gulliver's Travels
+521   # Robinson Crusoe
+6593  # Tom Jones
+19942 # Candide
+1952  # The Yellow Wallpaper
+5200  # Metamorphosis
+2500  # Siddhartha
+1080  # A Modest Proposal
+205   # Walden
+2009  # On the Origin of Species
+3300  # The Wealth of Nations
+5827  # The Problems of Philosophy
+1404  # The Federalist Papers
+147   # Common Sense
+408   # The Souls of Black Folk
+23    # Narrative of the Life of Frederick Douglass
+20203 # Autobiography of Benjamin Franklin
+1155  # The Secret Adversary
+863   # The Mysterious Affair at Styles
+1232  # The Prince
+132   # The Art of War
+2680  # Meditations
+1497  # The Republic
+7370  # Second Treatise of Government
+3207  # Leviathan
+815   # Democracy in America, Volume 1
+3420  # A Vindication of the Rights of Woman
+2130  # Utopia
+1250  # Anthem
+3825  # Pygmalion
+2542  # A Doll's House

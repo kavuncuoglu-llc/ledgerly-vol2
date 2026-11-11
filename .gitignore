@@ -70,3 +70,13 @@ __pycache__/
 /storage/datasets/
 /storage/ft/
 /training/tools/
+
+# Chapter 45: the tiny model's corpus, tokenizer, token IDs, checkpoints and caches are rebuilt by its scripts
+/training/tiny/corpus/
+/training/tiny/cache/
+/training/tiny/ckpt*/
+/training/tiny/mlruns/
+/training/tiny/tokenizer.json
+/training/tiny/**/*.bin
+/training/tiny/data/*.jsonl
+/training/data/synthetic/
