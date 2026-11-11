@@ -39,6 +39,7 @@ use App\Models\User;
 use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -105,11 +106,11 @@ final class SupportAssistant
             return $this->unavailable($conversation, $question, $reply, recorded: false);   // Chapter 25: the cache had no answer, the server is down and nothing is named to take over
         }
 
-        $route = $this->route($user, $question, $history);                         // Chapter 17: the first question is classified; a follow-up keeps every tool
+        $route = $this->resumable($reply, 'classify', fn () => $this->route($user, $question, $history));                         // Chapter 17: the first question is classified; a follow-up keeps every tool
 
         $chunks = $contextChunks !== []
             ? $contextChunks
-            : $this->retrieve($user, $question, $route->area);                     // [] is a valid result: the docs do not cover it
+            : $this->resumable($reply, 'retrieve', fn () => $this->retrieve($user, $question, $route->area));   // [] is a valid result: the docs do not cover it
 
         if ($route->isDecline() && $chunks === []) {
             return $this->decline($conversation, $question, $reply);                       // not a Ledgerly question and nothing in the help center: no model call
@@ -175,6 +176,16 @@ final class SupportAssistant
         }
 
         return $result;
+    }
+
+    // Chapter 35, Topic 6: a step that was already paid for is remembered by the reply it belongs to, so a retried job resumes instead of repeating the classification and the retrieval.
+    private function resumable(?Message $reply, string $step, Closure $work): mixed
+    {
+        if ($reply === null) {
+            return $work();
+        }
+
+        return Cache::remember("{$step}:{$reply->id}", 3600, $work);
     }
 
     // Chapter 30, Topic 4: during an A/B test a customer is sticky in one variant; the treatment brings its own system prompt. [null, null] when no test runs.

@@ -18,11 +18,13 @@
                     <col width="100%" />
                     <col width="0%" />
                     <col width="0%" />
+                    <col width="0%" />
                 </colgroup>
                 <x-pulse::thead>
                     <tr>
                         <x-pulse::th>Feature</x-pulse::th>
                         <x-pulse::th class="text-right">Tokens</x-pulse::th>
+                        <x-pulse::th class="text-right">Cached</x-pulse::th>
                         <x-pulse::th class="text-right">Cost</x-pulse::th>
                     </tr>
                 </x-pulse::thead>
@@ -31,6 +33,7 @@
                         <tr wire:key="{{ $feature->feature }}-row">
                             <x-pulse::td><code class="text-xs">{{ $feature->feature }}</code></x-pulse::td>
                             <x-pulse::td numeric class="text-gray-700 dark:text-gray-300 font-bold">{{ number_format($feature->tokens) }}</x-pulse::td>
+                            <x-pulse::td numeric class="text-gray-700 dark:text-gray-300">{{ $feature->cachedShare === null ? '—' : round($feature->cachedShare * 100).'%' }}</x-pulse::td>
                             <x-pulse::td numeric class="text-gray-700 dark:text-gray-300 font-bold">${{ number_format($feature->costUsd, 4) }}</x-pulse::td>
                         </tr>
                     @endforeach

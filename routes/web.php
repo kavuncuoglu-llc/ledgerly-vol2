@@ -15,6 +15,8 @@ use App\Http\Controllers\ReplyController;
 use App\Http\Controllers\StaffApprovalController;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\WidgetController;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', DashboardController::class)->name('dashboard');
@@ -60,3 +62,7 @@ Route::get('settings/memories', [MemoryController::class, 'index'])->middleware(
 Route::delete('settings/memories/{memory}', [MemoryController::class, 'destroy'])->middleware('auth')->name('settings.memories.destroy');
 
 Route::get('ops/metrics', OpsMetricsController::class)->name('ops.metrics');
+
+Route::get('widget', [WidgetController::class, 'show'])->name('widget.show');
+Route::get('widget/challenge', [WidgetController::class, 'challenge'])->middleware('throttle:widget')->name('widget.challenge');
+Route::post('widget/ask', [WidgetController::class, 'ask'])->middleware('throttle:widget')->withoutMiddleware(ValidateCsrfToken::class)->name('widget.ask');

@@ -93,7 +93,7 @@ describe('what the usage-logging decorator puts on ModelCalled', function () {
 
         chatThroughLayer([['role' => 'user', 'content' => 'hi']], ['conversation_id' => 7], 'support.reply');
 
-        expect(recordedFields()->cached_tokens)->toBe(1536);
+        expect(recordedFields()->cached_input_tokens)->toBe(1536);
     });
 
     it('estimates them from the shared prefix when the server does not say', function () {
@@ -103,11 +103,11 @@ describe('what the usage-logging decorator puts on ModelCalled', function () {
 
         chatThroughLayer([$system, ['role' => 'user', 'content' => 'one']], ['conversation_id' => 7], 'support.reply');
 
-        expect(recordedFields()->cached_tokens)->toBe(0);
+        expect(recordedFields()->cached_input_tokens)->toBe(0);
 
         chatThroughLayer([$system, ['role' => 'user', 'content' => 'two']], ['conversation_id' => 7], 'support.reply');
 
-        expect(recordedFields()->cached_tokens)->toBeGreaterThan(190);
+        expect(recordedFields()->cached_input_tokens)->toBeGreaterThan(190);
     });
 
     it('never estimates more cached tokens than the server says the prompt had', function () {
@@ -118,7 +118,7 @@ describe('what the usage-logging decorator puts on ModelCalled', function () {
         chatThroughLayer([$system, ['role' => 'user', 'content' => 'one']], ['conversation_id' => 7], 'support.reply');
         chatThroughLayer([$system, ['role' => 'user', 'content' => 'two']], ['conversation_id' => 7], 'support.reply');
 
-        expect(recordedFields()->cached_tokens)->toBe(100);
+        expect(recordedFields()->cached_input_tokens)->toBe(100);
     });
 
     it('records nothing about caching for a call outside a conversation', function () {
@@ -126,7 +126,7 @@ describe('what the usage-logging decorator puts on ModelCalled', function () {
 
         chatThroughLayer([['role' => 'user', 'content' => 'hi']], [], 'cli.chat');
 
-        expect(recordedFields()->cached_tokens)->toBeNull();
+        expect(recordedFields()->cached_input_tokens)->toBeNull();
     });
 
     it('records the context breakdown and the semantic cache flag, and keeps both out of the request', function () {
@@ -178,7 +178,7 @@ describe('what the usage-logging decorator puts on ModelCalled', function () {
     it('lets a usage block carry the cached tokens when the event does not', function () {
         event(new ModelCalled('support.reply', 'openai', 'gpt-x', ['prompt_tokens' => 100, 'completion_tokens' => 5, 'cached_tokens' => 64], 'stop', 10));
 
-        expect(recordedFields()->cached_tokens)->toBe(64);
+        expect(recordedFields()->cached_input_tokens)->toBe(64);
     });
 });
 
@@ -196,9 +196,9 @@ describe('two consecutive turns of the assistant', function () {
 
         $calls = ModelCall::where('feature', 'support.reply')->orderBy('id')->get();
 
-        expect($calls->pluck('cached_tokens')->all()[0])->toBe(0)
-            ->and($calls[1]->cached_tokens)->toBeGreaterThan(250)                  // the system message (about 310 tokens) at least
-            ->and($calls[2]->cached_tokens)->toBeGreaterThan($calls[1]->cached_tokens);   // and the first exchange as well
+        expect($calls->pluck('cached_input_tokens')->all()[0])->toBe(0)
+            ->and($calls[1]->cached_input_tokens)->toBeGreaterThan(250)                  // the system message (about 310 tokens) at least
+            ->and($calls[2]->cached_input_tokens)->toBeGreaterThan($calls[1]->cached_input_tokens);   // and the first exchange as well
     });
 
     it('send the tool definitions in the same order every time', function () {

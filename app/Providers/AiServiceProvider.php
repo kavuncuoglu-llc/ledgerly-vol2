@@ -38,8 +38,10 @@ use App\Livewire\Pulse\AiSpend;
 use App\Models\PendingToolCall;
 use App\Models\User;
 use App\Policies\PendingActionPolicy;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
 
@@ -93,9 +95,25 @@ class AiServiceProvider extends ServiceProvider
         $this->app->singleton(VaultFactory::class, fn ($app) => VaultFactory::fromConfig($app->make(VaultStore::class)));
     }
 
+    // Chapter 35, Topic 6: one named limiter per provider ('ai:frontier'), in requests per minute, set below the provider's own limit. A provider with no limit configured is not limited.
+    private function registerProviderLimiters(): void
+    {
+        foreach (array_keys(config('ai.providers', [])) as $provider) {
+            RateLimiter::for("ai:{$provider}", function () use ($provider) {
+                $perMinute = (int) config("ai.limits.{$provider}.requests_per_minute", 0);
+
+                return $perMinute > 0
+                    ? Limit::perMinute($perMinute)
+                    : Limit::none();
+            });
+        }
+    }
+
     public function boot(): void
     {
         Event::listen(ToolCalled::class, RecordToolCall::class);
+
+        $this->registerProviderLimiters();
 
         Gate::policy(PendingToolCall::class, PendingActionPolicy::class);
 

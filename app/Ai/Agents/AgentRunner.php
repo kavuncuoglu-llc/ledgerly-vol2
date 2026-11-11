@@ -96,6 +96,8 @@ final class AgentRunner
 
                 $state = $agent->observe($state, $call, $result);                      // your code updates state, not just the history
 
+                $budget->recordOutcome($call, $result);
+
                 $budget->recordTool($tools->get((string) ($call['function']['name'] ?? ''))?->kind() ?? ToolKind::Read);
             }
 
@@ -154,6 +156,7 @@ final class AgentRunner
             'time' => 'max_seconds reached',
             'writes' => 'max_writes reached',
             'no_progress' => 'two identical states in a row',
+            'same_error' => 'the same tool error '.AgentBudget::MAX_SAME_ERROR.' times in a row',
             default => 'stopped',
         };
     }

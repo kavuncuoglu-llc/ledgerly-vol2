@@ -189,19 +189,19 @@ describe('ai:stats', function () {
         return ModelCall::create($overrides + [
             'feature' => 'support.reply', 'provider' => 'ollama', 'model' => 'llama3.1:8b',
             'prompt_tokens' => 1000, 'completion_tokens' => 50, 'finish_reason' => 'stop', 'latency_ms' => 800,
-            'cached_tokens' => 700, 'ttft_ms' => 1800, 'semantic_cache_hit' => null,
+            'cached_input_tokens' => 700, 'ttft_ms' => 1800, 'semantic_cache_hit' => null,
             'context_breakdown' => ['system' => 440, 'memories' => 90, 'summary' => 300, 'history' => 100, 'context' => 40, 'question' => 30],
         ]);
     }
 
     it('prints the four numbers over the window and the week before', function () {
         loggedCall();
-        loggedCall(['prompt_tokens' => 3000, 'cached_tokens' => 1000, 'ttft_ms' => 2200, 'context_breakdown' => ['system' => 440, 'history' => 2000, 'question' => 50]]);
-        loggedCall(['semantic_cache_hit' => true, 'prompt_tokens' => 0, 'completion_tokens' => 0, 'finish_reason' => 'cache', 'cached_tokens' => null, 'ttft_ms' => null, 'context_breakdown' => null]);
+        loggedCall(['prompt_tokens' => 3000, 'cached_input_tokens' => 1000, 'ttft_ms' => 2200, 'context_breakdown' => ['system' => 440, 'history' => 2000, 'question' => 50]]);
+        loggedCall(['semantic_cache_hit' => true, 'prompt_tokens' => 0, 'completion_tokens' => 0, 'finish_reason' => 'cache', 'cached_input_tokens' => null, 'ttft_ms' => null, 'context_breakdown' => null]);
         loggedCall(['semantic_cache_hit' => false]);
 
         foreach (range(1, 7) as $i) {
-            $old = loggedCall(['prompt_tokens' => 2000, 'cached_tokens' => 400]);
+            $old = loggedCall(['prompt_tokens' => 2000, 'cached_input_tokens' => 400]);
 
             ModelCall::whereKey($old->id)->toBase()->update(['created_at' => now()->subDays(3)]);
         }

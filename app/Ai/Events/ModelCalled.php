@@ -26,6 +26,7 @@ final class ModelCalled
         public readonly ?string $variant = null,              // Chapter 30: the experiment variant that wrote this call
         public readonly ?string $traceId = null,              // Chapter 31: the trace and span current when the call was made, so the audit row joins its span
         public readonly ?string $spanId = null,
+        public readonly ?int $cacheWriteTokens = null,        // Chapter 35: billed at the cache-write price
     ) {}
 
     public ?int $modelCallId = null;                          // set by RecordModelCall, so the decorator that dispatched the event can hand the id on (Chapters 30 and 31)

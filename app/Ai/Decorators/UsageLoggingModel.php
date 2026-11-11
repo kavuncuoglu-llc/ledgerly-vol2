@@ -124,6 +124,9 @@ final class UsageLoggingModel extends ModelDecorator
         Pulse::record('ai_tokens', $request->feature, (int) ($usage['prompt_tokens'] ?? 0) + (int) ($usage['completion_tokens'] ?? 0))->sum();
         Pulse::record('ai_cost_microusd', $request->feature, (int) $event->costMicros)->sum();
 
+        Pulse::record('ai_input_tokens', $request->feature, (int) ($usage['prompt_tokens'] ?? 0))->sum();                       // Chapter 35: the cached share of input, per feature, is these two
+        Pulse::record('ai_cached_input_tokens', $request->feature, (int) ($event->cachedTokens ?? 0))->sum();
+
         if ($ttftMs !== null) {
             Pulse::record('ai_ttft_ms', $request->feature, $ttftMs)->avg()->max();
         }

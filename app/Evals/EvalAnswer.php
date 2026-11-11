@@ -14,6 +14,7 @@ final readonly class EvalAnswer
         public int $elapsedMs = 0,
         public string $promptVersion = '',
         public array $sources = [],
+        public int $inputTokens = 0,                                   // Chapter 35: the prompt tokens of every model call the answer caused
     ) {}
 
     public function toArray(): array
@@ -27,6 +28,7 @@ final readonly class EvalAnswer
             'elapsed_ms' => $this->elapsedMs,
             'prompt_version' => $this->promptVersion,
             'sources' => $this->sources,
+            'input_tokens' => $this->inputTokens,
         ];
     }
 
@@ -41,6 +43,7 @@ final readonly class EvalAnswer
             elapsedMs: (int) ($row['elapsed_ms'] ?? 0),
             promptVersion: (string) ($row['prompt_version'] ?? ''),
             sources: $row['sources'] ?? [],
+            inputTokens: (int) ($row['input_tokens'] ?? 0),
         );
     }
 }

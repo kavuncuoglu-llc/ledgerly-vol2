@@ -29,7 +29,7 @@ final class InvestigateAgent implements Agent
 
     public function budget(int $roundsAlreadyUsed = 0): AgentBudget
     {
-        return AgentBudget::fromArray($this->budget, $roundsAlreadyUsed);
+        return AgentBudget::fromArray($this->budget, $roundsAlreadyUsed, 'triage');
     }
 
     public function tools(): ToolRegistry

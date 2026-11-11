@@ -128,6 +128,8 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(ModelCalled::class, RecordModelCall::class);
 
+        RateLimiter::for('widget', fn (Request $request) => Limit::perMinute((int) config('ai.widget.ip_per_minute', 12))->by($request->ip()));           // Chapter 35: one of five controls on the public widget (the others are the challenge, the session budget, the daily budget and the local-only role)
+
         RateLimiter::for('ai', fn (Request $request) => Limit::perMinute(20)->by($request->user()?->id ?: $request->ip()));
 
         Blade::directive('money', fn (string $expression) => "<?php echo e(\\App\\Support\\Money::format({$expression})); ?>");

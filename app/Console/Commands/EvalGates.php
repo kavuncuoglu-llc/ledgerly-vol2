@@ -53,6 +53,10 @@ class EvalGates extends Command
 
         $this->save($summary);
 
+        if (! $summary->inputTokensOk()) {
+            return self::FAILURE;
+        }
+
         return $summary->passed()
             ? self::SUCCESS
             : self::FAILURE;
@@ -97,6 +101,14 @@ class EvalGates extends Command
             $total,
             $summary->neverAllowed,
             $summary->neverOk() ? '✓' : '✗',
+        ));
+
+        $this->line(sprintf(
+            'input tokens    p50 %s · p95 %s per answer (budget %s)   %s',
+            number_format($summary->inputTokenPercentile(0.5)),
+            number_format($summary->inputTokenPercentile(0.95)),
+            number_format((int) config('ai.context.call_budget', 6_000)),
+            $summary->inputTokensOk() ? '✓' : '✗',
         ));
 
         foreach ($summary->bySource() as $source => $row) {

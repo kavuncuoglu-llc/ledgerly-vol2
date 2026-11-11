@@ -21,7 +21,7 @@ it('has the model_calls columns the later chapters query', function () {
     expect(Schema::getColumnListing('model_calls'))->toBe([
         'id', 'feature', 'provider', 'model', 'prompt_tokens', 'completion_tokens',
         'finish_reason', 'latency_ms', 'cost_micros', 'conversation_id', 'created_at', 'updated_at',
-        'prompt_version', 'repaired', 'cached_tokens', 'ttft_ms', 'context_breakdown', 'semantic_cache_hit', 'citation_errors', 'request', 'variant', 'trace_id', 'span_id',
+        'prompt_version', 'repaired', 'cached_input_tokens', 'ttft_ms', 'context_breakdown', 'semantic_cache_hit', 'citation_errors', 'request', 'variant', 'trace_id', 'span_id', 'cache_write_tokens', 'job_uuid', 'attempt',
     ]);
 });
 

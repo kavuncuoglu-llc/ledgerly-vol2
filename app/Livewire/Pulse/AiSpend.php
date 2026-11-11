@@ -18,10 +18,17 @@ class AiSpend extends Card
 
             $cost = $this->aggregate('ai_cost_microusd', ['sum'])->keyBy('key');
 
+            $input = $this->aggregate('ai_input_tokens', ['sum'])->keyBy('key');
+
+            $cached = $this->aggregate('ai_cached_input_tokens', ['sum'])->keyBy('key');
+
             return $tokens->map(fn ($row, $feature) => (object) [
                 'feature' => $feature,
                 'tokens' => (int) $row->sum,
                 'costUsd' => ((int) ($cost[$feature]->sum ?? 0)) / 1_000_000,
+                'cachedShare' => ((int) ($input[$feature]->sum ?? 0)) > 0
+                    ? (int) ($cached[$feature]->sum ?? 0) / (int) $input[$feature]->sum
+                    : null,
             ])->values();
         });
 

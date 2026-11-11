@@ -59,6 +59,27 @@ final readonly class GateSummary
     }
 
     /** @return Collection<int, CaseResult> */
+    // Chapter 35, Topic 4: a commit that triples the input tokens per answer fails review even when quality holds. Per answer, p50 and p95, from what the answers cost to ask.
+    public function inputTokenPercentile(float $percentile): int
+    {
+        $tokens = $this->results
+            ->map(fn (CaseResult $result) => $result->answer?->inputTokens ?? 0)
+            ->filter(fn (int $count) => $count > 0)
+            ->sort()
+            ->values();
+
+        if ($tokens->isEmpty()) {
+            return 0;
+        }
+
+        return (int) $tokens[(int) max(0, ceil($percentile * $tokens->count()) - 1)];
+    }
+
+    public function inputTokensOk(): bool
+    {
+        return $this->inputTokenPercentile(0.95) <= (int) config('ai.context.call_budget', 6_000);
+    }
+
     public function failing(): Collection
     {
         return $this->results
@@ -97,6 +118,8 @@ final readonly class GateSummary
             'never_failures' => $this->neverFailures(),
             'never_allowed' => $this->neverAllowed,
             'passed' => $this->passed(),
+            'input_tokens_p50' => $this->inputTokenPercentile(0.5),
+            'input_tokens_p95' => $this->inputTokenPercentile(0.95),
             'by_source' => $this->bySource(),
             'by_category' => $this->byCategory(),
             'failing' => $this->failing()->map(fn (CaseResult $result) => $result->toArray())->all(),

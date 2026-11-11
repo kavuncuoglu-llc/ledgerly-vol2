@@ -90,12 +90,12 @@ class AiStats extends Command
 
     private function promptCacheRate(Collection $calls): ?float
     {
-        $measured = $calls->whereNotNull('cached_tokens')->where('semantic_cache_hit', '!=', true);
+        $measured = $calls->whereNotNull('cached_input_tokens')->where('semantic_cache_hit', '!=', true);
 
         $prompt = $measured->sum('prompt_tokens');
 
         return $prompt > 0
-            ? $measured->sum('cached_tokens') / $prompt
+            ? $measured->sum('cached_input_tokens') / $prompt
             : null;
     }
 

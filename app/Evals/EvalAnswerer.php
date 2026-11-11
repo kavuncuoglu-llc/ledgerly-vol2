@@ -8,6 +8,7 @@ use App\Jobs\AnswerQuestion;
 use App\Models\Customer;
 use App\Models\HelpChunk;
 use App\Models\Message;
+use App\Models\ModelCall;
 use App\Models\User;
 use App\Tenancy\CurrentTenant;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -36,6 +37,7 @@ final class EvalAnswerer
             elapsedMs: (int) ((hrtime(true) - $started) / 1_000_000),
             promptVersion: SupportPrompt::VERSION,
             sources: $this->sourcesOf($reply->retrieved ?? []),
+            inputTokens: (int) ModelCall::query()->where('conversation_id', $reply->conversation_id)->sum('prompt_tokens'),
         );
     }
 

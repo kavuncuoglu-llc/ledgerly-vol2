@@ -42,6 +42,9 @@ class TracingServiceProvider extends ServiceProvider
         });
 
         Event::listen(JobProcessing::class, function (JobProcessing $event) {
+            Context::add('job_uuid', $event->job->uuid() ?? (string) $event->job->getJobId());           // Chapter 35: which job a model call belongs to, and which attempt it was
+            Context::add('job_attempt', $event->job->attempts());
+
             $parent = TraceContextPropagator::getInstance()->extract($event->job->payload()['otel'] ?? []);
 
             $span = Tracing::tracer('ledgerly.queue')

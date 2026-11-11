@@ -51,12 +51,17 @@ final class HelpIngestor
         bool $dryRun = false,
         ?string $strategy = null,
         ?string $headers = null,
+        bool $acceptChunkSizes = false,
     ): IngestReport {
         $started = microtime(true);
 
         $headers = $this->headers($headers);
 
         $prepared = $this->prepare($articles, $strategy, $headers);
+
+        if (! $acceptChunkSizes && config('ai.ingest.chunk_gate.enabled', true)) {
+            (new ChunkSizeGate)->check($prepared);                                     // Chapter 35: before anything is embedded or written
+        }
 
         $existing = $this->existing($articles, $partial);
 

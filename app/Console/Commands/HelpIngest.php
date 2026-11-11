@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Ai\Cache\HelpVersion;
 use App\Ai\Embeddings\EmbeddingFailed;
 use App\Ai\Ingestion\BoilerplateStripper;
+use App\Ai\Ingestion\ChunkSizeDrift;
 use App\Ai\Ingestion\HelpIngestor;
 use App\Ai\Parsing\DocumentArticles;
 use App\Ai\Parsing\ParsingFailed;
@@ -24,6 +25,7 @@ class HelpIngest extends Command
         {--strategy= : heading (one chunk per section) or parent-child (match small children, ground on the section); default config ai.retrieval.strategy}
         {--context-headers : Prepend the title and heading path to each child before embedding it (no model call)}
         {--context-summaries : Also ask the model for a sentence per chunk that situates it in its article}
+        {--accept-chunk-sizes : Write the chunks even though their sizes moved (the Chapter 35 gate: too many chunks over 512 tokens, or a mean far from what is indexed)}
         {--force : Embed every chunk again, for example after changing AI_EMBED_MODEL}
         {--dry-run : Chunk and diff against help_chunks without calling the model or writing}';
 
@@ -58,8 +60,9 @@ class HelpIngest extends Command
                 dryRun: (bool) $this->option('dry-run'),
                 strategy: $this->option('strategy') ?: null,
                 headers: $this->headerMode(),
+                acceptChunkSizes: (bool) $this->option('accept-chunk-sizes'),
             );
-        } catch (ConnectionException|RequestException|EmbeddingFailed|InvalidArgumentException $e) {
+        } catch (ConnectionException|RequestException|EmbeddingFailed|InvalidArgumentException|ChunkSizeDrift $e) {
             $this->error($e->getMessage());
 
             return self::FAILURE;

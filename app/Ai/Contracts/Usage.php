@@ -9,6 +9,7 @@ final readonly class Usage
         public int $completionTokens,
         public ?int $cachedTokens = null,
         public ?int $reasoningTokens = null,
+        public ?int $cacheWriteTokens = null,
     ) {}
 
     public static function fromArray(array $usage): self
@@ -22,7 +23,18 @@ final readonly class Usage
             reasoningTokens: isset($usage['completion_tokens_details']['reasoning_tokens'])
                 ? (int) $usage['completion_tokens_details']['reasoning_tokens']
                 : null,
+            cacheWriteTokens: self::cacheWrite($usage),
         );
+    }
+
+    // Chapter 35: the tokens a provider billed at its cache-write price. OpenAI-compatible servers that report them put them in prompt_tokens_details; Anthropic's own field is cache_creation_input_tokens.
+    private static function cacheWrite(array $usage): ?int
+    {
+        $written = $usage['prompt_tokens_details']['cache_write_tokens'] ?? $usage['cache_creation_input_tokens'] ?? $usage['cache_write_tokens'] ?? null;
+
+        return $written === null
+            ? null
+            : (int) $written;
     }
 
     public function total(): int
@@ -37,6 +49,7 @@ final readonly class Usage
             'completion_tokens' => $this->completionTokens,
             'cached_tokens' => $this->cachedTokens,
             'reasoning_tokens' => $this->reasoningTokens,
+            'cache_write_tokens' => $this->cacheWriteTokens,
         ], fn ($count) => $count !== null);
     }
 }

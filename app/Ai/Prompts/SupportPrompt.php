@@ -64,6 +64,22 @@ final class SupportPrompt
         return 'Our assistant is briefly unavailable. You can search the help center in the meantime, or open a ticket and a person will reply.';
     }
 
+    // Chapter 35: the template 'delayed-are-you-there'. No model writes it.
+    public static function delayedMessage(): string
+    {
+        return 'Sorry for the delay in getting back to you. Are you still there? Ask again and I will answer straight away, or open a ticket and a person will reply.';
+    }
+
+    public static function widgetSessionLimitMessage(): string
+    {
+        return 'That is all the questions I can take from this page for now. Sign up for a free account to keep asking, or browse the help center.';
+    }
+
+    public static function widgetSearchMessage(): string
+    {
+        return 'I cannot answer questions right now, but these help-center articles may have what you need.';
+    }
+
     public static function truncatedMessage(): string
     {
         return 'That answer was cut off before it was finished, so I have not shown it. Please ask again, or open a ticket and a person will reply.';

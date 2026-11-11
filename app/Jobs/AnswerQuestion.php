@@ -2,9 +2,12 @@
 
 namespace App\Jobs;
 
+use App\Ai\Conversations\ConversationStore;
 use App\Ai\Conversations\NoTenant;
 use App\Ai\Events\ModelCalled;
+use App\Ai\Exceptions\RateLimited as RateLimitedByProvider;
 use App\Ai\Experiments\Experiment;
+use App\Ai\Prompts\SupportPrompt;
 use App\Ai\Streaming\ReplyChannel;
 use App\Ai\Streaming\ReplyNotAuthorised;
 use App\Ai\Streaming\ReplyStream;
@@ -19,6 +22,8 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\RateLimited;
+use Illuminate\Queue\Middleware\ThrottlesExceptions;
 use Throwable;
 
 final class AnswerQuestion implements ShouldBeUnique, ShouldQueue
@@ -41,6 +46,15 @@ final class AnswerQuestion implements ShouldBeUnique, ShouldQueue
     public function uniqueId(): string
     {
         return (string) $this->replyId;
+    }
+
+    // Chapter 35, Topic 6: spend is rate-limited per provider and a 429 backs off instead of counting as a failure. The limiter is named for the provider the feature uses ('ai:frontier').
+    public function middleware(): array
+    {
+        return [
+            new RateLimited('ai:'.Ai::providerFor('support.reply')),
+            (new ThrottlesExceptions(3, 5 * 60))->when(fn (Throwable $e) => $e instanceof RateLimitedByProvider)->backoff(1),
+        ];
     }
 
     public function handle(SupportAssistant $assistant, CurrentTenant $tenants): void
@@ -108,6 +122,12 @@ final class AnswerQuestion implements ShouldBeUnique, ShouldQueue
 
         $stream = new ReplyStream($reply, new ReplyChannel($reply->id));
 
+        if ($this->customerHasLeft($reply)) {
+            $this->replyFromTemplate($reply, $stream);                             // no model call for a customer who is no longer there
+
+            return;
+        }
+
         $stream->start();
 
         $result = $assistant->answerStreaming(
@@ -137,6 +157,23 @@ final class AnswerQuestion implements ShouldBeUnique, ShouldQueue
         $stream->channel()->completed($this->sources($reply), $result->citations === null || ! $result->citations->hasErrors());
 
         $this->shadow($reply);
+    }
+
+    // Chapter 35, Topic 6: a backlog that sat through an outage is mostly questions from people who left hours ago.
+    private function customerHasLeft(Message $reply): bool
+    {
+        $minutes = (int) config('ai.replies.freshness_minutes', 30);
+
+        return $minutes > 0
+            && $reply->created_at !== null
+            && $reply->created_at->lt(now()->subMinutes($minutes));
+    }
+
+    private function replyFromTemplate(Message $reply, ReplyStream $stream): void
+    {
+        app(ConversationStore::class)->complete($reply, ['role' => 'assistant', 'content' => SupportPrompt::delayedMessage()]);
+
+        $stream->channel()->completed([], true);
     }
 
     // Chapter 30, Topic 4: a share of real questions is re-answered by the candidate, after the customer has their answer. Nothing here can slow or change the reply.

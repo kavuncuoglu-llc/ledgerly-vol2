@@ -48,6 +48,14 @@ final class ContextAssembler
 
     public function context(array $chunks): self
     {
+        $selection = (new SourceBudget($this->counter))->fit($chunks);
+
+        if ($selection->droppedAny()) {
+            Log::info('Retrieved sources over the context budget were dropped', ['kept' => count($selection->kept), 'dropped' => count($selection->dropped), 'budget' => $selection->budget]);
+        }
+
+        $chunks = $selection->kept;
+
         $this->labelMap = ContextBlock::labels($chunks);                           // labels -> chunks, kept for the citation checker
 
         return $this->slot('context', [['role' => 'user', 'content' => ContextBlock::render($chunks)]]);
@@ -62,6 +70,7 @@ final class ContextAssembler
     {
         $messages = [];
         $breakdown = [];
+        $prefixMessages = null;
 
         foreach (self::ORDER as $name) {
             if (! isset($this->slots[$name])) {
@@ -76,6 +85,10 @@ final class ContextAssembler
                 $breakdown[$name] = ($breakdown[$name] ?? 0) + $this->tokensOf($message);
             }
 
+            if ($breakpoint) {
+                $prefixMessages ??= count($messages);                                // the first breakpoint ends the prefix every customer shares
+            }
+
             if ($breakpoint && $this->provider->supportsCacheBreakpoints()) {
                 $messages[array_key_last($messages)]['cache_control'] = ['type' => 'ephemeral'];
             }
@@ -85,7 +98,7 @@ final class ContextAssembler
 
         $this->warnAboutSlotsOverBudget($breakdown);
 
-        return new AssembledPrompt($messages, $breakdown, $this->labelMap);
+        return new AssembledPrompt($messages, $breakdown, $this->labelMap, $prefixMessages ?? 0);
     }
 
     // The customer's earlier turns are stored as typed; tool results and assistant turns are not text a customer wrote.

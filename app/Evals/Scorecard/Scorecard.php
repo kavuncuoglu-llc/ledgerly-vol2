@@ -116,6 +116,7 @@ final class Scorecard
             'never_gate_failures' => $replies->isEmpty() ? null : $gated->reject(fn ($report) => $report->passedNever())->count(),
             'disputes_escalated' => null,
             'cost_per_answer_usd' => $this->costPerCall('support.reply', $variant, $from),
+            'cached_input_share' => $this->cachedInputShare('support.reply', $variant, $from),
             'ttft_p95_seconds' => $this->ttftP95($variant, $from),
         ];
     }
@@ -134,6 +135,7 @@ final class Scorecard
             'never_gate_failures' => $records->isEmpty() ? null : $records->filter(fn ($record) => collect($record->gates)->where('kind', 'never')->contains(fn ($gate) => ! $gate['passed']))->count(),
             'disputes_escalated' => null,
             'cost_per_answer_usd' => $this->costPerCall('support.shadow', $variant, $from),
+            'cached_input_share' => null,
             'ttft_p95_seconds' => null,
         ];
     }
@@ -181,6 +183,21 @@ final class Scorecard
         return $calls->isEmpty()
             ? null
             : $calls->sum('cost_micros') / 1_000_000 / $calls->count();
+    }
+
+    // Chapter 35, Topic 5: the share of input tokens served from the prompt cache. A prefix that stopped caching shows up here first.
+    private function cachedInputShare(string $feature, string $variant, CarbonImmutable $from): ?float
+    {
+        $calls = ModelCall::query()
+            ->where('feature', $feature)
+            ->where('created_at', '>=', $from)
+            ->where('prompt_tokens', '>', 0)
+            ->when($variant === 'control', fn ($q) => $q->where(fn ($q) => $q->whereNull('variant')->orWhere('variant', 'control')), fn ($q) => $q->where('variant', $variant))
+            ->get(['prompt_tokens', 'cached_input_tokens']);
+
+        return $calls->isEmpty()
+            ? null
+            : $calls->sum('cached_input_tokens') / $calls->sum('prompt_tokens');
     }
 
     private function ttftP95(string $variant, CarbonImmutable $from): ?float

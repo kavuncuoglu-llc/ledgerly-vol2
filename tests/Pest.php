@@ -38,6 +38,7 @@ require_once __DIR__.'/Support/FakeTritonServer.php';
 require_once __DIR__.'/Support/Pbtxt.php';
 require_once __DIR__.'/Support/EnvExample.php';
 require_once __DIR__.'/Support/TriageWorld.php';
+require_once __DIR__.'/Support/Widget.php';
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)

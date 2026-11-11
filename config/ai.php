@@ -216,6 +216,7 @@ return [
         'triage.draft' => ['provider' => 'local', 'profile' => 'grounded', 'escalate_to' => 'frontier'],
         'invoice.extract' => ['provider' => 'vision', 'profile' => 'deterministic', 'allowed_providers' => ['local', 'vision']],   // scanned documents never leave
         'conversation.summarize' => ['provider' => 'local', 'profile' => 'deterministic'],
+        'widget.ask' => ['provider' => 'local', 'profile' => 'grounded', 'allowed_providers' => ['local']],     // Chapter 35: the public widget never reaches a hosted model, whatever anyone configures
     ],
 
     // Chapter 34: what may leave the app, what is found before it does, and how long the copies we cannot delete on request live.
@@ -289,6 +290,59 @@ return [
         'margin_pct' => 0.05,
         'context' => 3500,
         // history = window - (answer + system + margin + context)
+    ],
+
+    // Chapter 35, Topic 9: the thresholds ai:cost-audit holds the five postmortems' signatures to.
+    'cost' => [
+        'audit' => [
+            'loop_multiple' => 3,                          // a conversation with more calls than this many times the median
+            'loop_min_calls' => 6,                         // ...and at least this many
+            'context_features' => ['support.reply', 'triage.draft'],
+            'min_prefix_tokens' => 1024,                   // below this, nothing is cached by any provider
+            'cached_share_floors' => ['triage.draft' => 0.50],
+            'max_attempts_per_job' => 1.25,
+            'anonymous_features' => ['widget.ask'],
+            'anonymous_alert_share' => 0.10,
+            'toxic_tail_share' => 0.01,
+            'examples' => 3,
+        ],
+    ],
+
+    // Chapter 35, Topic 7: the public "Ask Ledgerly" widget. Local role only; every number here is a cap. Daily tokens are for everyone together; Chapter 36 adds the same ceiling in dollars and the kill switch.
+    'widget' => [
+        'enabled' => (bool) env('AI_WIDGET_ENABLED', true),
+        'max_tokens' => (int) env('AI_WIDGET_MAX_TOKENS', 150),
+        'max_question_chars' => 400,
+        'passages' => 3,
+        'session_questions' => (int) env('AI_WIDGET_SESSION_QUESTIONS', 8),
+        'daily_tokens' => (int) env('AI_WIDGET_DAILY_TOKENS', 1_500_000),
+        'ip_per_minute' => (int) env('AI_WIDGET_IP_PER_MINUTE', 12),
+        'challenge' => ['difficulty' => (int) env('AI_WIDGET_POW_DIFFICULTY', 4), 'ttl_seconds' => 300],
+    ],
+
+    // Chapter 35, Topic 6: what each provider may be sent, set BELOW the provider's own limits so its 429s stay rare. Requests are limited by the 'ai:<provider>' limiter on the AnswerQuestion job;
+    // tokens per minute are enforced by the token bucket in Chapter 36. A provider that is not listed is not limited.
+    'limits' => [
+        'frontier' => [
+            'requests_per_minute' => (int) env('FRONTIER_RPM', 300),
+            'tokens_per_minute' => (int) env('FRONTIER_TPM', 200_000),
+        ],
+    ],
+
+    // Chapter 35: a ceiling no setting elsewhere (top-k, chunk length) can raise. Sources are added best first until it is spent. call_budget is what ai:cost-audit holds a call's whole input to.
+    'context' => [
+        'sources_max_tokens' => (int) env('AI_CONTEXT_SOURCES_MAX_TOKENS', 3_000),
+        'call_budget' => (int) env('AI_CONTEXT_CALL_BUDGET', 6_000),
+    ],
+
+    // Chapter 35: help:ingest refuses a chunk set whose sizes moved (tokens; 512 is the reranker's window).
+    'ingest' => [
+        'chunk_gate' => [
+            'enabled' => (bool) env('AI_INGEST_CHUNK_GATE', true),
+            'max_tokens' => 512,
+            'max_share_over' => 0.05,
+            'max_mean_shift' => 0.5,
+        ],
     ],
 
     'cache_breakpoints' => env('AI_CACHE_BREAKPOINTS'),   // null = decide from the provider (explicit markers only for anthropic); true/false forces it
@@ -391,6 +445,7 @@ return [
     ],
 
     'replies' => [
+        'freshness_minutes' => (int) env('AI_REPLY_FRESHNESS_MINUTES', 30),   // Chapter 35: a question this old is not answered by a model; the customer has gone (a short template instead)
         'stale_minutes' => 15,      // a reply still pending or streaming after this long lost its worker: mark it failed so no page spins forever
     ],
 
@@ -523,6 +578,7 @@ return [
             'never_gate_failures' => ['kind' => 'guardrail', 'target' => 0, 'floor' => 0, 'direction' => 'down'],
             'disputes_escalated' => ['kind' => 'guardrail', 'target' => 1.0, 'floor' => 0.98],
             'cost_per_answer_usd' => ['kind' => 'guardrail', 'target' => 0.002, 'floor' => 0.006, 'direction' => 'down'],
+            'cached_input_share' => ['kind' => 'guardrail', 'target' => 0.80, 'floor' => 0.60],     // Chapter 35: input tokens served from the prompt cache; below the floor, a prefix stopped caching
             'ttft_p95_seconds' => ['kind' => 'guardrail', 'target' => 1.5, 'floor' => 3.0, 'direction' => 'down'],
         ],
         'ticket.classify' => [
