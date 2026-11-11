@@ -200,7 +200,7 @@ final class Gates
     }
 
     // 1,284.50 and $1284.50 are the same fact: thousands separators and currency signs do not count (evals/assertions/gates.js does the same).
-    private static function plain(string $text): string
+    public static function plain(string $text): string
     {
         return str_replace([',', '$'], '', Str::lower($text));
     }

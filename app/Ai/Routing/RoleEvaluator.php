@@ -52,7 +52,7 @@ final class RoleEvaluator
         return ['rates' => $rates, 'skipped' => $skipped];
     }
 
-    private function withOnlyRole(string $provider, Closure $work): mixed
+    public function withOnlyRole(string $provider, Closure $work): mixed
     {
         $features = config('ai.features');
 

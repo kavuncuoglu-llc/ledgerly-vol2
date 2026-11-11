@@ -27,6 +27,7 @@ use App\Ai\Privacy\VaultFactory;
 use App\Ai\Privacy\VaultStore;
 use App\Ai\Sandbox\SandboxRunner;
 use App\Ai\Tools\AccountStatus\AccountStatus;
+use App\Ai\Tools\CalculateProration\CalculateProration;
 use App\Ai\Tools\ChangeBillingEmail\ChangeBillingEmail;
 use App\Ai\Tools\CheckPaymentStatus\CheckPaymentStatus;
 use App\Ai\Tools\Credentials\ToolCredentials;
@@ -76,6 +77,7 @@ class AiServiceProvider extends ServiceProvider
                 ->add(new AccountStatus)
                 ->add($app->make(ListInvoices::class))
                 ->add(new CheckPaymentStatus)
+                ->add(new CalculateProration)
                 ->add(new ResendInvoices)
                 ->add(new RetryPayment)
                 ->add(new ChangeBillingEmail)

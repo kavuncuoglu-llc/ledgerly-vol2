@@ -6,7 +6,7 @@ use App\Ai\Tools\ToolRegistry;
 it('offers the support tools sorted by name, so the order never depends on how they were registered', function () {
     $names = collect(app(ToolRegistry::class)->definitions())->pluck('function.name')->all();
 
-    expect($names)->toBe(['account_status', 'change_billing_email', 'check_payment_status', 'issue_credit', 'list_invoices', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment']);
+    expect($names)->toBe(['account_status', 'calculate_proration', 'change_billing_email', 'check_payment_status', 'issue_credit', 'list_invoices', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment']);
 });
 
 it('renders the same definitions, byte for byte, every time', function () {

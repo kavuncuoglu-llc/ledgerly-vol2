@@ -227,3 +227,17 @@ describe('the chapter\'s walkthrough', function () {
         expect(json_decode(toolMessages(sentChatBodies()[1])[0]['content'], true))->toBe(['ok' => true, 'found' => false]);
     });
 });
+
+describe('calculate_proration', function () {
+    it('answers through the tool runner with the amount and the formula to quote', function () {
+        $result = seededCall('calculate_proration', ['kind' => 'late_fee', 'old_price' => null, 'new_price' => null, 'days_remaining' => null, 'days_in_period' => null, 'balance' => 1000.0, 'days_overdue' => 30], $this->maya);
+
+        expect($result)->toMatchArray(['ok' => true, 'kind' => 'late_fee', 'amount' => 15.0, 'formula' => '1000.00 x 1.5% / 30 x 30']);
+    });
+
+    it('refuses numbers it was not given instead of guessing', function () {
+        $result = seededCall('calculate_proration', ['kind' => 'plan_change', 'old_price' => 19.0, 'new_price' => null, 'days_remaining' => 15, 'days_in_period' => 30, 'balance' => null, 'days_overdue' => null], $this->maya);
+
+        expect($result['ok'])->toBeFalse();
+    });
+});
