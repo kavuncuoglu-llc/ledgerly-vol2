@@ -3,14 +3,17 @@
 namespace App\Console\Commands;
 
 use App\Ai\Registry\Registry;
+use App\Models\ModelRegistryEntry;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
 
 class RegistryAdd extends Command
 {
     protected $signature = 'registry:add
-        {model : The name the server knows the model by (ledgerly-billing-ft)}
+        {model : The name the server knows the model by (ledgerly-billing-ft); with a version after it, the fine-tune\'s name instead (registry:add support 1)}
+        {version? : With the form of Chapter 46, Figure 46-8 (registry:add support 1): the version this will be, checked against the next number}
         {--name=billing : The fine-tune this is a version of}
+        {--model= : With a version: the name the server knows the model by (default <name>-v<version>, the adapter name vLLM chooses by)}
         {--dataset= : The dataset version it was trained on}
         {--run= : The MLflow run (mlflow:billing-mlx)}
         {--status=candidate : Only candidate: later stages are a registry:stage change (Chapter 44)}
@@ -40,8 +43,10 @@ class RegistryAdd extends Command
         }
 
         try {
-            $entry = $registry->add((string) $this->argument('model'), [
-                'name' => (string) $this->option('name'),
+            [$model, $name] = $this->identity();
+
+            $entry = $registry->add($model, [
+                'name' => $name,
                 'dataset' => (string) $this->option('dataset'),
                 'run' => $this->option('run'),
                 'export' => $this->option('export'),
@@ -71,5 +76,26 @@ class RegistryAdd extends Command
         return $eval === 'eval:last'
             ? storage_path('eval/last-compare.json')
             : $eval;
+    }
+
+    // `registry:add ledgerly-billing-ft` is a server's model name, the fine-tune given by --name. `registry:add support 1` is the fine-tune's name and its version, and the model name is made from them.
+    /** @return array{0: string, 1: string} */
+    private function identity(): array
+    {
+        $version = $this->argument('version');
+
+        if ($version === null) {
+            return [(string) $this->argument('model'), (string) $this->option('name')];
+        }
+
+        $name = (string) $this->argument('model');
+
+        $next = (int) ModelRegistryEntry::query()->where('name', $name)->max('version') + 1;
+
+        if ((int) $version !== $next) {
+            throw new InvalidArgumentException("The next version of {$name} is {$next}, not {$version}: versions are numbered by the registry.");
+        }
+
+        return [(string) ($this->option('model') ?: "{$name}-v{$next}"), $name];
     }
 }

@@ -279,6 +279,25 @@ return [
             'distillation_basis' => ['license' => env('MID_IN_REGION_LICENSE'), 'reviewed' => env('MID_IN_REGION_LICENSE_REVIEWED'), 'by' => env('MID_IN_REGION_LICENSE_REVIEWED_BY')],
             'privacy' => ['redact' => false, 'trains_on_api_data' => false, 'retention_days' => 0, 'zdr' => true, 'region' => env('MID_IN_REGION_REGION', env('BILLING_FT_REGION', 'local')), 'dpa_signed' => true, 'checked_on' => '2026-11-11', 'source' => 'Your own hardware, in the data\'s region: the data never leaves it.'],
         ],
+        // Chapter 46, Topic 5: the distilled student, a second adapter on the same vLLM base as the billing fine-tune (Chapter 44). Its model name is the registry alias support@production. Unset until SUPPORT_FT_URL names the vLLM server.
+        'local-support-ft' => [
+            'driver' => 'openai-compatible',
+            'base_url' => env('SUPPORT_FT_URL'),
+            'api_key' => env('SUPPORT_FT_KEY') ?: env('VLLM_API_KEY') ?: 'ollama',
+            'model' => Aliases::resolve('support@production', env('SUPPORT_FT_MODEL') ?: null),
+            'timeout' => env('SUPPORT_FT_TIMEOUT', 120),
+            'license' => 'Llama 3.1 Community License',                                  // a student inherits its base's license, and its teacher's terms (Chapter 46, Topic 2)
+            'license_reviewed' => env('SUPPORT_FT_LICENSE_REVIEWED'),
+            'region' => env('SUPPORT_FT_REGION') ?: env('BILLING_FT_REGION'),
+            'pinned' => true,
+            'fine_tuned' => [
+                'registry' => 'support@production',
+                'base' => env('SUPPORT_FT_BASE', 'meta-llama/Llama-3.1-8B-Instruct'),
+                'dataset' => env('SUPPORT_FT_DATASET', 'support-distill-v1'),
+                'prompt_version' => FineTunedSupportPrompt::VERSION,
+            ],
+            'privacy' => ['redact' => false, 'trains_on_api_data' => false, 'retention_days' => 0, 'zdr' => true, 'region' => env('SUPPORT_FT_REGION') ?: env('BILLING_FT_REGION') ?: 'local', 'dpa_signed' => true, 'checked_on' => '2026-11-11', 'source' => 'Your own hardware, in the data\'s region: the data never leaves it.'],
+        ],
         'rerank' => [
             'driver' => 'sidecar',
             'base_url' => env('SIDECAR_URL', 'http://localhost:8008'),
@@ -294,7 +313,7 @@ return [
     'features' => [
         'ticket.classify' => ['provider' => 'local', 'profile' => 'deterministic'],
         'ticket.extract' => ['provider' => 'local', 'profile' => 'deterministic'],
-        'support.reply' => ['provider' => 'local', 'profile' => 'assistant', 'escalate_to' => 'frontier', 'allowed_providers' => ['local', 'local-70b', 'frontier', 'frontier-billing-ft', 'local-billing-ft', 'local-billing-ft@canary', 'local-billing-ft@shadow', 'mid-in-region'], 'requires' => ['dpa_signed'], 'ladder' => ['cheaper_role', 'tighter_limits', 'cache_only', 'search']],
+        'support.reply' => ['provider' => 'local', 'profile' => 'assistant', 'escalate_to' => 'frontier', 'allowed_providers' => ['local', 'local-70b', 'frontier', 'frontier-billing-ft', 'local-billing-ft', 'local-billing-ft@canary', 'local-billing-ft@shadow', 'mid-in-region', 'local-support-ft', 'local-support-ft@canary', 'local-support-ft@shadow'], 'requires' => ['dpa_signed'], 'ladder' => ['cheaper_role', 'tighter_limits', 'cache_only', 'search']],
         'triage.draft' => ['provider' => 'local', 'profile' => 'grounded', 'escalate_to' => 'frontier', 'background' => true],          // Chapter 36: nobody is waiting on a draft: over budget it pauses instead of degrading
         'invoice.extract' => ['provider' => 'vision', 'profile' => 'deterministic', 'allowed_providers' => ['local', 'vision']],   // scanned documents never leave
         'conversation.summarize' => ['provider' => 'local', 'profile' => 'deterministic', 'background' => true],
@@ -751,8 +770,8 @@ return [
 
     // Chapter 44: the model registry, the servers a registered version is put on, and what an artifact must prove before a server loads it (Topics 6 to 9).
     'registry' => [
-        'roles' => ['billing' => 'local-billing-ft'],                           // registry name => the provider role that serves it
-        'features' => ['support.reply' => ['billing']],                         // which fine-tunes a feature's answers come from (the guardrail looks here)
+        'roles' => ['billing' => 'local-billing-ft', 'support' => 'local-support-ft'],   // registry name => the provider role that serves it
+        'features' => ['support.reply' => ['billing', 'support']],                         // which fine-tunes a feature's answers come from (the guardrail looks here)
         'shadow_percent' => (int) env('REGISTRY_SHADOW_PERCENT', 10),
         'warm_days' => (int) env('REGISTRY_WARM_DAYS', 7),                      // a previous version stays loaded this long, so rollback is instant
         'rollback_window_days' => 7,                                            // a guardrail breach this soon after a promotion rolls it back
@@ -792,6 +811,22 @@ return [
             'private_key_file' => env('REGISTRY_SIGNING_KEY_FILE'),             // only the pipeline has this
             'cosign' => ['binary' => env('COSIGN_BINARY', 'cosign'), 'key' => env('COSIGN_KEY'), 'password' => env('COSIGN_PASSWORD'), 'public_keys' => ['ledgerly-training' => env('COSIGN_PUBLIC_KEY')]],
         ],
+    ],
+
+    // Chapter 46: distillation. The teacher is a role with a recorded distillation_basis (Topic 2); a category is an area of the help center: which articles the teacher writes questions about, and which articles a real question's answer must have cited.
+    'distillation' => [
+        'teacher' => env('AI_DISTILL_TEACHER') ?: 'mid-in-region',
+        'categories' => [
+            'howto' => ['articles' => ['getting-started', 'invoices', 'customers', 'recurring', 'reminders', 'payments', 'taxes', 'troubleshooting', 'security']],
+            'plans' => ['articles' => ['billing/change-your-plan', 'billing/plans-and-pricing', 'billing/plan-limits', 'billing/annual-vs-monthly-billing', 'billing/cancel-your-subscription', 'getting-started/choose-a-plan', 'getting-started/free-trial']],
+            'integrations' => ['articles' => ['integrations']],
+        ],
+        'questions_per_article' => 2,                                            // teacher-written questions asked of each help-center article
+        'retrieve' => 4,                                                         // passages the teacher is shown, as production shows them
+        'judge_floor' => 4,                                                      // a judge score below this rejects the answer (Chapter 41's pass: 4 or 5)
+        'review_sample' => 0.10,                                                 // the share of survivors a person reads
+        'validation_share' => 0.08,
+        'max_tokens' => 350,
     ],
 
     // Chapter 44, Topic 7: where the app pages a team about a model it rolled back on its own.

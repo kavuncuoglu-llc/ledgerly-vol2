@@ -201,3 +201,40 @@ def test_the_redis_client_waits_longer_than_a_blocking_read(monkeypatch):
     client = worker.connect()
 
     assert client.connection_pool.connection_kwargs["socket_timeout"] > worker.BLOCK_MS / 1000
+
+
+def tuned_model_dir(tmp_path, name="ledgerly-nomic-v1"):
+    path = tmp_path / name
+    path.mkdir()
+    (path / "modules.json").write_text("[]")
+    return path
+
+
+def test_a_tuned_model_the_pipeline_wrote_is_served_by_its_name(r, monkeypatch, tmp_path):
+    tuned_model_dir(tmp_path)
+    fake = FakeModel()
+    monkeypatch.setattr(worker, "MODELS_DIR", tmp_path)
+    monkeypatch.setattr(worker, "_tuned", {"ledgerly-nomic-v1": fake})
+    entry = queue(r, task_json(model="ledgerly-nomic-v1"))
+
+    assert worker.read_new(r, CONSUMER, block_ms=10) == 1
+
+    result = json.loads(r.xrange(worker.RESULTS)[0][1]["task"])
+    assert result["model"] == "ledgerly-nomic-v1" and fake.calls[0]["texts"][0] == "search_document: Late fees"
+    assert r.xpending(worker.STREAM, worker.GROUP)["pending"] == 0 and entry
+
+
+@pytest.mark.parametrize("name", ["../etc/passwd", "/abs/path", "Ledgerly", "with space", "not-there"])
+def test_only_names_of_models_in_the_models_directory_are_served(name, monkeypatch, tmp_path):
+    monkeypatch.setattr(worker, "MODELS_DIR", tmp_path)
+
+    assert worker.tuned_path(name) is None
+    with pytest.raises(ValueError, match="task asked for"):
+        worker.model_for(name)
+
+
+def test_the_tuned_path_is_the_directory_with_a_saved_model(monkeypatch, tmp_path):
+    path = tuned_model_dir(tmp_path)
+    monkeypatch.setattr(worker, "MODELS_DIR", tmp_path)
+
+    assert worker.tuned_path("ledgerly-nomic-v1") == path

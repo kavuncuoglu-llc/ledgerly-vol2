@@ -47,6 +47,7 @@ Each chapter of this volume is a tag, `ch26` through `ch51`, taken at the end of
 | `ch43` | Fine-tuning on CUDA, with Unsloth, Axolotl and rented GPUs: `training/notebooks/billing_qlora_colab.ipynb` (a free-notebook QLoRA with Unsloth, non-customer data only), `train_lora.py --unsloth`, `training/configs/axolotl/billing-qlora.yml` and `training/scripts/sweep.py` (a grid of configs with fixed seeds and a repeated centre point; the thirteen it makes for the Build are committed in `training/configs/axolotl/sweep-billing/`, and a test regenerates them); `ops/cloud/gpu-session.sh train` (a rented session that checks the manifest first, uses an encrypted volume, has a hard time limit and an idle stop, pushes only the results and writes the ledger) with a `local` provider that runs the whole flow on this machine; `dataset:allows`, `ai:training-session` and `php artisan eval:sweep-report` (ranks a sweep's MLflow runs on the golden set, checks the winner, writes its settings into the production configs). The `cuda` extra now has `bitsandbytes` and `unsloth`. Nothing in it ran on an NVIDIA GPU or a rented machine: see "From `ch43`". |
 | `ch44` | Quantizing, serving and releasing a fine-tune: `php artisan eval:quant-ladder` (the fine-tune and its base at each quantization level on the golden billing slice, the advantage at each level, the smallest level that keeps it), `training/scripts/quantize.py` (importance matrix from the training split's own text, then `llama-quantize`) with llama.cpp pinned by tag and commit (`training/llama-cpp.lock`, built by `ops/models/build-llama-cpp.sh`); `serve:fine-tune` (the merged GGUF to Ollama, the adapter to vLLM beside the exact base it was trained on, after the hash, signature and API-key checks); the model registry's stages, aliases and history (`registry:stage`, `promote`, `rollback`, `history`, `verify`, `sign`, `keygen`, `retire`, `sync`); the `billing@production` alias that `local-billing-ft` resolves its model from; the residency route with in-region roles only; `ai:guardrails` and the automatic rollback of a fresh promotion. Nothing in it ran on CUDA or vLLM: see "From `ch44`". |
 | `ch45` | Training a small model from scratch: `training/tiny/` (`prepare_corpus.py` for Gutenberg books, the help center and templated support dialogue, cleaned, deduplicated and split by document; `train_tokenizer.py`, an 8,000-token byte-level BPE; `model.py`, a 13.8M-parameter GPT with a parameter count; `train.py` with warmup, cosine decay, clipping, resumable checkpoints and MLflow; `sample.py`; `sft.py`, post-training on about 500 question-and-answer pairs) and the registry guard: `registry:add` refuses anything that comes from `training/tiny/`. The run was made for real on an M1 Pro, at 6,000 steps instead of 10,000: see "From `ch45`". |
+| `ch46` | Distillation and small-model strategies: `php artisan dataset:distill` (questions from consented conversations and from the teacher for each help-center article, the teacher's answers with the full prompt and retrieval, kept only if they pass the gates and the judge, a tenth queued for review, a versioned set that names its teacher, its version and its license basis; a teacher with no recorded `distillation_basis` is refused), `training/configs/support-distill-peft.yaml`, the `local-support-ft` role (a second adapter on the vLLM base) and `registry:add support 1`; `php artisan dataset:pairs` and `training/scripts/tune_embeddings.py` (in-batch negatives, hard negatives, a held-out evaluator; the worker serves the result by name); `eval:retrieval` (recall and rank, live against shadow embeddings) and `eval:compare --categories --retrieval`; the student as a tier in `eval:route-table`. The 135M student and a tuned nomic model were trained and checked for real; the 8B student and the vLLM server were not: see "From `ch46`". |
 
 ## Set up `vol2-start`
 
@@ -371,6 +372,29 @@ uv run python sft.py ckpt/step-6000.pt --pairs data/qa_pairs.jsonl --steps 300 -
 ```
 
 The model is for understanding: it is never exported, registered or served. A full run takes about 80 minutes on an M1 Pro (MPS) and 4 GB of checkpoints; `uv run pytest` tests every piece in seconds on a CPU. The corpus, tokenizer and checkpoints are git-ignored; `books.txt` lists the Project Gutenberg ids used.
+
+### From `ch46`: a distilled student and a tuned embedding model
+
+The teacher, the student and the embedding model each run through the commands below; what was run here, and at what scale, is in the decision record `docs/adr/distill-support-student.md`.
+
+```bash
+# Name the teacher and the basis for training on its outputs (the license, when it was reviewed, by whom): dataset:distill refuses a teacher without all three
+#   MID_IN_REGION_URL, MID_IN_REGION_MODEL, MID_IN_REGION_LICENSE, MID_IN_REGION_LICENSE_REVIEWED, MID_IN_REGION_LICENSE_REVIEWED_BY
+php artisan dataset:distill support-distill-v1 --categories=howto,plans,integrations --teacher=mid-in-region --questions=consented:2000,teacher-written:1500 --filter=gates,judge --review-sample=0.10
+php artisan dataset:show support-distill-v1
+cd training && uv run python scripts/train_lora.py --config configs/support-distill-peft.yaml --unsloth && cd ..      # the same base as billing-peft.yaml: a second adapter on the vLLM server
+php artisan registry:add support 1 --dataset=support-distill-v1 --status=candidate --export=training/models/<name>/export.json
+php artisan eval:compare --set=golden --categories=howto,plans,integrations --roles=mid-in-region,local-support-ft --with=gates
+# The embedding model
+php artisan dataset:pairs --teacher=mid-in-region                      # training/data/retrieval/pairs.jsonl and heldout.jsonl (the golden retrieval questions)
+cd training && uv run python scripts/tune_embeddings.py --pairs data/retrieval/pairs.jsonl --heldout data/retrieval/heldout.jsonl && cd ..   # runs/embeddings/ledgerly-nomic-v1
+php artisan ai:reembed --model=ledgerly-nomic-v1 --into=shadow         # the Python worker serves any model under EMBED_MODELS_DIR (runs/embeddings) by name; py:listen applies the vectors
+php artisan eval:retrieval --compare=live,shadow --model=ledgerly-nomic-v1 && php artisan eval:compare --set=golden --retrieval=live,shadow --retrieval-model=ledgerly-nomic-v1
+php artisan eval:route-table --set=golden --tiers=local,local-billing-ft,local-support-ft,mid,frontier --write      # a reviewed diff; residency routes are kept as written
+php artisan ai:cascade-report --since=7d --compare=previous-week
+```
+
+`dataset:distill` reads consented questions through the same rules as Chapter 40 (the tenant's training-use setting, the user's exclusion, the region, surrogates for personal data) and never rewrites a version. The teacher answers with the long system message and the retrieved passages but with no tools; the student is trained on the short fine-tuned prompt. `eval:retrieval` embeds the golden questions with the tuned model in one Python process (`training/scripts/embed_queries.py`), so a shadow table is compared with questions made by the same model; promote the vectors (`ai:promote-vectors`) only if it and the golden set both improve.
 
 ## The app as Volume 1 left it
 

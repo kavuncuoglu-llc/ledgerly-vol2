@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Ai\Context\ContextAssembler;
 use App\Ai\Privacy\PersonalDataDetector;
+use App\Ai\Prompts\Collate;
 use App\Ai\Prompts\SupportPrompt;
 use App\Ai\Training\SurrogateRedactor;
 use App\Models\Conversation;
@@ -95,7 +96,7 @@ class ExportTrainingSet extends Command
 
         $redactor->startExample(hash_hmac('sha256', (string) $conversation->id, $key).':'.$turn->seq);
 
-        $prompt = $assembler->rebuild($turn, systemVersion: SupportPrompt::FINE_TUNED_VERSION);
+        $prompt = Collate::consecutive($assembler->rebuild($turn, systemVersion: SupportPrompt::FINE_TUNED_VERSION));      // the form a fine-tuned role is sent (Chapter 46)
 
         $prompt = array_map(fn ($message) => $this->redacted($message, $redactor, $pii, $map), $prompt);
 

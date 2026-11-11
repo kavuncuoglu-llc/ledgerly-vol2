@@ -80,3 +80,5 @@ __pycache__/
 /training/tiny/**/*.bin
 /training/tiny/data/*.jsonl
 /training/data/synthetic/
+/training/data/retrieval/
+/training/data/support-distill-small/

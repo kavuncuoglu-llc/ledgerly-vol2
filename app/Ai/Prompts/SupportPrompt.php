@@ -46,11 +46,11 @@ final class SupportPrompt
         if ($fineTuned && str_contains($system, $long)) {
             $messages[0]['content'] = str_replace($long, $short, $system);
 
-            return $messages;
+            return Collate::consecutive($messages);                                // Chapter 46: one user message, so every server renders what training did
         }
 
         if ($fineTuned && str_contains($system, $short)) {
-            return $messages;
+            return Collate::consecutive($messages);
         }
 
         if ($fineTuned) {

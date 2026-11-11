@@ -115,3 +115,20 @@ it('refuses an export record, an artifact or a name that comes from training/tin
 
     expect(ModelRegistryEntry::query()->count())->toBe(0);
 });
+
+it('adds a version in the form of Figure 46-8: the fine-tune\'s name, then its number', function () {
+    FineTuningWorld::dataset();
+
+    $this->artisan('registry:add', ['model' => 'support', 'version' => '1', '--dataset' => 'billing-v1', '--no-check' => true])->assertExitCode(0);
+
+    $entry = ModelRegistryEntry::query()->first();
+
+    expect($entry->name)->toBe('support')->and($entry->version)->toBe(1)->and($entry->model)->toBe('support-v1')
+        ->and($entry->base)->toBe('meta-llama/Llama-3.1-8B-Instruct');
+
+    $this->artisan('registry:add', ['model' => 'support', 'version' => '5', '--dataset' => 'billing-v1', '--no-check' => true])->expectsOutputToContain('The next version of support is 2, not 5')->assertExitCode(1);
+
+    $this->artisan('registry:add', ['model' => 'support', 'version' => '2', '--model' => 'support-adapter-b', '--dataset' => 'billing-v1', '--no-check' => true])->assertExitCode(0);
+
+    expect(ModelRegistryEntry::query()->where('version', 2)->value('model'))->toBe('support-adapter-b');
+});

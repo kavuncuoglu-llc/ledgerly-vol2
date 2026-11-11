@@ -2,11 +2,19 @@
 
 namespace App\Console\Commands;
 
+use App\Ai\AiManager;
+use App\Ai\Distillation\Categories;
+use App\Ai\Embeddings\Embedder;
+use App\Ai\Retrieval\Eval\PrecomputedEmbedder;
+use App\Ai\Retrieval\Eval\QueryVectors;
+use App\Ai\Retrieval\Eval\ShadowIndex;
+use App\Ai\Retrieval\PgRetriever;
 use App\Evals\GoldenCase;
 use App\Evals\GoldenSet;
 use App\Evals\MlflowReporter;
 use App\Evals\RoleComparison\RoleComparison;
 use App\Evals\RoleComparison\RoleResult;
+use Closure;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
@@ -19,6 +27,9 @@ class EvalCompare extends Command
         {--set=golden:billing : golden, or golden:<category> (golden:billing is the billing slice)}
         {--roles=frontier,frontier-billing-ft,cascade : Roles to compare: a tier (local, mid, frontier), a provider name, or cascade (the production route as configured)}
         {--with=gates,judge,injection,tripwire:generation : Checks: gates, judge, injection, tripwire:generation, tripwire:all}
+        {--categories= : Only the cases of these categories, as ai.distillation.categories names them (howto,plans,integrations), or the golden set\'s own (Chapter 46)}
+        {--retrieval= : live,shadow: run every role once on the live vectors and once on the shadow vectors the Python worker made, to see whether a tuned embedding model helps end to end (Chapter 46)}
+        {--retrieval-model= : The shadow vectors\' model (default config ai.python.embed_model)}
         {--limit= : Run at most this many cases (a quick look)}
         {--report= : mlflow: log one run per role in the ledgerly-compare experiment}
         {--log-to= : Log the one measured role\'s metrics into this existing MLflow run instead (a sweep run, for eval:sweep-report)}
@@ -36,7 +47,13 @@ class EvalCompare extends Command
 
             $checks = $this->list('with');
 
-            $results = $comparison->run($cases, $roles, $checks, fn (string $role, int $done, int $total) => $this->output->isVerbose() ? $this->line("  {$role}: {$done}/{$total}") : null);
+            $progress = fn (string $role, int $done, int $total) => $this->output->isVerbose() ? $this->line("  {$role}: {$done}/{$total}") : null;
+
+            $sources = $this->list('retrieval');
+
+            $results = $sources === []
+                ? $comparison->run($cases, $roles, $checks, $progress)
+                : $this->acrossRetrieval($comparison, $cases, $roles, $checks, $sources, $progress);
         } catch (InvalidArgumentException $e) {
             $this->error($e->getMessage());
 
@@ -71,6 +88,12 @@ class EvalCompare extends Command
 
         $cases = $set->all();
 
+        if ($this->option('categories') !== null) {
+            $wanted = $this->list('categories');
+
+            $cases = $cases->filter(fn (GoldenCase $case) => $this->inCategories($case, $wanted))->values();
+        }
+
         if (str_contains($name, ':')) {
             $category = substr($name, strpos($name, ':') + 1);
 
@@ -84,6 +107,94 @@ class EvalCompare extends Command
         return $this->option('limit') === null
             ? $cases
             : $cases->take((int) $this->option('limit'))->values();
+    }
+
+    // A category is a golden category (`howto`), or an area of the help center that the case's expected passages belong to (`plans`).
+    private function inCategories(GoldenCase $case, array $wanted): bool
+    {
+        foreach ($wanted as $category) {
+            if ($case->category === $category) {
+                return true;
+            }
+
+            foreach ($case->expectedChunks as $label) {
+                if (config("ai.distillation.categories.{$category}") !== null && Categories::covers($category, Categories::pathOf((string) $label))) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  Collection<int, GoldenCase>  $cases
+     * @param  list<string>  $roles
+     * @param  list<string>  $checks
+     * @param  list<string>  $sources
+     * @return list<RoleResult>
+     */
+    private function acrossRetrieval(RoleComparison $comparison, Collection $cases, array $roles, array $checks, array $sources, Closure $progress): array
+    {
+        foreach ($sources as $source) {
+            if (! in_array($source, ['live', 'shadow'], true)) {
+                throw new InvalidArgumentException('--retrieval takes live, shadow or live,shadow.');
+            }
+        }
+
+        $results = [];
+
+        foreach ($sources as $source) {
+            $restore = $source === 'shadow'
+                ? $this->useShadowVectors($cases)
+                : fn () => null;
+
+            try {
+                foreach ($comparison->run($cases, $roles, $checks, $progress) as $result) {
+                    $results[] = new RoleResult("{$result->role}@{$source}", $result->provider, $result->model, $result->metrics, $result->notes, $result->skipped);
+                }
+            } finally {
+                $restore();
+            }
+        }
+
+        return $results;
+    }
+
+    // The retriever reads the Python worker's vectors for the run, and the questions are embedded by the same model (the worker's, with its query prefix), so the only thing that differs from the live run is the embedding model.
+    private function useShadowVectors(Collection $cases): Closure
+    {
+        $model = (string) ($this->option('retrieval-model') ?: config('ai.python.embed_model'));
+
+        $table = 'bench_shadow_vectors';
+
+        $built = app(ShadowIndex::class)->fromVectors($table, $model);
+
+        if ($built['chunks'] === 0) {
+            app(ShadowIndex::class)->drop($table);
+
+            throw new InvalidArgumentException("No shadow vectors for {$model}: php artisan ai:reembed --model={$model} --into=shadow first.");
+        }
+
+        $vectors = app(QueryVectors::class)->embed($cases->map(fn (GoldenCase $case) => $case->question)->all(), $model);
+
+        $before = config('ai.retrieval');
+
+        config(['ai.retrieval.table' => $table, 'ai.retrieval.dimensions' => $built['dimensions']]);
+
+        app()->instance(Embedder::class, new PrecomputedEmbedder(app(AiManager::class), $model, $vectors));
+
+        app()->forgetInstance(PgRetriever::class);
+
+        return function () use ($before, $table) {
+            config(['ai.retrieval' => $before]);
+
+            app()->forgetInstance(Embedder::class);
+
+            app()->forgetInstance(PgRetriever::class);
+
+            app(ShadowIndex::class)->drop($table);
+        };
     }
 
     /** @return list<string> */

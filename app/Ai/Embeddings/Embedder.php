@@ -6,7 +6,7 @@ use App\Ai\AiManager;
 use App\Ai\Contracts\EmbedKind;
 
 // Asks the EmbeddingModel behind the 'local-embed' provider (Chapter 19); the nomic prefixes live in that provider's config, because they belong to the model, not to the caller.
-final class Embedder
+class Embedder
 {
     public function __construct(private AiManager $ai, private string $model, private ?int $dimensions = null) {}      // null = AI_EMBED_DIMENSIONS, 0 = accept any width (candidate models in retrieval:eval)
 

@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import socket
 import time
 from pathlib import Path
@@ -26,6 +27,8 @@ HEARTBEAT = Path(os.environ.get("WORKER_HEARTBEAT", "/tmp/py-worker.heartbeat"))
 log = logging.getLogger("ledgerly.py-worker")
 
 _model = None
+_tuned: dict = {}
+MODELS_DIR = Path(os.environ.get("EMBED_MODELS_DIR", "runs/embeddings"))
 
 
 def get_model():
@@ -49,16 +52,43 @@ def get_model():
     return _model
 
 
+def tuned_path(name: str) -> Path | None:
+    if not re.fullmatch(r"[a-z0-9][a-z0-9._-]*", name):
+        return None  # a name, never a path: nothing outside the models directory is loaded
+    path = MODELS_DIR / name
+    return path if (path / "modules.json").exists() else None
+
+
+def model_for(name: str):
+    if name == REPO:
+        return get_model()
+    path = tuned_path(name)
+    if path is None:
+        raise ValueError(
+            f"worker serves {REPO} and the models in {MODELS_DIR}, task asked for {name}"
+        )  # refuse, don't guess
+    if name not in _tuned:
+        from sentence_transformers import SentenceTransformer
+
+        code_revision = os.environ["NOMIC_CODE_REVISION"]
+        _tuned[name] = SentenceTransformer(
+            str(path),
+            trust_remote_code=True,
+            model_kwargs={"code_revision": code_revision},
+            config_kwargs={"code_revision": code_revision},
+        )  # a fine-tune of the pinned model: its code is the pinned repo's
+    return _tuned[name]
+
+
 def parse_task(raw: str) -> EmbedBatch:
     return EmbedBatch.model_validate_json(raw, strict=True)  # strict: "42" is not an integer id, as in opis/json-schema
 
 
 def embed(task: EmbedBatch) -> EmbedResult:
-    if task.model != REPO:
-        raise ValueError(f"worker serves {REPO}, task asked for {task.model}")  # refuse, don't guess
+    model = model_for(task.model)
 
     start = time.perf_counter()
-    vectors = get_model().encode(
+    vectors = model.encode(
         [f"search_document: {item.text}" for item in task.items],
         batch_size=32,
         normalize_embeddings=True,
@@ -68,7 +98,7 @@ def embed(task: EmbedBatch) -> EmbedResult:
         schema="embed-result.v1",
         task_id=task.task_id,
         request_id=task.request_id,
-        model=REPO,
+        model=task.model,
         items=[{"id": item.id, "vector": v.tolist()} for item, v in zip(task.items, vectors, strict=True)],
         elapsed_ms=int((time.perf_counter() - start) * 1000),
     )

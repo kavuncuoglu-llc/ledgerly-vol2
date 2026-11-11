@@ -57,6 +57,10 @@ class DatasetShow extends Command
 
         $lines[] = 'consent       '.implode(' · ', array_map(fn (string $source, string $basis) => "{$basis} ({$source})", array_keys($m['consent']), $m['consent']));
 
+        if (isset($m['teacher'])) {
+            $lines[] = sprintf('teacher       %s · %s · %s (reviewed %s by %s)', $m['teacher']['role'], $m['teacher']['model'], $m['teacher']['distillation_basis']['license'], $m['teacher']['distillation_basis']['reviewed'], $m['teacher']['distillation_basis']['by']);
+        }
+
         $lines[] = sprintf('review        double-reviewed %d · agreement %s', $m['review']['double_reviewed'], $m['review']['agreement'] === null ? 'n/a' : round($m['review']['agreement'] * 100).'%');
 
         $lines[] = "stored        {$m['stored']['disk']}:{$m['stored']['path']} (customer-derived files)".($m['hub'] === null ? '' : "\n              hf://{$m['hub']['repository']}@{$m['hub']['revision']} (private, no customer data)");

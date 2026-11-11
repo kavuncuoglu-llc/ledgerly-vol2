@@ -52,7 +52,7 @@ final class Registry
             'name' => $name,
             'version' => (int) ModelRegistryEntry::query()->where('name', $name)->max('version') + 1,
             'model' => $model,
-            'base' => $options['base'] ?? $export['base'] ?? (string) config('ai.providers.local-billing-ft.fine_tuned.base'),
+            'base' => $options['base'] ?? $export['base'] ?? (string) config('ai.providers.'.(config('ai.registry.roles')[$name] ?? 'local-billing-ft').'.fine_tuned.base'),
             'base_revision' => $options['base_revision'] ?? null,
             'dataset' => $options['dataset'],
             'dataset_hash' => $dataset->hash('train.jsonl'),

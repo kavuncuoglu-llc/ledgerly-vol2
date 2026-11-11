@@ -1,0 +1,21 @@
+base: "meta-llama/Llama-3.1-8B-Instruct"     # the same base as billing-peft.yaml: the student is a second adapter on the same vLLM base (Chapter 44)
+revision: null                                # pin the commit you accepted (the registry entry records it, and serve:fine-tune checks it)
+data: "../storage/datasets/support-distill-v1"   # dataset:distill's train.jsonl and validation.jsonl: the teacher's answers to the short fine-tuned prompt
+max_seq_length: 2048
+lora:
+  r: 16                                       # vLLM is started with --max-lora-rank 16
+  lora_alpha: 16
+  lora_dropout: 0.05
+trainer:
+  output_dir: "runs/support-distill-peft"
+  num_train_epochs: 2
+  learning_rate: 1.0e-4
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 8
+  warmup_ratio: 0.05
+  lr_scheduler_type: "cosine"
+  eval_strategy: "steps"
+  eval_steps: 200
+  save_steps: 200
+  logging_steps: 10
+  gradient_checkpointing: true
