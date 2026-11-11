@@ -13,6 +13,8 @@ final class SandboxRunner
 {
     public const RESULT_FILE = 'result.json';
 
+    private string $user = '65534:65534';
+
     public function __construct(private array $config) {}
 
     public static function fromConfig(): self
@@ -48,7 +50,7 @@ final class SandboxRunner
             $this->config['docker'] ?? 'docker', 'run', '--rm',
             '--network', 'none',                                                           // no network at all
             '--read-only', '--tmpfs', '/tmp:size='.($this->config['tmpfs'] ?? '64m'),     // read-only root, a little scratch space
-            '--user', '65534:65534',                                                       // nobody
+            '--user', $this->user,                                                         // nobody
             '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',                    // no extra kernel powers
             '--memory', (string) ($this->config['memory'] ?? '256m'),
             '--cpus', (string) ($this->config['cpus'] ?? '0.5'),
@@ -67,9 +69,9 @@ final class SandboxRunner
 
         File::ensureDirectoryExists("{$task}/in", 0755);
 
-        File::ensureDirectoryExists("{$task}/out", 0777);
+        File::ensureDirectoryExists("{$task}/out", 0700);
 
-        chmod("{$task}/out", 0777);                                                        // nobody writes the answer; the app reads it
+        $this->user = $this->ownOutputDirectory("{$task}/out");
 
         File::put("{$task}/in/script.py", $script);
 
@@ -78,6 +80,22 @@ final class SandboxRunner
         }
 
         return $task;
+    }
+
+    // The output directory is never world-writable: it belongs to the user the container runs as (nobody when the app may chown, otherwise the app's own user).
+    private function ownOutputDirectory(string $out): string
+    {
+        $uid = (int) ($this->config['uid'] ?? 65534);
+
+        if (@chown($out, $uid) && @chgrp($out, $uid)) {
+            chmod($out, 0770);
+
+            return "{$uid}:{$uid}";
+        }
+
+        chmod($out, 0700);
+
+        return posix_geteuid().':'.posix_getegid();
     }
 
     private function resultOf(string $task, int $exitCode, string $stdout, string $stderr): SandboxResult
@@ -95,8 +113,16 @@ final class SandboxRunner
 
     private function readOutput(string $path): array
     {
-        if (! File::exists($path)) {
-            throw new SandboxFailed('The script finished without writing '.self::RESULT_FILE.'.');
+        if (is_link($path) || ! is_file($path)) {
+            throw new SandboxFailed('The script finished without writing '.self::RESULT_FILE.' as a plain file.');
+        }
+
+        $real = realpath($path);
+
+        $out = realpath(dirname($path));
+
+        if ($real === false || $out === false || ! str_starts_with($real, $out.'/')) {
+            throw new SandboxFailed('The result file is not inside the output directory.');          // a link the script made to a file of the host
         }
 
         if (File::size($path) > (int) ($this->config['max_output_bytes'] ?? 65536)) {

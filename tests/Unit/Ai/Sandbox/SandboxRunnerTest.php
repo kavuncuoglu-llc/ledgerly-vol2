@@ -75,3 +75,41 @@ it('refuses a result that is not JSON, too large, or missing', function (?string
     'not json' => ['not json'],
     'too large' => [fn () => str_repeat('a', 200)],
 ])->throws(SandboxFailed::class);
+
+it('refuses a result that is a symlink to a file outside the output directory', function () {
+    $secret = tempnam(sys_get_temp_dir(), 'secret');
+
+    file_put_contents($secret, '{"stolen": true}');
+
+    Process::fake(function () use ($secret) {
+        $task = collect(glob(sys_get_temp_dir().'/sandbox-*/*'))->sortByDesc(fn ($path) => filemtime($path))->first();
+
+        symlink($secret, "{$task}/out/result.json");
+
+        return Process::result(exitCode: 0);
+    });
+
+    try {
+        sandbox()->run('x');
+    } finally {
+        unlink($secret);
+    }
+})->throws(SandboxFailed::class, 'plain file');
+
+it('never makes the output directory world-writable', function () {
+    $modes = [];
+
+    Process::fake(function () use (&$modes) {
+        $task = collect(glob(sys_get_temp_dir().'/sandbox-*/*'))->sortByDesc(fn ($path) => filemtime($path))->first();
+
+        $modes[] = fileperms("{$task}/out") & 0777;
+
+        File::put("{$task}/out/result.json", '{}');
+
+        return Process::result(exitCode: 0);
+    });
+
+    sandbox()->run('x');
+
+    expect($modes[0] & 0007)->toBe(0);
+});
