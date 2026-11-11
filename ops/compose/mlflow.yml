@@ -1,0 +1,32 @@
+# Profile: mlflow (Chapter 28). A self-hosted MLflow tracking server for training runs and the chunk-length stats.
+#   docker compose --env-file .env -f ops/compose/base.yml -f ops/compose/mlflow.yml --profile mlflow up -d mlflow
+# MLflow's server has NO LOGIN. It is published on 127.0.0.1 only, as every port in this directory is; never put it on 0.0.0.0 or behind a public proxy.
+# Run metadata goes to a SQLite file in the mlflow-db volume and artifacts to mlflow-artifacts (the server proxies uploads, so clients need no volume of their own). That is enough for one team; Chapter 44 moves the model registry onto it.
+# From the host the tracker is http://localhost:5050 (MLFLOW_TRACKING_URI in .env); from a container on the `internal` network it is http://mlflow:5000.
+# The image is pinned by tag in MLFLOW_IMAGE (.env.example). Training data is customer data: samples of inputs and outputs end up in this server's volumes, so treat them like the database.
+
+services:
+  mlflow:
+    profiles: ["mlflow"]
+    image: ${MLFLOW_IMAGE:-ghcr.io/mlflow/mlflow:v3.17.2}
+    command: ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000", "--backend-store-uri", "sqlite:////mlflow/mlflow.db", "--artifacts-destination", "/mlartifacts"]
+    volumes:
+      - mlflow-db:/mlflow
+      - mlflow-artifacts:/mlartifacts
+    ports:
+      - "127.0.0.1:${MLFLOW_PORT:-5050}:5000"                     # no login by default: never publish beyond localhost
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+networks:
+  internal: {}
+
+volumes:
+  mlflow-db:
+  mlflow-artifacts:

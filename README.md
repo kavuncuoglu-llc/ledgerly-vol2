@@ -27,6 +27,7 @@ Each chapter of this volume is a tag, `ch26` through `ch51`, taken at the end of
 | `vol2-start` | Volume 1's finished app, ready to run: the support assistant, the help center, four local model servers, `ai:doctor`, Horizon and Reverb. |
 | `ch26` | `training/`: a `uv` project (Python 3.12, `pyproject.toml`, `uv.lock`, extras `cuda`, `rocm` and `mlx`) with `hello_model.py`, `tokens.py`, `embed_compare.py` and `token_lengths.py`, and `ops/compose/ollama.localhost.yml`. |
 | `ch27` | Python beside PHP: JSON Schema contracts in `contracts/` validated by PHP and by generated Pydantic models, the embedding worker (`py-worker`) and `py:listen` over Redis streams, the shadow table `help_chunk_vectors`, `ai:reembed`, `ai:compare-vectors`, `ai:promote-vectors`, `retrieval:eval --vectors=shadow`, `dataset:validate`, the first CI (`.github/workflows/ci.yml`: PHP, Python and contracts jobs). |
+| `ch28` | The Python AI stack, mapped: the `mlflow` Compose profile (`ops/compose/mlflow.yml`, `127.0.0.1:5050`), `help:export --jsonl`, `training/scripts/dataset_stats.py`, and the decision record `docs/adr/python-libraries.md`. |
 
 ## Set up `vol2-start`
 
@@ -71,6 +72,17 @@ php artisan ai:promote-vectors --model=nomic-ai/nomic-embed-text-v1.5      # onl
 ```
 
 `py-worker` has Redis and no database credentials; the first start downloads the model (about 550 MB) into the `py-models` volume, so give it a few minutes (its health check waits ten). `py-listen` is `php artisan py:listen` in the app image; to run it on the host instead, `php artisan py:listen` with Redis on `REDIS_PORT`. On an NVIDIA host add `-f ops/compose/python.gpu.yml`. The messages are described by `contracts/*.json`; after you change one, `training/scripts/generate_contracts.sh` regenerates `training/contracts/` and CI fails if the committed copy is stale. `NOMIC_REVISION` and `NOMIC_CODE_REVISION` pin the two Hugging Face repositories whose code the worker runs; they are in `.env.example`.
+
+### From `ch28`: MLflow, the help-center export, and the decision record
+
+```bash
+docker compose --env-file .env -f ops/compose/base.yml -f ops/compose/mlflow.yml --profile mlflow up -d mlflow
+php artisan help:export --jsonl --to=training/data/help_chunks.jsonl
+cd training && uv run python scripts/dataset_stats.py       # prints the share of chunks over the reranker's 512 tokens, and logs the run
+open http://localhost:5050                                  # the run, its parameters, and its metrics
+```
+
+MLflow's server has no login: the file publishes it on `127.0.0.1` only (`MLFLOW_PORT`, default 5050), and it must stay there or behind a private network. Run data lives in the `mlflow-db` and `mlflow-artifacts` volumes. The training scripts read `MLFLOW_TRACKING_URI` (`http://localhost:5050` in `.env.example`). The image is pinned in `MLFLOW_IMAGE`. `docs/adr/python-libraries.md` records which Python libraries the app adopts, defers or leaves alone, and why.
 
 ## The app as Volume 1 left it
 

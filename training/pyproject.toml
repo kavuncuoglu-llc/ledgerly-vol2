@@ -13,6 +13,7 @@ dependencies = [
     "redis>=8.1.0",
     "pydantic>=2.14.1",
     "einops>=0.8.2",
+    "mlflow>=3.17.2",
 ]
 
 [project.optional-dependencies]
