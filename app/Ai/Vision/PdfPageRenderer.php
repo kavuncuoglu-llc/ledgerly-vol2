@@ -4,21 +4,32 @@ namespace App\Ai\Vision;
 
 use Illuminate\Support\Facades\Process;
 use Imagick;
+use ImagickException;
 use Symfony\Component\Process\ExecutableFinder;
 
-// Renders page one of a PDF to a PNG: Imagick when the extension is loaded, Poppler's pdftoppm otherwise
+// Renders page one of a PDF to a PNG: Imagick when the extension is loaded and allowed to read PDFs, Poppler's pdftoppm otherwise
 class PdfPageRenderer
 {
     public function firstPageAsPng(string $path): string
     {
+        $imagickFailure = null;
+
         if (extension_loaded('imagick')) {
-            return $this->withImagick($path);
+            try {
+                return $this->withImagick($path);
+            } catch (ImagickException $e) {
+                $imagickFailure = $e->getMessage();
+            }
         }
 
         $pdftoppm = (new ExecutableFinder)->find('pdftoppm');
 
         if ($pdftoppm) {
             return $this->withPdftoppm($pdftoppm, $path);
+        }
+
+        if ($imagickFailure) {
+            throw new PdfRenderingUnavailable('Imagick could not read the PDF ('.$imagickFailure.'). ImageMagick often blocks PDFs in its policy.xml or lacks Ghostscript; install Poppler instead (brew install poppler, apt install poppler-utils).');
         }
 
         throw new PdfRenderingUnavailable('Rendering a PDF needs the Imagick PHP extension or Poppler (brew install poppler, apt install poppler-utils).');
@@ -33,7 +44,7 @@ class PdfPageRenderer
         return (new ExecutableFinder)->find('pdftoppm') !== null;
     }
 
-    private function withImagick(string $path): string
+    protected function withImagick(string $path): string
     {
         $page = new Imagick;
         $page->setResolution(150, 150);
