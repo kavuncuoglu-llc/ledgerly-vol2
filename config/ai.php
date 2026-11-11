@@ -1,5 +1,7 @@
 <?php
 
+use App\Ai\Batch\JudgeNightlySource;
+use App\Ai\Batch\SynthesizeHelpCenterSource;
 use App\Ai\Prompts\SupportPrompt;
 
 return [
@@ -293,6 +295,24 @@ return [
         // history = window - (answer + system + margin + context)
     ],
 
+    // Chapter 37: a tiered router that escalates on failed checks. config/ai-routes.php is written by eval:route-table; with it missing or `enabled` false the assistant answers on the feature's own role, as before Chapter 37.
+    // Thresholds are the cosine similarity of the best retrieved passage (0 to 1), measured on this help center with nomic-embed-text.
+    'cascade' => [
+        'enabled' => (bool) env('AI_CASCADE', true),
+        'decline_below' => 0.40,                      // a how-to question whose best passage is this far away is not about Ledgerly's help center: decline, call no model
+        'skip_cheapest_below' => 0.50,                // a question whose best passage is this weak is hard: start one tier up
+        'wrongful_decline_above' => 0.60,             // the model said the help center does not cover it, yet a passage this close was retrieved: the answer failed
+        'checks_retrieval' => ['howto', 'policy'],    // categories the retrieval check may decline (billing and account questions need tools, not passages)
+        'category_map' => ['other' => 'policy'],      // router label => the golden set's name for it
+        'floor' => 0.95,                              // eval:route-table: the scorecard's floor for the golden-set pass rate
+        'margin' => 0.01,                             // ... and the margin over it that a role needs
+        'cascade_gap_min' => 0.02,                    // a cheap role that misses the floor by more than this, and by no more than the max, starts a cascade; by less, the category goes straight to the next role
+        'cascade_gap_max' => 0.10,
+        'roles' => ['local', 'mid', 'frontier'],      // cheapest first
+        'cost_per_answer_usd' => ['local' => 0.0, 'mid' => 0.002, 'frontier' => 0.013],      // ILLUSTRATIVE (Chapter 37, Topic 3): used to project savings before there is traffic to measure
+        'human_cost_per_escalation_usd' => (float) env('AI_HUMAN_COST_PER_ESCALATION', 4.00),   // what a person's handling of an escalated conversation costs, for the total cost per conversation
+    ],
+
     // Chapter 36: the ledger, the budgets and the breaker. Amounts are dollars here and integer micro-dollars everywhere else.
     // `enabled` puts BudgetedModel in the provider chain; with Redis unreachable a call goes through unguarded and the failure is logged. `store` = array keeps the counters in memory (one process: tests, a machine with no Redis).
     'budgets' => [
@@ -371,6 +391,25 @@ return [
         ],
     ],
 
+    // Chapter 37, Topic 7: work nobody is waiting on. A hosted provider's batch API (about half price, up to a day) or your own hardware while it is idle; `driver` per provider is `batch_driver` in its config (openai | local | fake), else hosted = openai.
+    'batch' => [
+        'discount' => (float) env('AI_BATCH_DISCOUNT', 0.5),             // the batch price as a share off the interactive one: ILLUSTRATIVE, copy your provider's
+        'local_per_poll' => 25,                                          // requests a poll works through on your own hardware
+        'kinds' => [
+            'judge-nightly' => ['source' => JudgeNightlySource::class, 'feature' => 'eval.judge', 'provider' => 'frontier'],
+            'synthesize-help-center' => ['source' => SynthesizeHelpCenterSource::class, 'feature' => 'eval.synthesize', 'provider' => 'frontier'],
+        ],
+    ],
+
+    // Chapter 37, Topic 6: smaller requests. Each technique goes through the golden set before it ships (eval:gates, and eval:route-table for the pass rate per category), so trimming stays off until a run says it does not cost quality.
+    'pruning' => [
+        'dedupe' => (bool) env('AI_PRUNE_DEDUPE', true),
+        'dedupe_similarity' => 0.85,                  // share of the shorter chunk's 5-word shingles another chunk repeats before the lower-ranked one is dropped
+        'trim' => (bool) env('AI_PRUNE_TRIM', false),
+        'trim_over_tokens' => 400,                    // only a chunk longer than this is trimmed
+        'trim_to_tokens' => 250,                      // to the paragraphs that match the question, up to this many tokens
+    ],
+
     // Chapter 35: a ceiling no setting elsewhere (top-k, chunk length) can raise. Sources are added best first until it is spent. call_budget is what ai:cost-audit holds a call's whole input to.
     'context' => [
         'sources_max_tokens' => (int) env('AI_CONTEXT_SOURCES_MAX_TOKENS', 3_000),
@@ -400,7 +439,8 @@ return [
         'enabled' => env('AI_SEMANTIC_CACHE', true),
         'categories' => ['howto'],            // the Chapter 9 labels whose answers do not depend on who asks; add 'policy' if your classifier has one
         'tenant_categories' => [],            // categories cached per tenant instead of shared
-        'threshold' => 0.92,                  // cosine similarity; calibrate per category (Chapter 6, Topic 3)
+        'threshold' => (float) env('AI_SEMANTIC_CACHE_THRESHOLD', 0.92),       // cosine similarity; ai:cache-tune picks it from labeled pairs (Chapter 37, Topic 5); calibrate per category (Chapter 6, Topic 3)
+        'max_false_hit_rate' => 0.01,         // the scorecard's limit for a different-answer pair that still hits (ai:cache-tune)
         'thresholds' => [],                   // 'howto' => 0.90
         'ttl_days' => 30,
         'require_context' => true,            // only answers grounded in shared help-center passages, with checked citations, are stored

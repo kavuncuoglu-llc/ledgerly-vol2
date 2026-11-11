@@ -109,6 +109,7 @@ final class UsageLoggingModel extends ModelDecorator
             $this->recordable($request),
             $request->meta['variant'] ?? null,
             ...array_values(Tracing::ids()),                                    // TracingModel is outside this decorator, so its span is the current one
+            cascade: $request->meta['cascade'] ?? null,
         );
 
         event($event);

@@ -46,8 +46,10 @@ final class ContextAssembler
             : $this->slot('history', array_map(fn (array $message) => $this->wrapped($message), $msgs));
     }
 
-    public function context(array $chunks): self
+    public function context(array $chunks, ?string $question = null): self
     {
+        $chunks = (new SourcePruner($this->counter))->prune($chunks, $question);                    // Chapter 37: duplicates out, long chunks trimmed to what matches (when that is on)
+
         $selection = (new SourceBudget($this->counter))->fit($chunks);
 
         if ($selection->droppedAny()) {

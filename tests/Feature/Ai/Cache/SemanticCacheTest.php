@@ -273,7 +273,7 @@ describe('store', function () {
 
 describe('the table', function () {
     it('has the Figure 14-4 columns, a vector(768) embedding and an HNSW cosine index', function () {
-        expect(Schema::getColumnListing('cached_answers'))->toBe(['id', 'tenant_id', 'category', 'question', 'answer', 'help_version', 'status', 'hit_count', 'expires_at', 'created_at', 'updated_at', 'embedding']);
+        expect(Schema::getColumnListing('cached_answers'))->toBe(['id', 'tenant_id', 'category', 'question', 'answer', 'help_version', 'status', 'hit_count', 'expires_at', 'created_at', 'updated_at', 'embedding', 'cited_chunks']);
 
         $index = DB::selectOne("select indexdef from pg_indexes where indexname = 'cached_answers_embedding_idx'")->indexdef;
 

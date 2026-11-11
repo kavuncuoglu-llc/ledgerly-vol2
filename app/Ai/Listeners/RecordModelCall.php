@@ -43,6 +43,9 @@ final class RecordModelCall
             'variant' => $e->variant,
             'trace_id' => $e->traceId,
             'span_id' => $e->spanId,
+            'cascade_id' => $e->cascade['id'] ?? null,
+            'cascade_step' => $e->cascade['step'] ?? null,
+            'category' => $e->cascade['category'] ?? null,
         ]);
 
         $e->modelCallId = $row->id;

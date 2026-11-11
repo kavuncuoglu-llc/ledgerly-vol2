@@ -112,7 +112,7 @@ final class SupportPrompt
             ->system(self::withCanary($system ?? self::base()), $user ? MemoryBlock::render($user) : '')    // slot 1, fixed; a candidate under test brings its own text (Chapter 30)
             ->summary($summary)                                                  // slot 2, if any
             ->history($history)                                                  // slot 3, windowed
-            ->context($contextChunks)                                            // slot 4, per turn
+            ->context($contextChunks, $question)                                 // slot 4, per turn
             ->question($question)                                                // last
             ->build();
     }

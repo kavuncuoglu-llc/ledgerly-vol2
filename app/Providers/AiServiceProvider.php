@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Ai\Batch\FakeBatchDriver;
 use App\Ai\Budgets\ArrayCounters;
 use App\Ai\Budgets\Counters;
 use App\Ai\Budgets\RedisCounters;
@@ -58,6 +59,8 @@ class AiServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->registerPrivacy();
+
+        $this->app->singleton(FakeBatchDriver::class);
 
         $this->app->singleton(Counters::class, fn () => config('ai.budgets.store') === 'array'
             ? new ArrayCounters

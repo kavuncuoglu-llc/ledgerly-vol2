@@ -41,6 +41,7 @@ final class LedgerEntry
             'cost_micro_usd' => $cost['micros'],
             'kind' => $cost['kind'],
             'reason' => $cost['reason'],
+            'cascade_step' => $e->cascade['step'] ?? null,
         ];
     }
 

@@ -6,6 +6,7 @@ use App\Ai\Embeddings\Embedder;
 use App\Ai\Schemas\Category;
 use App\Casts\Vector;
 use App\Models\CachedAnswer;
+use App\Models\HelpChunk;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -39,7 +40,8 @@ final class SemanticCache
         return $this->nearest($question, $categories, $tenantId);
     }
 
-    public function store(string $question, Category $category, string $answer, ?int $tenantId): ?CachedAnswer
+    /** @param  array<int, array{id: int, version: string}>|null  $cited  the help-center chunks the answer cited, with the version of each (Chapter 37) */
+    public function store(string $question, Category $category, string $answer, ?int $tenantId, ?array $cited = null): ?CachedAnswer
     {
         if (! $this->policy->cacheable($category)) {
             return null;
@@ -68,8 +70,27 @@ final class SemanticCache
 
         return CachedAnswer::updateOrCreate(
             ['question' => $question, 'category' => $category->value, 'help_version' => $this->helpVersion->current(), 'tenant_id' => $scopedTo],
-            ['answer' => $answer, 'embedding' => $vector, 'status' => 'auto', 'expires_at' => $this->policy->expiresAt()],
+            ['answer' => $answer, 'embedding' => $vector, 'status' => 'auto', 'expires_at' => $this->policy->expiresAt(), 'cited_chunks' => $cited],
         );
+    }
+
+    // Chapter 37, Topic 5: freshness by the sources an answer cited. When a chunk's text changes every answer that cited the old text is forgotten at once, so a customer never gets an answer built on text that no longer exists;
+    // the listing filters by the chunk's tenant, but a shared chunk is cited by answers stored for any tenant, so this does not. Scheduled expiry (ai.semantic_cache.ttl_days) remains the backstop for anything this misses.
+    public function forgetCiting(HelpChunk $chunk): int
+    {
+        $stale = CachedAnswer::query()
+            ->whereJsonContains('cited_chunks', [['id' => $chunk->id]])
+            ->get(['id', 'cited_chunks'])
+            ->filter(fn (CachedAnswer $answer) => (collect($answer->cited_chunks)->firstWhere('id', $chunk->id)['version'] ?? null) !== $chunk->version())
+            ->pluck('id');
+
+        return CachedAnswer::query()->whereIn('id', $stale)->delete();
+    }
+
+    // A chunk that no longer exists: every answer that cited it goes.
+    public function forgetChunk(int $chunkId): int
+    {
+        return CachedAnswer::query()->whereJsonContains('cited_chunks', [['id' => $chunkId]])->delete();
     }
 
     public function recordHit(CachedAnswer $hit): void

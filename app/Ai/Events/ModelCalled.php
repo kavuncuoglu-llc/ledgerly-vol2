@@ -27,6 +27,7 @@ final class ModelCalled
         public readonly ?string $traceId = null,              // Chapter 31: the trace and span current when the call was made, so the audit row joins its span
         public readonly ?string $spanId = null,
         public readonly ?int $cacheWriteTokens = null,        // Chapter 35: billed at the cache-write price
+        public readonly ?array $cascade = null,               // Chapter 37: ['id' => the cascade run, 'step' => 0 for the starting role, 'category' => the router's label]
     ) {}
 
     public ?int $modelCallId = null;                          // set by RecordModelCall, so the decorator that dispatched the event can hand the id on (Chapters 30 and 31)

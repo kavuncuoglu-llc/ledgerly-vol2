@@ -26,6 +26,11 @@ use App\Ai\Prompts\SupportPrompt;
 use App\Ai\Retrieval\CitationChecker;
 use App\Ai\Retrieval\RetrievalScope;
 use App\Ai\Retrieval\Retriever;
+use App\Ai\Routing\AttemptResult;
+use App\Ai\Routing\CascadeOutcome;
+use App\Ai\Routing\CascadingAnswer;
+use App\Ai\Routing\RoutePlan;
+use App\Ai\Routing\RouteTable;
 use App\Ai\Schemas\Category;
 use App\Ai\Security\AnswerGuard;
 use App\Ai\Streaming\DeltaBatcher;
@@ -45,6 +50,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 final class SupportAssistant
@@ -63,6 +69,8 @@ final class SupportAssistant
         private ProviderHealth $health,
         private AnswerGuard $guard,
         private AiManager $ai,
+        private RouteTable $routes,
+        private CascadingAnswer $cascade,
     ) {}
 
     public function answerStreaming(Conversation $c, string $question, Closure $onDelta, ?Closure $onToolStart = null, ?Message $reply = null): ToolRunResult
@@ -134,7 +142,7 @@ final class SupportAssistant
 
         $options = [
             'profile' => config('ai.eval.enabled') ? config('ai.eval.profile', 'assistant') : 'assistant',    // Chapter 29: the gates run at temperature 0 with a seed
-            'max_tokens' => config('ai.budget.answer'),
+            'max_tokens' => (config('ai.features')['support.reply']['max_tokens'] ?? null) ?: config('ai.budget.answer'),      // Chapter 37: a cap per feature from the lengths that actually resolve conversations
             'prompt_version' => $candidate?->version ?? SupportPrompt::VERSION,
             'variant' => $variant,
             'conversation_id' => $conversation->id,
@@ -142,12 +150,30 @@ final class SupportAssistant
             'semantic_cache_hit' => $eligible ? false : null,                      // eligible and missed, versus never eligible
         ];
 
+        $thinking = config('ai.features')['support.reply']['thinking_budget'] ?? null;
+
+        if ($thinking !== null) {
+            $options['thinking_budget'] = (int) $thinking;                         // Chapter 37: capped per feature; dropped unless the provider names the parameter
+        }
+
         $ctx = new ToolContext($user, $conversation->id);
 
-        $sent = count($prompt->messages);
+        $plan = $this->cascadePlan($route);
+
+        $bestScore = $this->bestScore($chunks);
+
+        if ($plan?->declines($bestScore)) {
+            return $this->decline($conversation, $question, $reply);                  // Chapter 37: retrieval found nothing near the question: the help center does not cover it, so no model is called
+        }
+
+        $cascadeId = (string) Str::uuid();
+
+        $run = fn (?string $provider, int $step, ?StreamListener $listener) => $this->attempt($prompt, $ctx, $options, $route, $listener, $conversation, $user, $provider, $this->cascadeMeta($plan, $cascadeId, $step, $route));
 
         try {
-            $result = $this->runner->run(messages: $prompt->messages, ctx: $ctx, options: $options, feature: 'support.reply', tools: $this->tools($route), stream: $stream);
+            $outcome = $plan === null
+                ? new CascadeOutcome($run(null, 0, $stream), false, [])
+                : $this->cascade->run($plan, $bestScore, $run, $stream, fn (int $step, array $failed) => $this->recordFailures($cascadeId, $step, $failed));
         } catch (ConnectionException|ProviderUnavailable|CircuitOpen $e) {
             if ($reply === null) {
                 throw $e;                                                          // a command or a test called us directly: it wants the error. A person waiting on a page gets the notice.
@@ -161,14 +187,18 @@ final class SupportAssistant
                 return $degraded['result'];                                        // the cache or the search page answered: nothing more to check or store
             }
 
-            [$result, $prompt] = [$degraded['result'], $degraded['prompt']];
-
-            $sent = count($prompt->messages);
+            $outcome = new CascadeOutcome($this->checked($degraded['result'], $degraded['prompt'], $ctx, $options, $conversation, $user), false, []);
         }
 
-        $result = $this->verify($result, $prompt, $sent, $ctx, $options, $conversation);
+        $final = $outcome->final;
 
-        [$result, $blocked, $findings] = $this->guarded($result, $prompt, $user);
+        [$result, $prompt, $blocked, $findings] = [$final->result, $final->prompt, $final->blocked, $final->findings];
+
+        if ($outcome->handedOff && ! $blocked && $result->pendingApprovals === []) {
+            $result = $result->withContent(SupportPrompt::escapeHatch());          // every role failed a check: a person, never a failed draft
+        }
+
+        $sent = count($prompt->messages);
 
         $reply = $this->remember($conversation, $result, sent: $sent, reply: $reply, blocked: $blocked);
 
@@ -201,6 +231,58 @@ final class SupportAssistant
         }
 
         return Cache::remember("{$step}:{$reply->id}", 3600, $work);
+    }
+
+    // One role's attempt: the tool loop on that provider (null = the feature's own), then the citation check with its one repair, then the answer guard. Chapter 37 runs this once per role in the chain.
+    private function attempt(AssembledPrompt $prompt, ToolContext $ctx, array $options, Route $route, ?StreamListener $stream, Conversation $conversation, User $user, ?string $provider, ?array $cascade): AttemptResult
+    {
+        $options = ($provider === null ? [] : ['provider' => $provider]) + ($cascade === null ? [] : ['cascade' => $cascade]) + $options;
+
+        $result = $this->runner->run(messages: $prompt->messages, ctx: $ctx, options: $options, feature: 'support.reply', tools: $this->tools($route), stream: $stream);
+
+        return $this->checked($result, $prompt, $ctx, $options, $conversation, $user, $provider ?? '');
+    }
+
+    private function checked(ToolRunResult $result, AssembledPrompt $prompt, ToolContext $ctx, array $options, Conversation $conversation, User $user, string $provider = ''): AttemptResult
+    {
+        $result = $this->verify($result, $prompt, count($prompt->messages), $ctx, $options, $conversation);
+
+        [$result, $blocked, $findings] = $this->guarded($result, $prompt, $user);
+
+        return new AttemptResult($result, $prompt, $blocked, $findings, $provider);
+    }
+
+    private function cascadePlan(Route $route): ?RoutePlan
+    {
+        if (! $this->routes->enabled()) {
+            return null;
+        }
+
+        return $this->routes->for($route->category);
+    }
+
+    private function bestScore(array $chunks): float
+    {
+        return $chunks === []
+            ? 0.0
+            : (float) max(array_map(fn ($chunk) => $chunk->similarity, $chunks));
+    }
+
+    private function cascadeMeta(?RoutePlan $plan, string $cascadeId, int $step, Route $route): ?array
+    {
+        return $plan === null
+            ? null
+            : ['id' => $cascadeId, 'step' => $step, 'category' => $route->category?->value];
+    }
+
+    // The checks an attempt failed go on every model call it made, so ai:cascade-report can say why a question was escalated.
+    private function recordFailures(string $cascadeId, int $step, array $failed): void
+    {
+        if ($failed === []) {
+            return;
+        }
+
+        ModelCall::query()->where('cascade_id', $cascadeId)->where('cascade_step', $step)->update(['cascade_failed' => implode(',', $failed)]);
     }
 
     // Chapter 36, Topic 5, Figure 36-5: a budget is spent (or the kill switch is on). The feature falls down its ladder from the rung BudgetGuard named, and a rung that cannot help (no cheaper role, no cached answer) hands over to the next.
@@ -550,7 +632,17 @@ final class SupportAssistant
             return;
         }
 
-        $this->cache->store($question, $category, $result->answer(), $tenantId);
+        $this->cache->store($question, $category, $result->answer(), $tenantId, $this->citedChunks($result));
+    }
+
+    // The chunks an answer cited, with their versions: what forgetCiting compares when a chunk changes.
+    private function citedChunks(ToolRunResult $result): ?array
+    {
+        $cited = collect($result->citations?->cited ?? [])->map(fn ($chunk) => ['id' => $chunk->id, 'version' => substr(sha1($chunk->content), 0, 12)])->unique('id')->values()->all();
+
+        return $cited === []
+            ? null
+            : $cited;
     }
 
     private function recordQuestion(Conversation $conversation, string $question, ?Message $reply): void

@@ -379,9 +379,32 @@ final class OpenAiCompatibleDriver implements ChatModel, EmbeddingModel, SendsRa
         ]);
     }
 
+    // Chapter 37, Topic 6: a reasoning model's thinking tokens are billed as output, so a feature can cap them (ai.features.<name>.thinking_budget, in tokens; 0 = none). Servers name this differently, so it is sent only to a provider that says
+    // which parameter takes it (`thinking_budget_param` in its config, in the {"type": "enabled", "budget_tokens": N} shape); everywhere else it is dropped quietly. Not run against a reasoning model in this repository.
+    private function thinking(array $options): array
+    {
+        $budget = $options['thinking_budget'] ?? null;
+
+        unset($options['thinking_budget']);
+
+        $param = $this->config['thinking_budget_param'] ?? null;
+
+        if ($budget === null || blank($param)) {
+            return $options;
+        }
+
+        $options[$param] = (int) $budget === 0
+            ? ['type' => 'disabled']
+            : ['type' => 'enabled', 'budget_tokens' => (int) $budget];
+
+        return $options;
+    }
+
     // Chapter 19, Topic 4: an option the provider rejects is dropped, with one warning per option, never an error on every call.
     private function dropped(array $options): array
     {
+        $options = $this->thinking($options);
+
         foreach ($this->config['drop_options'] ?? [] as $option) {
             if (! array_key_exists($option, $options)) {
                 continue;

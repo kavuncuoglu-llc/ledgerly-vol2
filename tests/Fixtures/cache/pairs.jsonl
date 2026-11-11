@@ -1,0 +1,44 @@
+{"a": "How do I export my invoices?", "b": "What is the way to download all my invoices?", "same": true, "source": "golden"}
+{"a": "How do I reset my password?", "b": "I forgot my password, how can I set a new one?", "same": true, "source": "golden"}
+{"a": "How are late fees calculated?", "b": "What is the formula for a late fee on an overdue invoice?", "same": true, "source": "golden"}
+{"a": "How do I add a team member?", "b": "Where can I invite a colleague to my account?", "same": true, "source": "golden"}
+{"a": "Can I send invoices in another currency?", "b": "How do I bill a client in euros instead of dollars?", "same": true, "source": "golden"}
+{"a": "How do I set up recurring invoices?", "b": "Can an invoice repeat every month automatically?", "same": true, "source": "golden"}
+{"a": "How do I change my billing email?", "b": "Where do I update the email address that receives our bills?", "same": true, "source": "golden"}
+{"a": "How do I turn off late fees for a customer?", "b": "Can I exempt one client from late fees?", "same": true, "source": "golden"}
+{"a": "How do I download a receipt?", "b": "Where can I get a PDF receipt for a payment?", "same": true, "source": "golden"}
+{"a": "How do I connect my bank account?", "b": "What are the steps to link a bank account for payouts?", "same": true, "source": "golden"}
+{"a": "What happens when an invoice is overdue?", "b": "What does Ledgerly do after the due date passes?", "same": true, "source": "golden"}
+{"a": "How do I change my plan?", "b": "How can I upgrade from the starter plan to pro?", "same": true, "source": "golden"}
+{"a": "How do I cancel my subscription?", "b": "What is the process to close my Ledgerly account?", "same": true, "source": "golden"}
+{"a": "How do I add a logo to my invoices?", "b": "Can I put my company logo on the invoice PDF?", "same": true, "source": "golden"}
+{"a": "How do I apply a discount to an invoice?", "b": "Where do I enter a percentage off on one invoice?", "same": true, "source": "golden"}
+{"a": "How do I merge two customers?", "b": "Can duplicate customer records be combined?", "same": true, "source": "golden"}
+{"a": "How do I set my tax rate?", "b": "Where do I configure the sales tax that is added to invoices?", "same": true, "source": "golden"}
+{"a": "How do I schedule an invoice to send later?", "b": "Can I set a future date for an invoice to go out?", "same": true, "source": "golden"}
+{"a": "How do I record a payment made by cheque?", "b": "What is the way to mark an invoice paid when the client posted a cheque?", "same": true, "source": "golden"}
+{"a": "How do I export my customers to a spreadsheet?", "b": "Can I get a CSV of all my clients?", "same": true, "source": "golden"}
+{"a": "How do I delete an invoice?", "b": "How do I delete a customer?", "same": false, "source": "golden"}
+{"a": "How do I export my invoices?", "b": "How do I import invoices from another tool?", "same": false, "source": "golden"}
+{"a": "How are late fees calculated?", "b": "How are late fees waived?", "same": false, "source": "golden"}
+{"a": "How do I add a team member?", "b": "How do I remove a team member?", "same": false, "source": "golden"}
+{"a": "How do I change my billing email?", "b": "How do I change my login email?", "same": false, "source": "golden"}
+{"a": "How do I turn off late fees for a customer?", "b": "How do I turn off late fee reminders for everyone?", "same": false, "source": "golden"}
+{"a": "How do I cancel my subscription?", "b": "How do I cancel an invoice?", "same": false, "source": "golden"}
+{"a": "How do I download a receipt?", "b": "How do I download my annual statement?", "same": false, "source": "golden"}
+{"a": "How do I reset my password?", "b": "How do I reset my two-factor authentication?", "same": false, "source": "golden"}
+{"a": "How do I change my plan?", "b": "How do I change a customer's plan?", "same": false, "source": "golden"}
+{"a": "How do I set up recurring invoices?", "b": "How do I stop recurring invoices?", "same": false, "source": "golden"}
+{"a": "How do I connect my bank account?", "b": "How do I disconnect my bank account?", "same": false, "source": "golden"}
+{"a": "What happens when an invoice is overdue?", "b": "What happens when an invoice is disputed?", "same": false, "source": "golden"}
+{"a": "How do I add a logo to my invoices?", "b": "How do I add a logo to my emails?", "same": false, "source": "golden"}
+{"a": "How do I apply a discount to an invoice?", "b": "How do I apply a payment to an invoice?", "same": false, "source": "golden"}
+{"a": "How do I merge two customers?", "b": "How do I merge two invoices?", "same": false, "source": "golden"}
+{"a": "How do I set my tax rate?", "b": "How do I set my currency?", "same": false, "source": "golden"}
+{"a": "How do I schedule an invoice to send later?", "b": "How do I schedule a payment reminder?", "same": false, "source": "golden"}
+{"a": "How do I record a payment made by cheque?", "b": "How do I refund a payment made by cheque?", "same": false, "source": "golden"}
+{"a": "How do I export my customers to a spreadsheet?", "b": "How do I export my payments to a spreadsheet?", "same": false, "source": "golden"}
+{"a": "Can I send invoices in another currency?", "b": "Can I accept payments in another currency?", "same": false, "source": "golden"}
+{"a": "How do I archive an invoice?", "b": "How do I archive a customer?", "same": false, "source": "golden"}
+{"a": "How do I give a customer a credit?", "b": "How do I give a customer a refund?", "same": false, "source": "golden"}
+{"a": "How do I add a late fee to an invoice by hand?", "b": "How do I remove a late fee from an invoice?", "same": false, "source": "golden"}

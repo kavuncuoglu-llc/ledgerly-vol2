@@ -15,6 +15,7 @@ class CachedAnswer extends Model
             'embedding' => Vector::class,
             'hit_count' => 'integer',
             'expires_at' => 'datetime',
+            'cited_chunks' => 'array',
         ];
     }
 }
