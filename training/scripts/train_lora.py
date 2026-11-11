@@ -99,13 +99,40 @@ def peak_memory_gb(torch, device: str) -> float:
     return 0.0
 
 
-def build_model(cfg: dict, torch, device: str, dtype_name: str):
-    from transformers import AutoModelForCausalLM
+UNSLOTH_TARGETS = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+
+
+def unsloth_lora_kwargs(cfg: dict) -> dict:
+    lora = cfg["lora"]
+    return {
+        "r": lora["r"],
+        "lora_alpha": lora["lora_alpha"],
+        "lora_dropout": 0,
+        "target_modules": UNSLOTH_TARGETS,
+        "use_gradient_checkpointing": "unsloth",
+        "random_state": cfg.get("seed", 42),
+    }
+
+
+def build_standard(cfg: dict, torch, dtype_name: str):
+    from peft import LoraConfig
+    from transformers import AutoModelForCausalLM, AutoTokenizer
 
     kwargs = {"dtype": getattr(torch, dtype_name), "attn_implementation": "sdpa"}
     if cfg.get("revision"):
         kwargs["revision"] = cfg["revision"]
-    return AutoModelForCausalLM.from_pretrained(cfg["base"], **kwargs)
+    model = AutoModelForCausalLM.from_pretrained(cfg["base"], **kwargs)
+    tokenizer = AutoTokenizer.from_pretrained(cfg["base"], revision=cfg.get("revision"))
+    return model, tokenizer, LoraConfig(**lora_kwargs(cfg))
+
+
+def build_unsloth(cfg: dict, load_in_4bit: bool):
+    from unsloth import FastLanguageModel
+
+    model, tokenizer = FastLanguageModel.from_pretrained(
+        model_name=cfg["base"], max_seq_length=cfg["max_seq_length"], load_in_4bit=load_in_4bit
+    )
+    return FastLanguageModel.get_peft_model(model, **unsloth_lora_kwargs(cfg)), tokenizer, None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -119,28 +146,38 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--report-to", default="mlflow")
     parser.add_argument("--limit-rows", type=int)
     parser.add_argument("--run-name")
+    parser.add_argument(
+        "--unsloth", action="store_true", help="NVIDIA only: Unsloth's fused kernels (uv sync --extra cuda)"
+    )
+    parser.add_argument("--load-in-4bit", action="store_true", help="with --unsloth: QLoRA, a 4-bit base")
     args = parser.parse_args(argv)
 
+    if args.unsloth:
+        import unsloth  # noqa: F401  (imported before trl and transformers so its patches apply)
+
     import torch
-    from peft import LoraConfig
-    from transformers import AutoTokenizer
     from trl import SFTConfig, SFTTrainer
 
     cfg = load_config(args.config)
     device = pick_device(torch, args.device)
     dtype_name = pick_dtype_name(torch, device)
-    print(f"device {device} · dtype {dtype_name} · base {cfg['base']}", flush=True)
+    print(
+        f"device {device} · dtype {dtype_name} · base {cfg['base']}" + (" · unsloth" if args.unsloth else ""),
+        flush=True,
+    )
     os.environ.setdefault("MLFLOW_EXPERIMENT_NAME", cfg.get("experiment", "billing-peft"))
-    tokenizer = AutoTokenizer.from_pretrained(cfg["base"], revision=cfg.get("revision"))
+    model, tokenizer, peft_config = (
+        build_unsloth(cfg, args.load_in_4bit) if args.unsloth else build_standard(cfg, torch, dtype_name)
+    )
     data = load_rendered(cfg, tokenizer, args.limit_rows)
     overrides = {"max_steps": args.max_steps, "output_dir": args.output_dir, "run_name": args.run_name}
     sft = SFTConfig(report_to=args.report_to, **trainer_kwargs(cfg, dtype_name, device, overrides))
     trainer = SFTTrainer(
-        model=build_model(cfg, torch, device, dtype_name),
+        model=model,
         processing_class=tokenizer,
         train_dataset=data["train"],
         eval_dataset=data.get("validation"),
-        peft_config=LoraConfig(**lora_kwargs(cfg)),
+        peft_config=peft_config,
         args=sft,
         callbacks=[step_logger()],
     )

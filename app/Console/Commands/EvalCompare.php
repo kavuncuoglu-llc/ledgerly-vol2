@@ -21,6 +21,7 @@ class EvalCompare extends Command
         {--with=gates,judge,injection,tripwire:generation : Checks: gates, judge, injection, tripwire:generation, tripwire:all}
         {--limit= : Run at most this many cases (a quick look)}
         {--report= : mlflow: log one run per role in the ledgerly-compare experiment}
+        {--log-to= : Log the one measured role\'s metrics into this existing MLflow run instead (a sweep run, for eval:sweep-report)}
         {--out=storage/eval/last-compare.json : Where the result is written (adr:append --from=eval:last reads it)}
         {--json : Print the result as JSON}';
 
@@ -50,7 +51,9 @@ class EvalCompare extends Command
             $this->print($results, $cases);
         }
 
-        if ($this->option('report') === 'mlflow') {
+        if ($this->option('log-to') !== null) {
+            $this->logTo((string) $this->option('log-to'), $results);
+        } elseif ($this->option('report') === 'mlflow') {
             $this->mlflow($results);
         }
 
@@ -168,6 +171,32 @@ class EvalCompare extends Command
             } catch (Throwable $e) {
                 $this->error($e->getMessage());
             }
+        }
+    }
+
+    /** @param list<RoleResult> $results */
+    private function logTo(string $runId, array $results): void
+    {
+        $measured = array_values(array_filter($results, fn (RoleResult $r) => $r->skipped === null));
+
+        if (count($measured) !== 1) {
+            $this->error('--log-to takes one measured role: '.count($measured).' were measured.');
+
+            return;
+        }
+
+        $metrics = [];
+
+        foreach (array_filter($measured[0]->metrics, fn ($value) => is_numeric($value)) as $key => $value) {
+            $metrics[] = ['key' => $key, 'value' => (float) $value, 'step' => 0];
+        }
+
+        try {
+            MlflowReporter::fromConfig()->metrics($runId, $metrics);
+
+            $this->info("  logged {$measured[0]->role} to MLflow run {$runId}");
+        } catch (Throwable $e) {
+            $this->error($e->getMessage());
         }
     }
 

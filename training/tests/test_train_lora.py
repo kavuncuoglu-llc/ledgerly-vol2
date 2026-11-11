@@ -60,3 +60,39 @@ def test_trainer_settings_follow_the_dtype_and_the_overrides_on_the_command_line
     assert gpu["include_num_input_tokens_seen"] is True and "use_cpu" not in gpu
     assert cpu["use_cpu"] is True and cpu["max_steps"] == 4 and cpu["output_dir"] == "runs/x"
     assert cpu["fp16"] is False and cpu["bf16"] is False
+
+
+def test_unsloth_gets_the_seven_projection_layers_no_dropout_and_its_own_checkpointing(tmp_path):
+    config = tmp_path / "c.yaml"
+    config.write_text(CONFIG + "seed: 7\n")
+
+    kwargs = tl.unsloth_lora_kwargs(tl.load_config(str(config)))
+
+    assert kwargs["target_modules"] == tl.UNSLOTH_TARGETS and len(kwargs["target_modules"]) == 7
+    assert kwargs["lora_dropout"] == 0 and kwargs["use_gradient_checkpointing"] == "unsloth"
+    assert kwargs["r"] == 16 and kwargs["lora_alpha"] == 16 and kwargs["random_state"] == 7
+
+
+def test_the_unsloth_path_loads_the_base_through_unsloth_and_leaves_peft_to_it(monkeypatch):
+    calls = {}
+
+    class FakeFastLanguageModel:
+        @staticmethod
+        def from_pretrained(**kwargs):
+            calls["load"] = kwargs
+            return "model", "tokenizer"
+
+        @staticmethod
+        def get_peft_model(model, **kwargs):
+            calls["peft"] = (model, kwargs)
+            return "peft-model"
+
+    fake = type("unsloth", (), {"FastLanguageModel": FakeFastLanguageModel})
+    monkeypatch.setitem(__import__("sys").modules, "unsloth", fake)
+    cfg = {"base": "b", "max_seq_length": 2048, "lora": {"r": 16, "lora_alpha": 16}}
+
+    model, tokenizer, peft_config = tl.build_unsloth(cfg, load_in_4bit=True)
+
+    assert (model, tokenizer, peft_config) == ("peft-model", "tokenizer", None)
+    assert calls["load"] == {"model_name": "b", "max_seq_length": 2048, "load_in_4bit": True}
+    assert calls["peft"][0] == "model" and calls["peft"][1]["use_gradient_checkpointing"] == "unsloth"

@@ -29,7 +29,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-cuda = ["torch>=2.10,<2.11"]
+cuda = [
+    "torch>=2.10,<2.11",
+    "bitsandbytes; sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "unsloth; sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
 rocm = [
     "torch>=2.10,<2.11",
     "triton-rocm==3.6.0; sys_platform == 'linux'",
@@ -80,7 +84,7 @@ pythonpath = ["."]
 
 [tool.ruff]
 line-length = 120
-extend-exclude = ["contracts"]
+extend-exclude = ["contracts", "notebooks"]
 target-version = "py311"
 
 [tool.ruff.lint]

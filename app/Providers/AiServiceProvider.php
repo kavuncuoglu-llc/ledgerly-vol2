@@ -48,6 +48,7 @@ use App\Ai\Tools\ToolRegistry;
 use App\Ai\Training\HubUploader;
 use App\Ai\Training\HuggingFaceHub;
 use App\Evals\MlflowReporter;
+use App\Evals\Sweep\SweepReport;
 use App\Livewire\Pulse\AiBudgets;
 use App\Livewire\Pulse\AiHealth;
 use App\Livewire\Pulse\AiSpend;
@@ -70,6 +71,8 @@ class AiServiceProvider extends ServiceProvider
         $this->app->singleton(FakeBatchDriver::class);
 
         $this->app->bind(MlflowReporter::class, fn () => MlflowReporter::fromConfig());
+
+        $this->app->bind(SweepReport::class, fn () => SweepReport::fromConfig());
 
         $this->app->singleton(Counters::class, fn () => config('ai.budgets.store') === 'array'
             ? new ArrayCounters

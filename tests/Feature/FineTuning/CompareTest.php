@@ -144,3 +144,17 @@ it('says what is missing for adr:append', function () {
 
     $this->artisan('adr:append', ['record' => $this->dir.'/adr.md'])->expectsOutputToContain('Name the section')->assertExitCode(1);
 });
+
+it('logs the one measured role into an existing MLflow run, which is how a sweep run gets its golden pass rate', function () {
+    config(['services.mlflow.tracking_uri' => 'http://mlflow.test']);
+
+    Http::fake(['mlflow.test/*' => Http::response([])]);
+
+    Ai::fake()->for('support.reply')->respondToEverythingWith('The fee is 1.5% a month.');
+
+    $this->artisan('eval:compare', ['--roles' => 'local', '--with' => 'gates', '--log-to' => 'run-123'])->expectsOutputToContain('logged local to MLflow run run-123')->assertExitCode(0);
+
+    Http::assertSent(fn ($request) => str_ends_with($request->url(), 'runs/log-batch') && $request['run_id'] === 'run-123' && collect($request['metrics'])->contains(fn ($m) => $m['key'] === 'golden_pass_rate'));
+
+    $this->artisan('eval:compare', ['--roles' => 'local,frontier-billing-ft', '--with' => 'gates', '--log-to' => 'run-123'])->expectsOutputToContain('--log-to takes one measured role: 2 were measured')->assertExitCode(0);
+});

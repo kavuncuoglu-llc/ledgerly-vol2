@@ -60,6 +60,54 @@ final class HostPolicy
         return $manifest['hosts'];
     }
 
+    // Chapter 43, Topic 6: the question the rented-GPU session asks before it creates anything. `billing-v1` is a dataset version (every source it holds counts); `billing-synthetic@a41c09e` is the private Hub copy that dataset:publish made of the parts with no customer data, named by repository and revision.
+    /** @return list<string> why the answer is no; empty means yes */
+    public function sessionRefusals(string $reference, string $provider, ?string $region): array
+    {
+        if (str_contains($reference, '@')) {
+            [$repository, $revision] = explode('@', $reference, 2);
+
+            $found = $this->byHub($repository, $revision);
+
+            return $found === null
+                ? ["No published dataset has the Hub copy {$reference}: dataset:publish --hub-private records it in a manifest, and the session checks that manifest."]
+                : [];
+        }
+
+        $dataset = Dataset::named($reference);
+
+        $manifest = $dataset->readJson('manifest.json');
+
+        if ($manifest === []) {
+            return ["Dataset {$reference} has no manifest.json: run dataset:publish."];
+        }
+
+        return $this->refusals($dataset, $provider, array_keys($manifest['composition'] ?? []), $region);
+    }
+
+    private function byHub(string $repository, string $revision): ?array
+    {
+        $root = rtrim((string) Config::get('ai.training.datasets_path'), '/');
+
+        foreach (glob("{$root}/*/manifest.json") ?: [] as $path) {
+            $manifest = json_decode((string) file_get_contents($path), true);
+
+            $hub = $manifest['hub'] ?? null;
+
+            if (! is_array($hub)) {
+                continue;
+            }
+
+            $same = $hub['repository'] === $repository || basename($hub['repository']) === $repository;
+
+            if ($same && str_starts_with((string) $hub['revision'], $revision)) {
+                return $manifest;
+            }
+        }
+
+        return null;
+    }
+
     private function host(Dataset $dataset, string $provider, ?string $region): ?array
     {
         foreach ($dataset->readJson('manifest.json')['hosts'] ?? [] as $host) {
