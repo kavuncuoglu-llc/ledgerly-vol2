@@ -192,7 +192,7 @@ it('renders page one of a PDF to an image before sending it', function () {
     [$width, $height] = getimagesizefromstring(base64_decode(substr($url, strlen('data:image/jpeg;base64,'))));
 
     expect(max($width, $height))->toBe(1024);
-})->skip(fn () => ! (new PdfPageRenderer)->isAvailable(), 'needs the Imagick extension or pdftoppm');
+})->skip(fn () => ! canRenderPdf(), 'needs an Imagick that may read PDFs, or pdftoppm');
 
 it('says what is missing when a PDF cannot be rendered', function () {
     $this->app->bind(PdfPageRenderer::class, fn () => new class extends PdfPageRenderer

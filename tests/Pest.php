@@ -9,6 +9,7 @@ use App\Ai\Streaming\ReplyStarter;
 use App\Ai\Tools\PendingAction;
 use App\Ai\Tools\Tool;
 use App\Ai\Tools\ToolRegistry;
+use App\Ai\Vision\PdfPageRenderer;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\HelpChunk;
@@ -432,4 +433,15 @@ function artisanOutput(string $command, array $parameters = []): array
     $code = Artisan::call($command, $parameters);
 
     return [$code, Artisan::output()];
+}
+
+function canRenderPdf(): bool
+{
+    try {
+        (new PdfPageRenderer)->firstPageAsPng(base_path('storage/samples/clean.pdf'));
+
+        return true;
+    } catch (Throwable) {
+        return false;
+    }
 }
