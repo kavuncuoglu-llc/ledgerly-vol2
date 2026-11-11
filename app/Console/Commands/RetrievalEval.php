@@ -32,6 +32,8 @@ class RetrievalEval extends Command
         {--reranker= : sidecar or none (default: config ai.retrieval.reranker)}
         {--rewrite= : off, rewrite, expand or hyde (default: config ai.retrieval.rewrite)}
         {--pool= : Candidates the reranker sees (default: config ai.retrieval.pool)}
+        {--vectors=live : live, or shadow to run on the Python worker\'s help_chunk_vectors (Chapter 27)}
+        {--vector-model= : The Hub repo of the shadow vectors (default: config ai.python.embed_model)}
         {--embed-model= : Compare this embedding model on the same chunks (needs --reindex-to)}
         {--reindex-to= : Copy help_chunks into this bench_* table and embed it with --embed-model first}
         {--keep-index : Do not drop the --reindex-to table afterwards}
@@ -41,8 +43,16 @@ class RetrievalEval extends Command
 
     protected $description = 'Measure retrieval alone against a golden set: recall@k, precision@k, MRR and the empty-expected check';
 
+    private ?string $vectorTable = null;
+
+    private ?string $vectorModel = null;
+
     public function handle(RetrieverFactory $factory, HelpVersion $version, ShadowIndex $shadow): int
     {
+        $this->vectorTable = null;
+
+        $this->vectorModel = null;
+
         if (! HelpChunk::query()->exists()) {
             $this->error('help_chunks is empty. Run php artisan help:ingest first.');
 
@@ -57,7 +67,17 @@ class RetrievalEval extends Command
             return self::FAILURE;
         }
 
+        if (! in_array($this->option('vectors'), ['live', 'shadow'], true)) {
+            $this->error('--vectors takes live or shadow.');
+
+            return self::FAILURE;
+        }
+
         try {
+            if ($this->option('vectors') === 'shadow') {
+                return $this->evaluateShadowVectors($factory, $version, $shadow, $questions);
+            }
+
             return $this->option('reindex-to')
                 ? $this->compareEmbeddingModel($factory, $shadow, $questions)
                 : $this->evaluate($factory, $version, $questions);
@@ -65,6 +85,35 @@ class RetrievalEval extends Command
             $this->error($e->getMessage());
 
             return self::FAILURE;
+        }
+    }
+
+    private function evaluateShadowVectors(RetrieverFactory $factory, HelpVersion $version, ShadowIndex $shadow, array $questions): int
+    {
+        $model = (string) ($this->option('vector-model') ?: config('ai.python.embed_model'));
+
+        $table = 'bench_python_vectors';
+
+        $built = $shadow->fromVectors($table, $model);
+
+        if ($built['chunks'] === 0) {
+            $shadow->drop($table);
+
+            $this->error("No shadow vectors for {$model}. Run php artisan ai:reembed --via=python first (py:listen applies the results).");
+
+            return self::FAILURE;
+        }
+
+        $this->vectorTable = $table;
+
+        $this->vectorModel = $model;
+
+        $this->line("Python vectors from {$model}: {$built['chunks']} chunk(s) copied into {$table}; questions are still embedded by ".config('ai.embed_model').'.');
+
+        try {
+            return $this->evaluate($factory, $version, $questions);
+        } finally {
+            $shadow->drop($table);
         }
     }
 
@@ -155,6 +204,7 @@ class RetrievalEval extends Command
     private function overrides(): array
     {
         return array_filter([
+            'table' => $this->vectorTable,
             'mode' => $this->option('mode'),
             'threshold' => $this->option('threshold') === null
                 ? null
@@ -276,7 +326,10 @@ class RetrievalEval extends Command
             'reranker' => $overrides['reranker'] ?? config('ai.retrieval.reranker', 'none'),
             'rewrite' => $overrides['rewrite'] ?? config('ai.retrieval.rewrite', 'off'),
             'strategy' => config('ai.retrieval.strategy', 'heading'),
-            'embed_model' => config('ai.embed_model'),
+            'embed_model' => $this->vectorModel ?? config('ai.embed_model'),
+            'vectors' => $this->vectorTable === null
+                ? 'live'
+                : 'shadow',
             'ran_at' => now()->toIso8601String(),
         ] + $report->toArray(), JSON_PRETTY_PRINT)."\n");
 

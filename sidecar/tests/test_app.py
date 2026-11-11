@@ -169,6 +169,28 @@ class AppTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 503)
 
+    def test_a_request_id_header_is_echoed_and_logged(self):
+        with self.client() as client, self.assertLogs("ledgerly.sidecar", level="INFO") as logs:
+            response = client.post(
+                "/rerank", json={"question": "q", "passages": ["a"]}, headers={"X-Request-Id": "req-1234abcd"}
+            )
+
+        self.assertEqual(response.headers["X-Request-Id"], "req-1234abcd")
+        self.assertIn("request_id=req-1234abcd", logs.output[0])
+
+    def test_a_request_id_is_cleaned_before_it_reaches_the_log(self):
+        with self.client() as client, self.assertLogs("ledgerly.sidecar", level="INFO") as logs:
+            client.get("/health", headers={"X-Request-Id": "ok-1 \x1b[31mred"})
+
+        self.assertIn("request_id=ok-131mred", logs.output[0])
+        self.assertNotIn("\x1b", logs.output[0])
+
+    def test_no_header_means_no_echo(self):
+        with self.client() as client:
+            response = client.get("/health")
+
+        self.assertNotIn("X-Request-Id", response.headers)
+
 
 if __name__ == "__main__":
     unittest.main()

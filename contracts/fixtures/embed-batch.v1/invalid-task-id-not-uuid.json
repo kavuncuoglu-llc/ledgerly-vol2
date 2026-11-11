@@ -1,0 +1,1 @@
+{ "schema": "embed-batch.v1", "task_id": "task-17", "request_id": null, "model": "nomic-ai/nomic-embed-text-v1.5", "items": [ { "id": 1, "text": "Late fees" } ] }

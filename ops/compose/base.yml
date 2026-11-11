@@ -50,6 +50,62 @@ services:
           cpus: "2"
           memory: 2g
 
+  # Chapter 27: Python beside PHP. Both services are in the `python` profile (naming them in `up` also starts them). Neither is given a database credential from here:
+  # py-worker gets Redis and nothing else, py-listen is the PHP side that owns every write. Both sit on the project's default network, where Postgres and Redis are.
+  #   docker compose --env-file .env -f ops/compose/base.yml --profile python up -d --build py-worker py-listen
+  py-worker:
+    profiles: ["python"]
+    image: ledgerly-training:${TRAINING_TAG:-vol2}
+    build:
+      context: ../../training
+    command: ["uv", "run", "python", "-m", "workers.embed_worker"]
+    environment:
+      REDIS_URL: redis://redis:6379/0                         # no database credentials
+      NOMIC_REVISION: ${NOMIC_REVISION:-e9b6763023c676ca8431644204f50c2b100d9aab}
+      NOMIC_CODE_REVISION: ${NOMIC_CODE_REVISION:-7710840340a098cfb869c4f65e87cf2b1b70caca}
+      TASK_TIMEOUT_MS: ${TASK_TIMEOUT_MS:-120000}
+    volumes:
+      - py-models:/home/worker/.cache/huggingface
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "find /tmp/py-worker.heartbeat -mmin -1 | grep -q ."]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 600s                                       # the first start downloads the model
+    restart: unless-stopped
+
+  py-listen:
+    profiles: ["python"]
+    image: ${APP_IMAGE:-ledgerly/app:vol2}
+    build:
+      context: ../..
+      dockerfile: ops/app/Dockerfile
+    command: ["php", "artisan", "py:listen", "--stream=py:results"]
+    env_file:
+      - ../../.env
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      QUEUE_CONNECTION: redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "php", "artisan", "py:status"]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
 networks:
   sidecar: {}
   internal: {}                 # where the model servers live (ollama.yml, llama.yml); they publish nothing beyond 127.0.0.1
@@ -58,3 +114,4 @@ volumes:
   postgres-data:
   redis-data:
   sidecar-models:
+  py-models:

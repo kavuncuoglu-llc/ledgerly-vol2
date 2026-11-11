@@ -1,6 +1,7 @@
 <?php
 
 use App\Ai\Conversations\NoTenant;
+use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\SetTenantForDatabase;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -16,6 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withBroadcasting(__DIR__.'/../routes/channels.php', ['middleware' => ['web']])
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->append(AssignRequestId::class);
+
         $middleware->web(append: [
             SetTenantForDatabase::class,
         ]);

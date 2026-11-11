@@ -52,6 +52,30 @@ final class ShadowIndex
         return ['dimensions' => $dimensions, 'chunks' => $count, 'seconds' => microtime(true) - $started];
     }
 
+    /**
+     * The same copy, with the vectors the Python worker made (help_chunk_vectors) in place of the live ones (Chapter 27), so retrieval:eval --vectors=shadow can run the golden set on them.
+     *
+     * @return array{dimensions: int, chunks: int}
+     */
+    public function fromVectors(string $table, string $model): array
+    {
+        $this->assertName($table);
+
+        DB::statement("DROP TABLE IF EXISTS {$table}");
+        DB::statement("CREATE TABLE {$table} (LIKE help_chunks INCLUDING DEFAULTS INCLUDING GENERATED)");
+
+        $columns = implode(', ', self::COPIED);
+
+        $fromColumns = implode(', ', array_map(fn (string $column) => "h.{$column}", self::COPIED));
+
+        $chunks = DB::affectingStatement(
+            "INSERT INTO {$table} ({$columns}, embedding) SELECT {$fromColumns}, v.embedding FROM help_chunks h JOIN help_chunk_vectors v ON v.help_chunk_id = h.id AND v.model = ? WHERE h.tenant_id IS NULL AND h.embedding IS NOT NULL",
+            [$model],
+        );
+
+        return ['dimensions' => (int) config('ai.embed_dimensions'), 'chunks' => $chunks];
+    }
+
     public function drop(string $table): void
     {
         $this->assertName($table);

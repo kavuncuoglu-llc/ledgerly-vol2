@@ -1,0 +1,123 @@
+# Chapter 27, Figure 27-6: one job per language and one for the boundary. Nothing here needs a secret, a model server, a GPU or the network beyond package downloads,
+# so the same workflow is safe on pull requests from forks.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  php:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: ledgerly
+          POSTGRES_USER: ledgerly
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ledgerly -d ledgerly"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    env:
+      PGPASSWORD: secret
+    steps:
+      - uses: actions/checkout@v6.1.0
+      - uses: shivammathur/setup-php@2.37.2
+        with:
+          php-version: "8.3"
+          extensions: gd, zip, pcntl, posix, pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Create the test database
+        run: |
+          psql -h 127.0.0.1 -U ledgerly -d ledgerly -c "CREATE EXTENSION IF NOT EXISTS vector"
+          psql -h 127.0.0.1 -U ledgerly -d ledgerly -c "CREATE DATABASE ledgerly_testing OWNER ledgerly"
+          psql -h 127.0.0.1 -U ledgerly -d ledgerly_testing -c "CREATE EXTENSION IF NOT EXISTS vector"
+      - run: vendor/bin/pint --test
+      - run: vendor/bin/pest
+
+  python:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: training
+    steps:
+      - uses: actions/checkout@v6.1.0
+      - uses: astral-sh/setup-uv@v10.3.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: training/uv.lock
+      - run: uv sync --locked
+      - run: uv run ruff check
+      - run: uv run pytest
+
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: ledgerly
+          POSTGRES_USER: ledgerly
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ledgerly -d ledgerly"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      PGPASSWORD: secret
+    steps:
+      - uses: actions/checkout@v6.1.0
+      - uses: shivammathur/setup-php@2.37.2
+        with:
+          php-version: "8.3"
+          extensions: gd, zip, pcntl, posix, pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - uses: astral-sh/setup-uv@v10.3.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: training/uv.lock
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Create the test database (the test case connects before any test runs)
+        run: |
+          psql -h 127.0.0.1 -U ledgerly -d ledgerly -c "CREATE DATABASE ledgerly_testing OWNER ledgerly"
+          psql -h 127.0.0.1 -U ledgerly -d ledgerly_testing -c "CREATE EXTENSION IF NOT EXISTS vector"
+      - run: uv sync --locked
+        working-directory: training
+      - name: The generated Pydantic models are current
+        run: |
+          training/scripts/generate_contracts.sh
+          git diff --exit-code -- training/contracts
+      - name: PHP accepts and rejects the fixtures
+        run: vendor/bin/pest --filter=ContractFixtures
+      - name: So does Python
+        run: uv run pytest tests/test_contract_fixtures.py
+        working-directory: training

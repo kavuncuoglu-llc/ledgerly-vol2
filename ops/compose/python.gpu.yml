@@ -1,0 +1,17 @@
+# Profile: python, on an NVIDIA host (Chapter 27). The worker image is built with the CUDA extra and the container reserves the GPU, the way ollama.gpu.yml does.
+#   docker compose --env-file .env -f ops/compose/base.yml -f ops/compose/python.gpu.yml --profile python up -d --build py-worker py-listen
+# NOT run by the author (no NVIDIA GPU on the build machine): the file is valid Compose.
+
+services:
+  py-worker:
+    image: ledgerly-training:${TRAINING_TAG:-vol2}-cuda
+    build:
+      args:
+        UV_SYNC_ARGS: --extra cuda
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

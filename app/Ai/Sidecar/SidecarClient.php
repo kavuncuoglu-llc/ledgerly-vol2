@@ -6,6 +6,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -63,12 +64,21 @@ final class SidecarClient
         }
 
         try {
-            $response = $request(Http::baseUrl($this->url)->connectTimeout($this->connectTimeout)->timeout($this->timeout)->acceptJson());
+            $response = $request(Http::baseUrl($this->url)->connectTimeout($this->connectTimeout)->timeout($this->timeout)->acceptJson()->withHeaders($this->correlation()));
         } catch (ConnectionException $e) {
             throw $this->markDown("The sidecar at {$this->url} is not reachable: ".$e->getMessage());
         }
 
         return $this->decode($response);
+    }
+
+    private function correlation(): array
+    {
+        $requestId = Context::get('request_id');
+
+        return $requestId === null
+            ? []
+            : ['X-Request-Id' => (string) $requestId];            // the sidecar writes it into its logs (Chapter 27, Topic 2)
     }
 
     private function decode(Response $response): array

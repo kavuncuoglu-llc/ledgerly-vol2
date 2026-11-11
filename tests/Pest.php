@@ -2,6 +2,7 @@
 
 use App\Ai\Conversations\ConversationStore;
 use App\Ai\Prompts\SupportPrompt;
+use App\Ai\Python\Streams;
 use App\Ai\Retrieval\RetrievedChunk;
 use App\Ai\Tools\Tool;
 use App\Ai\Tools\ToolRegistry;
@@ -16,12 +17,14 @@ use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Tests\Support\FakeStreams;
 use Tests\TestCase;
 
 require_once __DIR__.'/Support/AskAssistant.php';
 require_once __DIR__.'/Support/FakeTools.php';
 require_once __DIR__.'/Support/Modelfile.php';
 require_once __DIR__.'/Support/FakeOllamaServer.php';
+require_once __DIR__.'/Support/FakeStreams.php';
 require_once __DIR__.'/Support/FakeLlamaServer.php';
 require_once __DIR__.'/Support/FakeVllmServer.php';
 require_once __DIR__.'/Support/FakeTritonServer.php';
@@ -35,6 +38,15 @@ pest()->extend(TestCase::class)
 
 pest()->extend(TestCase::class)
     ->in('Unit');
+
+function fakeStreams(): FakeStreams
+{
+    $streams = new FakeStreams;
+
+    app()->instance(Streams::class, $streams);
+
+    return $streams;
+}
 
 function helpLibrary(array $files): string
 {

@@ -281,6 +281,20 @@ return [
         'parse_timeout' => env('SIDECAR_PARSE_TIMEOUT', 120),
     ],
 
+    // Chapter 27: the Python worker and its Redis streams. Python gets its own JSON queue because it cannot run Laravel's PHP-serialized jobs.
+    'python' => [
+        'embed_model' => env('PY_EMBED_MODEL', 'nomic-ai/nomic-embed-text-v1.5'),     // the Hub repo the worker serves; Ollama's nomic-embed-text is a quantized GGUF of the same model
+        'task_timeout_seconds' => (int) env('PY_TASK_TIMEOUT', 600),                  // py:listen marks a queued task failed after this; the worker reclaims idle entries at TASK_TIMEOUT_MS
+        'redis_connection' => 'default',
+        'listener_group' => 'php-listeners',                                          // the consumer group py:listen reads py:results with
+        'worker_group' => 'py-workers',                                               // the consumer group the Python workers share (py:status reads its pending list)
+        'streams' => [
+            'embed' => 'py:tasks:embed',
+            'results' => 'py:results',
+            'dead' => 'py:dead',
+        ],
+    ],
+
     'agents' => [   // per-run caps; any one ending the run is a normal outcome (Chapter 17)
         'support' => ['max_rounds' => 5, 'max_tokens' => 20_000, 'max_seconds' => 60, 'max_writes' => 1],
         'triage' => ['max_rounds' => 8, 'max_tokens' => 30_000, 'max_seconds' => 120, 'max_writes' => 2],

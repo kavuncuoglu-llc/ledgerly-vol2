@@ -30,6 +30,8 @@ use App\Ai\Parsing\MarkdownParser;
 use App\Ai\Parsing\ParserRouter;
 use App\Ai\Parsing\PdftotextParser;
 use App\Ai\Parsing\SidecarPdfParser;
+use App\Ai\Python\RedisStreams;
+use App\Ai\Python\Streams;
 use App\Ai\Retrieval\PgRetriever;
 use App\Ai\Retrieval\Retriever;
 use App\Ai\Retrieval\RetrieverFactory;
@@ -53,6 +55,8 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->singleton(Streams::class, fn () => RedisStreams::fromConfig());
+
         $this->app->singleton(TokenCounter::class, fn () => match (config('ai.token_counter')) {
             'tiktoken' => new TiktokenCounter,
             'server' => $this->serverCounter(),

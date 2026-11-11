@@ -1,3 +1,5 @@
+import logging
+import re
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, UploadFile
@@ -15,6 +17,13 @@ from ledgerly_sidecar.core import (
 )
 
 
+log = logging.getLogger("ledgerly.sidecar")
+
+
+def clean_request_id(value):
+    return re.sub(r"[^A-Za-z0-9._-]", "", value or "")[:64]
+
+
 class RerankRequest(BaseModel):
     question: str
     passages: list[str]
@@ -30,6 +39,18 @@ def create_app(rerank=None, parse=None):
         yield
 
     app = FastAPI(title="Ledgerly sidecar", lifespan=lifespan)
+
+    @app.middleware("http")
+    async def echo_request_id(request, call_next):
+        request_id = clean_request_id(request.headers.get("x-request-id"))
+
+        response = await call_next(request)
+
+        if request_id:
+            response.headers["X-Request-Id"] = request_id
+            log.info("%s %s status=%s request_id=%s", request.method, request.url.path, response.status_code, request_id)
+
+        return response
 
     def problem(status, error):
         return JSONResponse(status_code=status, content={"detail": str(error)})

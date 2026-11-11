@@ -1,0 +1,1 @@
+{ "schema": "embed-batch.v1", "task_id": "0b0d4a52-3f7e-4c26-9a53-6b7d1d5e0a11", "request_id": "f3c1a9b2-5d1e-4b8a-8f0e-2f6a3c9d7e41", "model": "nomic-ai/nomic-embed-text-v1.5", "items": [ { "id": 1, "text": "Late fees" }, { "id": 2, "text": "Recurring invoices" } ] }

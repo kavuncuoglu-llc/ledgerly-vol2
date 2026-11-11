@@ -26,6 +26,7 @@ Each chapter of this volume is a tag, `ch26` through `ch51`, taken at the end of
 | --- | --- |
 | `vol2-start` | Volume 1's finished app, ready to run: the support assistant, the help center, four local model servers, `ai:doctor`, Horizon and Reverb. |
 | `ch26` | `training/`: a `uv` project (Python 3.12, `pyproject.toml`, `uv.lock`, extras `cuda`, `rocm` and `mlx`) with `hello_model.py`, `tokens.py`, `embed_compare.py` and `token_lengths.py`, and `ops/compose/ollama.localhost.yml`. |
+| `ch27` | Python beside PHP: JSON Schema contracts in `contracts/` validated by PHP and by generated Pydantic models, the embedding worker (`py-worker`) and `py:listen` over Redis streams, the shadow table `help_chunk_vectors`, `ai:reembed`, `ai:compare-vectors`, `ai:promote-vectors`, `retrieval:eval --vectors=shadow`, `dataset:validate`, the first CI (`.github/workflows/ci.yml`: PHP, Python and contracts jobs). |
 
 ## Set up `vol2-start`
 
@@ -56,6 +57,20 @@ uv run python scripts/hello_model.py
 The first run of a script downloads its model from the Hugging Face Hub into `~/.cache/huggingface` (set `HF_HOME` to move it). Nothing the tests do needs the network. Model revisions in the scripts are commit hashes, so they do not change under you. `training/data/*.jsonl` and the other exported datasets are git-ignored.
 
 `embed_compare.py` calls Ollama on `http://localhost:11434` (`OLLAMA_URL`, without `/v1`, overrides it). On Linux with Ollama inside Compose, publish its port first: `docker compose -f ops/compose/base.yml -f ops/compose/ollama.yml -f ops/compose/ollama.localhost.yml --profile ollama up -d`.
+
+### From `ch27`: Python beside PHP
+
+```bash
+docker compose --env-file .env -f ops/compose/base.yml --profile python up -d --build py-worker py-listen
+php artisan queue:work redis --queue=default      # or Horizon: py:listen dispatches ApplyEmbeddings on the default queue
+php artisan ai:reembed --via=python --model=nomic-ai/nomic-embed-text-v1.5 --batch=64
+php artisan py:status
+php artisan ai:compare-vectors --model=nomic-ai/nomic-embed-text-v1.5 --against=ollama
+php artisan retrieval:eval --vectors=shadow
+php artisan ai:promote-vectors --model=nomic-ai/nomic-embed-text-v1.5      # only if both look right
+```
+
+`py-worker` has Redis and no database credentials; the first start downloads the model (about 550 MB) into the `py-models` volume, so give it a few minutes (its health check waits ten). `py-listen` is `php artisan py:listen` in the app image; to run it on the host instead, `php artisan py:listen` with Redis on `REDIS_PORT`. On an NVIDIA host add `-f ops/compose/python.gpu.yml`. The messages are described by `contracts/*.json`; after you change one, `training/scripts/generate_contracts.sh` regenerates `training/contracts/` and CI fails if the committed copy is stale. `NOMIC_REVISION` and `NOMIC_CODE_REVISION` pin the two Hugging Face repositories whose code the worker runs; they are in `.env.example`.
 
 ## The app as Volume 1 left it
 
