@@ -40,6 +40,7 @@ Each chapter of this volume is a tag, `ch26` through `ch51`, taken at the end of
 | `ch36` | Real-time cost observability and budget governance: the append-only `ai_ledger` (integer micro-dollars, price version, five labels) written from a Redis stream by `ai:ledger-consume` and `WriteLedgerBatch` on a `ledger` Horizon queue, `BudgetedModel` (kill switch, token bucket, atomic all-or-none reservation with `reserve_all.lua`, settlement, release on failure), nested budgets per tenant, feature, anonymous traffic and the app hour, a degrade ladder for the support assistant (cheaper role, tighter limits, cache only, search and a person) and a pause for background features, `ai:spend-breaker`, `ai:kill`, `ai:spend`, `ai:showback` and `ai:reconcile`, and a Pulse budgets card. |
 | `ch37` | Cost optimization and context engineering: `ai:cost-breakdown` (a call's cost by prompt section), `eval:route-table` and the committed `config/ai-routes.php` (the cheapest role that clears the scorecard's floor per category), `CascadingAnswer` inside the support assistant (start cheap, check, escalate with the same sources, hold back an attempt until it passes, hand off to a person) with `ai:cascade-report`, `ai:cache-tune` and cache invalidation by cited chunk version, `ai:cache-share`, deduplication and optional trimming of retrieved passages, per-feature `max_tokens`, `ai:batch:submit`, `ai:batch:poll` and `ai:batch:collect` for work nobody is waiting on, and the total cost per conversation including escalations. |
 | `ch38` | When to fine-tune: `php artisan eval:failure-modes` (every failing billing case sorted into retrieval miss, coverage gap, behavior and format, arithmetic or unclear, with a judge for what the checks cannot place and a backlog file for the cases that are not fine-tuning problems), the decision record `docs/adr/fine-tune-local-billing.md` with its evidence, `docs/backlog/billing-retrieval-and-coverage.md`, and the `calculate_proration` tool so arithmetic stays out of training. |
+| `ch39` | Fine-tuning methods: the first LoRA run at a size that finishes in minutes: `training/scripts/first_lora.py` (Qwen2.5-0.5B-Instruct, rank 16 on all linear layers, logged to the `first-lora` MLflow experiment), `quick_eval.py` (required facts present, base against base plus adapter, on 20 held-out cases in `tests/golden/billing_holdout.jsonl`), `training/data/mix.py` (replay mixing), and the 200 synthetic billing examples in `training/data/fixtures/billing_sft_small.jsonl` (`php artisan dataset:fixture` writes both from the seeded database). `peft` and `trl` are in the lock now, `trl` pinned below 1.0. |
 
 ## Set up `vol2-start`
 
@@ -236,6 +237,18 @@ php artisan eval:failure-modes --judge                                          
 ```
 
 The buckets and where each goes (Figure 38-8): behavior and format is the only fine-tuning problem; a retrieval miss goes to retrieval tuning, a coverage gap to the help center, arithmetic to a tool (`calculate_proration`: a plan change prorated by days left, a late fee at 1.5% a month by day), and anything left to a person. Retrieval misses and coverage gaps are written to `storage/eval/backlog.jsonl` (git-ignored); `docs/backlog/billing-retrieval-and-coverage.md` is the committed copy of the first run. The decision record `docs/adr/fine-tune-local-billing.md` quotes that run: on this machine, with the reranker off, 9 of the 41 billing cases pass and half the failures are behavior, so the retrieval backlog comes before any training.
+
+### From `ch39`: a first LoRA run, small and fast
+
+```bash
+cd training && uv sync
+MLFLOW_TRACKING_URI=http://localhost:5050 uv run python scripts/first_lora.py          # 200 examples, 2 epochs, rank 16: about five minutes on an M1 Pro (MPS); a CUDA card was not available here
+uv run python scripts/quick_eval.py --adapter runs/first-lora/adapter --cases ../tests/golden/billing_holdout.jsonl
+uv run python data/mix.py --task data/fixtures/billing_sft_small.jsonl --replay <the base model's own answers> --share 0.15 --out data/mixed.jsonl
+cd .. && php artisan dataset:fixture          # rewrites the fixture and the held-out cases from the seeded database (a test checks the committed files are exactly this output)
+```
+
+`MLFLOW_TRACKING_URI` is the server of Chapter 28 (`--profile mlflow`); without one the Hugging Face integration cannot log and the run fails, so use `--report-to none` to train without tracking. The run prints `trainable%: 1.7497` (8,798,208 of 502,830,976 parameters) and saves the adapter to `training/runs/first-lora/adapter` (git-ignored). The 200 rows are templated from the seeded invoices (a late fee explained, a balance, a payment confirmed), in the prompt-and-completion format, with the account data in the prompt; the 20 held-out cases are late-fee questions on invoices that appear in no training row, and they are part of the golden set, so `eval:gates` runs them too. On Apple Silicon `trl` 1.x breaks the GPU (its fused loss head returns zeros and Metal reports command-buffer errors), which is why `trl` is pinned below 1.0.
 
 ## The app as Volume 1 left it
 
