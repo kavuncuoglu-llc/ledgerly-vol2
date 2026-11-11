@@ -11,6 +11,8 @@ final class SupportPrompt
 {
     public const VERSION = '2026-11-06.1';
 
+    public const FINE_TUNED_VERSION = FineTunedSupportPrompt::VERSION;
+
     public static function system(?User $user = null): string
     {
         $memories = $user
@@ -21,6 +23,11 @@ final class SupportPrompt
     }
 
     // Chapter 32, Topic 7: the canary is configuration, not text under review, so it is added to whatever system text a request uses and is not part of the hash in prompts.lock.
+    public static function fineTuned(): string
+    {
+        return FineTunedSupportPrompt::system();
+    }
+
     public static function withCanary(string $system): string
     {
         $canary = (string) config('ai.security.canary');

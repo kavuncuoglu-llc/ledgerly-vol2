@@ -690,4 +690,14 @@ return [
         // Used by `php artisan mcp:start ledgerly` (stdio has no login): the user the editor acts as
         'local_user' => env('LEDGERLY_MCP_USER'),
     ],
+
+    // Chapter 40: training data. `hash_key` keys the one-way hash of each source conversation, tenant and user in a dataset (Chapter 34's erasure finds examples by it); caps are the largest share of a dataset one tenant or user may supply, and `retire_after_days` is when a dataset version replaced after an erasure is deleted (the backup window).
+    'training' => [
+        'hash_key' => env('AI_TRAINING_HASH_KEY'),
+        'datasets_path' => storage_path('datasets'),
+        'caps' => ['tenant' => 0.05, 'user' => 0.01, 'subcategory' => 0.40],
+        'retire_after_days' => (int) env('BACKUP_RETENTION_DAYS', 35),
+        'region_disk_prefix' => 'training-',
+        'tokenizer' => env('TEMPLATE_CHECK_TOKENIZER', 'meta-llama/Llama-3.1-8B-Instruct'),   // the base the adapter trains on: ai:template-check renders with this tokenizer's chat template
+    ],
 ];

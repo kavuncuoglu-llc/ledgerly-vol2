@@ -47,6 +47,15 @@ return [
             'report' => false,
         ],
 
+        // Chapter 40, Topic 8: where a dataset built from customer conversations lives, one disk per region: a bucket in the region (encrypted and versioned on the bucket) when TRAINING_<REGION>_BUCKET is set, a local folder otherwise.
+        'training-eu' => env('TRAINING_EU_BUCKET')
+            ? ['driver' => 's3', 'key' => env('AWS_ACCESS_KEY_ID'), 'secret' => env('AWS_SECRET_ACCESS_KEY'), 'region' => env('TRAINING_EU_REGION', 'eu-west-1'), 'bucket' => env('TRAINING_EU_BUCKET'), 'throw' => true, 'report' => false]
+            : ['driver' => 'local', 'root' => storage_path('app/training/eu'), 'throw' => true, 'report' => false],
+
+        'training-us' => env('TRAINING_US_BUCKET')
+            ? ['driver' => 's3', 'key' => env('AWS_ACCESS_KEY_ID'), 'secret' => env('AWS_SECRET_ACCESS_KEY'), 'region' => env('TRAINING_US_REGION', 'us-east-1'), 'bucket' => env('TRAINING_US_BUCKET'), 'throw' => true, 'report' => false]
+            : ['driver' => 'local', 'root' => storage_path('app/training/us'), 'throw' => true, 'report' => false],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

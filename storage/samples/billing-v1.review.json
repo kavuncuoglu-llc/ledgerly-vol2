@@ -1,0 +1,318 @@
+{
+    "reviewers": [
+        "support-lead",
+        "support-agent"
+    ],
+    "decisions": [
+        {
+            "conversation": 900003,
+            "turn": 5,
+            "action": "edit",
+            "completion": "Yes, invoice INV-4129 is paid. The full $4,489.06 was received on September 3, 2025, so nothing is due.",
+            "reason": "invoice number added"
+        },
+        {
+            "conversation": 900005,
+            "turn": 5,
+            "action": "reject",
+            "reason": "promise not allowed"
+        },
+        {
+            "conversation": 900009,
+            "turn": 5,
+            "action": "reject",
+            "reason": "leaked data"
+        },
+        {
+            "conversation": 900012,
+            "turn": 5,
+            "action": "reject",
+            "reason": "promise not allowed"
+        },
+        {
+            "conversation": 900015,
+            "turn": 5,
+            "action": "reject",
+            "reason": "promise not allowed"
+        },
+        {
+            "conversation": 900018,
+            "turn": 5,
+            "action": "reject",
+            "reason": "promise not allowed"
+        },
+        {
+            "conversation": 900020,
+            "turn": 5,
+            "action": "edit",
+            "completion": "Invoice INV-4415 was 68 days past its due date of February 1, 2026, so a late fee of $65.50 was added to its total of $3,447.54. Late fees are 1.5% of the balance per month, prorated by day. [late-fees \u203a How the fee is calculated]",
+            "reason": "invoice number added"
+        },
+        {
+            "conversation": 900028,
+            "turn": 5,
+            "action": "reject",
+            "reason": "promise not allowed"
+        },
+        {
+            "conversation": 900037,
+            "turn": 5,
+            "action": "edit",
+            "completion": "Yes, invoice INV-4276 is paid. The full $999.00 was received on November 24, 2025, so nothing is due.",
+            "reason": "invoice number added"
+        },
+        {
+            "conversation": 900071,
+            "turn": 5,
+            "action": "edit",
+            "completion": "Yes, invoice INV-4203 is paid. The full $5,320.00 was received on November 4, 2025, so nothing is due.",
+            "reason": "invoice number added"
+        },
+        {
+            "conversation": 900072,
+            "turn": 5,
+            "action": "reject",
+            "reason": "promise not allowed"
+        },
+        {
+            "conversation": 900074,
+            "turn": 5,
+            "action": "reject",
+            "reason": "promise not allowed"
+        },
+        {
+            "conversation": 900075,
+            "turn": 5,
+            "action": "reject",
+            "reason": "promise not allowed"
+        },
+        {
+            "conversation": 900078,
+            "turn": 5,
+            "action": "reject",
+            "reason": "promise not allowed"
+        },
+        {
+            "conversation": 900088,
+            "turn": 5,
+            "action": "edit",
+            "completion": "Yes, invoice INV-4168 is paid. The full $3,882.39 was received on October 6, 2025, so nothing is due.",
+            "reason": "invoice number added"
+        },
+        {
+            "conversation": 900097,
+            "turn": 5,
+            "action": "reject",
+            "reason": "promise not allowed"
+        },
+        {
+            "conversation": 900102,
+            "turn": 5,
+            "action": "reject",
+            "reason": "leaked data"
+        },
+        {
+            "conversation": 900105,
+            "turn": 5,
+            "action": "edit",
+            "completion": "Yes, invoice INV-4505 is paid. The full $2,524.39 was received on April 4, 2026, so nothing is due.",
+            "reason": "invoice number added"
+        },
+        {
+            "conversation": 900122,
+            "turn": 5,
+            "action": "edit",
+            "completion": "Yes, invoice INV-3985 is paid. The full $3,074.88 was received on June 9, 2025, so nothing is due.",
+            "reason": "invoice number added"
+        },
+        {
+            "conversation": 900133,
+            "turn": 5,
+            "action": "reject",
+            "reason": "leaked data"
+        },
+        {
+            "conversation": 900143,
+            "turn": 5,
+            "action": "reject",
+            "reason": "promise not allowed"
+        },
+        {
+            "conversation": 900156,
+            "turn": 5,
+            "action": "edit",
+            "completion": "Yes, invoice INV-4288 is paid. The full $2,867.90 was received on November 10, 2025, so nothing is due.",
+            "reason": "invoice number added"
+        },
+        {
+            "conversation": 900173,
+            "turn": 5,
+            "action": "edit",
+            "completion": "Yes, invoice INV-4009 is paid. The full $3,001.35 was received on July 18, 2025, so nothing is due.",
+            "reason": "invoice number added"
+        },
+        {
+            "conversation": 900189,
+            "turn": 5,
+            "action": "reject",
+            "reason": "promise not allowed"
+        },
+        {
+            "conversation": 900190,
+            "turn": 5,
+            "action": "edit",
+            "completion": "Yes, invoice INV-4081 is paid. The full $1,229.72 was received on July 20, 2025, so nothing is due.",
+            "reason": "invoice number added"
+        },
+        {
+            "conversation": 900195,
+            "turn": 5,
+            "action": "reject",
+            "reason": "leaked data"
+        },
+        {
+            "conversation": 900207,
+            "turn": 5,
+            "action": "edit",
+            "completion": "Yes, invoice INV-4058 is paid. The full $4,697.31 was received on July 10, 2025, so nothing is due.",
+            "reason": "invoice number added"
+        },
+        {
+            "conversation": 900212,
+            "turn": 5,
+            "action": "reject",
+            "reason": "promise not allowed"
+        },
+        {
+            "conversation": 900224,
+            "turn": 5,
+            "action": "edit",
+            "completion": "Yes, invoice INV-4329 is paid. The full $1,523.08 was received on January 12, 2026, so nothing is due.",
+            "reason": "invoice number added"
+        },
+        {
+            "conversation": 900226,
+            "turn": 5,
+            "action": "reject",
+            "reason": "leaked data"
+        },
+        {
+            "conversation": 900235,
+            "turn": 5,
+            "action": "reject",
+            "reason": "promise not allowed"
+        }
+    ],
+    "second_reviews": [
+        {
+            "conversation": 900005,
+            "turn": 5,
+            "action": "edit"
+        },
+        {
+            "conversation": 900010,
+            "turn": 5,
+            "action": "accept"
+        },
+        {
+            "conversation": 900028,
+            "turn": 5,
+            "action": "reject"
+        },
+        {
+            "conversation": 900030,
+            "turn": 5,
+            "action": "accept"
+        },
+        {
+            "conversation": 900050,
+            "turn": 5,
+            "action": "accept"
+        },
+        {
+            "conversation": 900070,
+            "turn": 5,
+            "action": "accept"
+        },
+        {
+            "conversation": 900074,
+            "turn": 5,
+            "action": "reject"
+        },
+        {
+            "conversation": 900090,
+            "turn": 5,
+            "action": "accept"
+        },
+        {
+            "conversation": 900097,
+            "turn": 5,
+            "action": "edit"
+        },
+        {
+            "conversation": 900100,
+            "turn": 5,
+            "action": "accept"
+        },
+        {
+            "conversation": 900110,
+            "turn": 5,
+            "action": "accept"
+        },
+        {
+            "conversation": 900140,
+            "turn": 5,
+            "action": "accept"
+        },
+        {
+            "conversation": 900143,
+            "turn": 5,
+            "action": "edit"
+        },
+        {
+            "conversation": 900150,
+            "turn": 5,
+            "action": "accept"
+        },
+        {
+            "conversation": 900160,
+            "turn": 5,
+            "action": "accept"
+        },
+        {
+            "conversation": 900180,
+            "turn": 5,
+            "action": "accept"
+        },
+        {
+            "conversation": 900189,
+            "turn": 5,
+            "action": "edit"
+        },
+        {
+            "conversation": 900200,
+            "turn": 5,
+            "action": "accept"
+        },
+        {
+            "conversation": 900212,
+            "turn": 5,
+            "action": "reject"
+        },
+        {
+            "conversation": 900230,
+            "turn": 5,
+            "action": "accept"
+        },
+        {
+            "conversation": 900235,
+            "turn": 5,
+            "action": "edit"
+        },
+        {
+            "conversation": 900240,
+            "turn": 5,
+            "action": "accept"
+        }
+    ]
+}

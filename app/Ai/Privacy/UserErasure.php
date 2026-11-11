@@ -2,6 +2,7 @@
 
 namespace App\Ai\Privacy;
 
+use App\Ai\Training\DatasetFootprint;
 use App\Evals\GoldenSet;
 use App\Evals\ReviewQueue;
 use App\Facades\Ai;
@@ -173,6 +174,7 @@ final class UserErasure
             'anonymized' => [
                 'model_calls' => count($scope['modelCallIds']),
             ],
+            'datasets' => (new DatasetFootprint)->of($scope['conversationIds']),         // Chapter 40: copies in training datasets are found, not deleted: dataset:forget builds the next version without them
         ];
     }
 

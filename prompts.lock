@@ -6,6 +6,9 @@
     "ExtractMemoriesPrompt": {
         "2026-11-01.1": "ba82284a88e0de1862e6298128409955ab6dfd4fea229b98b5570e3f6dc7e7aa"
     },
+    "FineTunedSupportPrompt": {
+        "2026-11-11.ft1": "d69cafa31095499c96b63450fcf2b982cf5d34e54af5af2a340ab356d6f65389"
+    },
     "InvestigatePrompt": {
         "2026-11-03.1": "24745f361e2c96619cd08ca09597b620adec38f19ffb93fc9a7dfb9270b2f765"
     },

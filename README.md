@@ -41,6 +41,7 @@ Each chapter of this volume is a tag, `ch26` through `ch51`, taken at the end of
 | `ch37` | Cost optimization and context engineering: `ai:cost-breakdown` (a call's cost by prompt section), `eval:route-table` and the committed `config/ai-routes.php` (the cheapest role that clears the scorecard's floor per category), `CascadingAnswer` inside the support assistant (start cheap, check, escalate with the same sources, hold back an attempt until it passes, hand off to a person) with `ai:cascade-report`, `ai:cache-tune` and cache invalidation by cited chunk version, `ai:cache-share`, deduplication and optional trimming of retrieved passages, per-feature `max_tokens`, `ai:batch:submit`, `ai:batch:poll` and `ai:batch:collect` for work nobody is waiting on, and the total cost per conversation including escalations. |
 | `ch38` | When to fine-tune: `php artisan eval:failure-modes` (every failing billing case sorted into retrieval miss, coverage gap, behavior and format, arithmetic or unclear, with a judge for what the checks cannot place and a backlog file for the cases that are not fine-tuning problems), the decision record `docs/adr/fine-tune-local-billing.md` with its evidence, `docs/backlog/billing-retrieval-and-coverage.md`, and the `calculate_proration` tool so arithmetic stays out of training. |
 | `ch39` | Fine-tuning methods: the first LoRA run at a size that finishes in minutes: `training/scripts/first_lora.py` (Qwen2.5-0.5B-Instruct, rank 16 on all linear layers, logged to the `first-lora` MLflow experiment), `quick_eval.py` (required facts present, base against base plus adapter, on 20 held-out cases in `tests/golden/billing_holdout.jsonl`), `training/data/mix.py` (replay mixing), and the 200 synthetic billing examples in `training/data/fixtures/billing_sft_small.jsonl` (`php artisan dataset:fixture` writes both from the seeded database). `peft` and `trl` are in the lock now, `trl` pinned below 1.0. |
+| `ch40` | Building a training dataset: tenant training-use settings (off by default), a per-user exclusion and residency-aware exports; `php artisan dataset:export` (every answered turn rebuilt by `ContextAssembler::rebuild` with the fine-tuned system message, personal data replaced by consistent surrogates, sources hashed with `AI_TRAINING_HASH_KEY`); `dataset:review` (accept, edit, reject with reasons, a judge-sorted queue, a second reviewer's agreement); `training/data/clean.py` and `split.py` (filters, near-duplicates, decontamination against the golden set, balance caps, split by conversation, mixing); `dataset:publish`, `dataset:show`, `dataset:forget` and `dataset:scan` (planted instructions, trigger phrases, unsourced links, concentration); `ai:template-check` (training and serving chat templates compared by token); and `user:forget` finding the dataset versions that hold a person's conversations. `db:seed --class=TrainingCorpusSeeder` builds the corpus the Build runs on. |
 
 ## Set up `vol2-start`
 
@@ -249,6 +250,27 @@ cd .. && php artisan dataset:fixture          # rewrites the fixture and the hel
 ```
 
 `MLFLOW_TRACKING_URI` is the server of Chapter 28 (`--profile mlflow`); without one the Hugging Face integration cannot log and the run fails, so use `--report-to none` to train without tracking. The run prints `trainable%: 1.7497` (8,798,208 of 502,830,976 parameters) and saves the adapter to `training/runs/first-lora/adapter` (git-ignored). The 200 rows are templated from the seeded invoices (a late fee explained, a balance, a payment confirmed), in the prompt-and-completion format, with the account data in the prompt; the 20 held-out cases are late-fee questions on invoices that appear in no training row, and they are part of the golden set, so `eval:gates` runs them too. On Apple Silicon `trl` 1.x breaks the GPU (its fused loss head returns zeros and Metal reports command-buffer errors), which is why `trl` is pinned below 1.0.
+
+### From `ch40`: a reviewed, versioned training set
+
+```bash
+php artisan migrate                                                       # tenants.training_use (off), training_terms_version, data_residency; users.training_excluded; reply_edits
+php artisan db:seed --class=TrainingCorpusSeeder                          # 240 invented billing conversations on top of the seeded app (not in the default seed): opted-in tenants, edits, thumbs, and the flaws the pipeline exists to find
+# set AI_TRAINING_HASH_KEY in .env first: php artisan tinker --execute='echo bin2hex(random_bytes(32));'
+php artisan dataset:export billing --since=2026-03-01 --out=storage/datasets/billing-v1 --patterns-only   # --patterns-only: names need the privacy profile (PRESIDIO_URL); without it the export refuses
+php artisan dataset:scan billing-v1                                       # injected instructions, trigger phrases, unsourced links, concentration (before review)
+php artisan dataset:review billing-v1 --triage=judge                      # the queue, doubtful first; the judge never labels
+php artisan dataset:review billing-v1 --apply=storage/samples/billing-v1.review.json   # the Build's prepared review (written from the seeder: decisions keyed by conversation id)
+cd training
+uv run python data/clean.py --in ../storage/datasets/billing-v1 --cap-tenant=0.10 --cap-user=0.05 --cap-subcategory=0.75   # caps scaled to a corpus of 160 examples
+uv run python data/split.py --in ../storage/datasets/billing-v1 --mix synthetic=0.15,replay=0.15 --val=0.08
+cd .. && php artisan dataset:publish billing-v1 --region=eu               # training-eu disk (a local folder; set TRAINING_EU_BUCKET for S3); --hub-private=ledgerly/billing-synthetic needs HF_TOKEN
+php artisan dataset:show billing-v1
+php artisan dataset:forget billing-v1 --conversation=900001 --reason="erasure request"     # billing-v2 without that conversation's examples; billing-v1 scheduled for retirement
+php artisan ai:template-check llama3.1:8b --tokenizer=NousResearch/Meta-Llama-3.1-8B-Instruct --rows=storage/datasets/billing-v1/train.jsonl   # --server=ollama|llama|vllm; the Llama repository itself is gated
+```
+
+The datasets live in `storage/datasets/` (git-ignored: they are customer-derived even when redacted) and the regional copy in `storage/app/training/<region>/`. Training data takes the fine-tuned system message (`SupportPrompt::fineTuned()`, version `2026-11-11.ft1`, never the canary), the passages and tool traffic of the turn, and the agent's edit where there is one; replacing a name needs Presidio (`--profile privacy`), the rest does not. Exemplars, the synthetic set and the replay set (the base model's own answers, written by `training/data/replay.py` through Ollama) are in `training/data/fixtures/`. `ai:template-check` found a real difference on the first try: with tool turns in the row, Ollama's `llama3.1:8b` template renders 557 tokens where the Hugging Face template renders 538, and without them the two agree (122 and 122).
 
 ## The app as Volume 1 left it
 

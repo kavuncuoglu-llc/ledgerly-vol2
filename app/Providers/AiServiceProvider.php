@@ -42,6 +42,8 @@ use App\Ai\Tools\RetryPayment\RetryPayment;
 use App\Ai\Tools\SearchHelpCenter\SearchHelpCenter;
 use App\Ai\Tools\ToolKind;
 use App\Ai\Tools\ToolRegistry;
+use App\Ai\Training\HubUploader;
+use App\Ai\Training\HuggingFaceHub;
 use App\Livewire\Pulse\AiBudgets;
 use App\Livewire\Pulse\AiHealth;
 use App\Livewire\Pulse\AiSpend;
@@ -67,6 +69,7 @@ class AiServiceProvider extends ServiceProvider
             ? new ArrayCounters
             : RedisCounters::fromConfig());
 
+        $this->app->bind(HubUploader::class, HuggingFaceHub::class);
         $this->app->bind(SandboxRunner::class, fn () => SandboxRunner::fromConfig());
         $this->app->bind(ToolCredentials::class, fn () => ToolCredentials::fromConfig());
 

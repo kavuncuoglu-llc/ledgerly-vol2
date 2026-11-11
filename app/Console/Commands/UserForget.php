@@ -62,6 +62,10 @@ class UserForget extends Command
 
         $this->line("  {$verb}  feedback {$deleted['feedback']} · signals {$deleted['signals']} · shadow answers {$deleted['shadow_answers']} · judgments {$deleted['judgments']}");
 
+        foreach ($report['datasets'] ?? [] as $dataset => $examples) {
+            $this->warn("  datasets    {$dataset} holds {$examples} examples of these conversations: run php artisan dataset:forget {$dataset} --conversation=<id> before the next training run");
+        }
+
         $this->line("  anonymized  model_calls {$report['anonymized']['model_calls']} (the row stays for cost history; the conversation link and the recorded request go)");
     }
 
@@ -72,6 +76,10 @@ class UserForget extends Command
 
     private function writeReceipt(ErasureSubject $subject, array $report, array $expiring): ErasureRequest
     {
+        if (($report['datasets'] ?? []) !== []) {
+            $expiring['training_datasets'] = $report['datasets'];
+        }
+
         return DB::transaction(fn () => ErasureRequest::create([
             'subject' => $subject->label,
             'reason' => $this->option('reason'),

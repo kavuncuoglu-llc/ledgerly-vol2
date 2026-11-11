@@ -21,6 +21,7 @@ class User extends Authenticatable
         'customer_id',
         'tenant_id',
         'role',
+        'training_excluded',
     ];
 
     protected $hidden = [
@@ -33,6 +34,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'training_excluded' => 'boolean',
         ];
     }
 

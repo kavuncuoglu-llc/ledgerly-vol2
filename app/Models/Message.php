@@ -6,6 +6,7 @@ use App\Ai\Retrieval\RetrievedChunk;
 use App\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Message extends Model
 {
@@ -71,6 +72,29 @@ class Message extends Model
             ->map(fn (self $message) => ['role' => $message->role, 'content' => $message->content])
             ->values()
             ->all();
+    }
+
+    public function edit(): HasOne
+    {
+        return $this->hasOne(ReplyEdit::class);
+    }
+
+    // Chapter 40, Topic 4: the target of a training example is the reply that was actually good, best first.
+    public function agentEditedReply(): ?string
+    {
+        return $this->edit?->content;
+    }
+
+    public function sentReply(): string
+    {
+        return (string) $this->content;
+    }
+
+    public function targetSource(): string
+    {
+        return $this->edit === null
+            ? 'production'
+            : 'edits';
     }
 
     public function isCompacted(): bool

@@ -63,3 +63,6 @@ __pycache__/
 /tests/golden/promptfoo.yaml
 /evals/node_modules/
 /storage/sandbox/
+
+# Chapter 40: datasets built from customer conversations (surrogate-redacted, still customer data) stay out of the repository; the regional store is storage/app/training/
+/storage/datasets/

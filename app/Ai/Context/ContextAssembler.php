@@ -3,9 +3,12 @@
 namespace App\Ai\Context;
 
 use App\Ai\Conversations\SummaryNote;
+use App\Ai\Prompts\SupportPrompt;
 use App\Ai\Security\Untrusted;
 use App\Ai\Tokens\TokenCounter;
+use App\Models\Message;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 
 final class ContextAssembler
 {
@@ -66,6 +69,47 @@ final class ContextAssembler
     public function question(string $q): self
     {
         return $this->slot('question', [['role' => 'user', 'content' => "Question:\n".Untrusted::wrap($q, 'customer_message')]]);
+    }
+
+    // Chapter 40, Topic 4: a stored reply's prompt, built by the same slots in the same order as the live one: the earlier turns, the passages it was shown (rebuilt from the stored chunk ids), the customer's question inside the same untrusted tags, and the tool traffic of that turn. Only the system message differs, by version, and never carries the canary: that is a deployment secret, not text to train on.
+    /** @return list<array> */
+    public function rebuild(Message $turn, string $systemVersion): array
+    {
+        $assembler = new self($this->counter, $this->provider);
+
+        $system = match ($systemVersion) {
+            SupportPrompt::FINE_TUNED_VERSION => SupportPrompt::fineTuned(),
+            SupportPrompt::VERSION => SupportPrompt::base(),
+            default => throw new InvalidArgumentException("No system message for version [{$systemVersion}]."),
+        };
+
+        $prompt = $assembler
+            ->system($system)
+            ->history($turn->historyBefore())
+            ->context($turn->retrievedSources(), (string) $turn->question)
+            ->question((string) $turn->question)
+            ->build();
+
+        return [...$prompt->messages, ...$this->toolTraffic($turn)];
+    }
+
+    private function toolTraffic(Message $turn): array
+    {
+        return Message::withoutGlobalScopes()
+            ->where('conversation_id', $turn->conversation_id)
+            ->where('seq', '<', $turn->seq)
+            ->where('seq', '>', (int) Message::withoutGlobalScopes()->where('conversation_id', $turn->conversation_id)->where('role', 'user')->where('content', $turn->question)->where('seq', '<', $turn->seq)->max('seq'))
+            ->whereIn('role', ['assistant', 'tool'])
+            ->orderBy('seq')
+            ->get()
+            ->map(fn (Message $message) => array_filter([
+                'role' => $message->role,
+                'content' => $message->content,
+                'tool_calls' => $message->tool_calls,
+                'tool_call_id' => $message->tool_call_id,
+            ], fn ($value) => $value !== null))
+            ->values()
+            ->all();
     }
 
     public function build(): AssembledPrompt
