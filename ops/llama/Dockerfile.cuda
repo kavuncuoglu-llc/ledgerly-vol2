@@ -1,0 +1,15 @@
+# ops/llama/Dockerfile.cuda: llama-server for an NVIDIA GPU (Chapter 23, Figure 23-2). Pinned release; built once in CI.
+# 86 = Ampere, 89 = Ada (4090), 120 = Blackwell: list the cards you will run on, or leave the two defaults.
+FROM nvidia/cuda:12.6.0-devel-ubuntu24.04 AS build
+ARG LLAMA_TAG=b11829
+ARG CUDA_ARCHITECTURES="86;89"
+RUN apt-get update && apt-get install -y --no-install-recommends git cmake build-essential ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN git clone --depth 1 --branch ${LLAMA_TAG} https://github.com/ggml-org/llama.cpp /src \
+ && cmake -S /src -B /src/build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCHITECTURES}" -DBUILD_SHARED_LIBS=OFF -DLLAMA_CURL=OFF \
+ && cmake --build /src/build --config Release -j --target llama-server
+
+FROM nvidia/cuda:12.6.0-runtime-ubuntu24.04
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 curl ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=build /src/build/bin/llama-server /usr/local/bin/
+EXPOSE 8080
+ENTRYPOINT ["llama-server", "--host", "0.0.0.0", "--port", "8080"]

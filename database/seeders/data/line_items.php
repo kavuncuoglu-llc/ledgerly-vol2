@@ -1,0 +1,88 @@
+<?php
+
+return [
+    'creative' => [
+        ['Brand identity design', 1, 1, 80000, 350000],
+        ['Design retainer, monthly', 1, 1, 90000, 300000],
+        ['Logo revisions', 1, 6, 8000, 15000],
+        ['Packaging mockups', 2, 8, 12000, 30000],
+        ['Print production management', 4, 20, 6000, 11000],
+    ],
+    'consulting' => [
+        ['Strategy workshop, full day', 1, 3, 90000, 250000],
+        ['Consulting hours', 4, 40, 9000, 22000],
+        ['Process audit', 1, 1, 150000, 450000],
+        ['Quarterly review report', 1, 1, 60000, 180000],
+        ['Travel time', 2, 12, 4000, 9000],
+    ],
+    'bookkeeping' => [
+        ['Monthly bookkeeping', 1, 1, 35000, 120000],
+        ['Payroll processing', 1, 4, 8000, 25000],
+        ['Quarterly VAT and sales tax filing', 1, 1, 30000, 90000],
+        ['Year-end accounts preparation', 1, 1, 90000, 280000],
+        ['Reconciliation catch-up, per hour', 3, 20, 5500, 9500],
+    ],
+    'media' => [
+        ['Photo session, half day', 1, 3, 45000, 120000],
+        ['Video editing, per hour', 6, 40, 6500, 14000],
+        ['Colour grading', 1, 5, 20000, 55000],
+        ['Licensing, annual', 1, 1, 30000, 150000],
+        ['Location fee', 1, 3, 10000, 40000],
+    ],
+    'trades' => [
+        ['Labour, per hour', 3, 60, 6500, 12500],
+        ['Materials', 1, 1, 15000, 350000],
+        ['Call-out fee', 1, 4, 7500, 14000],
+        ['Permit handling', 1, 1, 12000, 40000],
+        ['Disposal and cleanup', 1, 1, 8000, 30000],
+    ],
+    'software' => [
+        ['Feature development, per hour', 8, 80, 9000, 19000],
+        ['Code review', 2, 12, 8500, 15000],
+        ['Hosting and monitoring, monthly', 1, 3, 15000, 90000],
+        ['Security patching', 1, 6, 12000, 28000],
+        ['Technical discovery sprint', 1, 1, 200000, 600000],
+    ],
+    'marketing' => [
+        ['Campaign management, monthly', 1, 1, 120000, 400000],
+        ['Landing page copy', 1, 6, 25000, 60000],
+        ['Email sequence, 5 emails', 1, 4, 40000, 90000],
+        ['Social content calendar', 1, 3, 30000, 80000],
+        ['Analytics report', 1, 1, 25000, 75000],
+    ],
+    'professional' => [
+        ['Document review, per hour', 3, 30, 12000, 28000],
+        ['Translation, per 1000 words', 4, 40, 9000, 16000],
+        ['Proofreading, per 1000 words', 5, 60, 3500, 7000],
+        ['Rush surcharge', 1, 1, 8000, 40000],
+        ['Case preparation', 1, 4, 30000, 90000],
+    ],
+    'events' => [
+        ['Catering, per head', 20, 150, 1800, 4800],
+        ['Venue styling', 1, 1, 60000, 240000],
+        ['Floral arrangements', 4, 30, 3500, 14000],
+        ['Staffing, per hour', 6, 60, 2800, 4500],
+        ['Equipment hire', 1, 3, 20000, 90000],
+    ],
+    'property' => [
+        ['Monthly maintenance contract', 1, 1, 40000, 180000],
+        ['Seasonal planting', 1, 4, 30000, 110000],
+        ['Tenant turnover cleaning', 1, 8, 15000, 45000],
+        ['Inspection visit', 1, 6, 9000, 25000],
+        ['Supplies', 1, 1, 12000, 90000],
+    ],
+    'wellness' => [
+        ['Session, 60 minutes', 4, 40, 6000, 14000],
+        ['Programme design', 1, 1, 30000, 90000],
+        ['Group class, per month', 1, 4, 20000, 60000],
+        ['Assessment', 1, 2, 12000, 30000],
+        ['Learning materials', 1, 6, 2500, 8000],
+    ],
+    'engineering' => [
+        ['Site survey', 1, 4, 80000, 260000],
+        ['Design drawings, per sheet', 4, 30, 18000, 42000],
+        ['Structural calculations', 1, 3, 120000, 380000],
+        ['Project management, per hour', 10, 60, 9500, 17500],
+        ['Freight and handling', 1, 5, 30000, 120000],
+    ],
+];

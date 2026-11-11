@@ -1,0 +1,7 @@
+# Pins were chosen without network access and must be re-verified with pip (pip install -r requirements.txt) before use.
+fastapi==0.115.12
+uvicorn==0.34.2
+python-multipart==0.0.20
+pydantic==2.11.4
+sentence-transformers==3.4.1
+marker-pdf==1.6.2

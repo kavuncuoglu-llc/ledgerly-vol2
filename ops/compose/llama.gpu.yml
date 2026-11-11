@@ -1,0 +1,12 @@
+# Adds the NVIDIA reservation to the llama service (Chapter 23, Figure 23-5). Set LLAMA_VARIANT=cuda in .env so the CUDA image is built.
+#   docker compose --env-file .env -f ops/compose/base.yml -f ops/compose/llama.yml -f ops/compose/llama.gpu.yml --profile llama up -d --build
+
+services:
+  llama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

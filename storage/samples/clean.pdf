@@ -1,0 +1,83 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Length 2233 >>
+stream
+BT /F2 20 Tf 50 780 Td (Northgate Paper Co) Tj ET
+BT /F1 10 Tf 50 758 Td (14 Mill Lane) Tj ET
+BT /F1 10 Tf 50 744 Td (Harrowgate, ZZ1 4AB) Tj ET
+BT /F1 10 Tf 50 730 Td (billing@northgate-paper.example.com) Tj ET
+BT /F2 24 Tf 400 780 Td (INVOICE) Tj ET
+BT /F1 11 Tf 400 755 Td (Invoice #  NP-20931) Tj ET
+BT /F1 11 Tf 400 739 Td (Invoice date  2026-03-16) Tj ET
+BT /F1 11 Tf 400 723 Td (Due date  2026-04-15) Tj ET
+BT /F1 11 Tf 400 707 Td (Terms  Net 30) Tj ET
+BT /F2 9 Tf 50 690 Td (BILL TO) Tj ET
+BT /F1 11 Tf 50 676 Td (Acme Studios) Tj ET
+BT /F1 11 Tf 50 661 Td (221 Example Street) Tj ET
+BT /F1 11 Tf 50 646 Td (Springfield) Tj ET
+BT /F2 9 Tf 300 690 Td (CURRENCY) Tj ET
+BT /F1 11 Tf 300 676 Td (USD) Tj ET
+BT /F2 10 Tf 50 600 Td (Description) Tj ET
+BT /F2 10 Tf 330 600 Td (Qty) Tj ET
+BT /F2 10 Tf 400 600 Td (Unit price) Tj ET
+BT /F2 10 Tf 490 600 Td (Amount) Tj ET
+0.7 g 50 594 500 0.6 re f 0 g
+BT /F1 11 Tf 50 576 Td (Copy paper A4, 500 sheets) Tj ET
+BT /F1 11 Tf 332 576 Td (40) Tj ET
+BT /F1 11 Tf 410 576 Td (12.50) Tj ET
+BT /F1 11 Tf 490 576 Td (500.00) Tj ET
+BT /F1 11 Tf 50 554 Td (Recycled envelopes DL, box of 500) Tj ET
+BT /F1 11 Tf 332 554 Td (6) Tj ET
+BT /F1 11 Tf 410 554 Td (24.90) Tj ET
+BT /F1 11 Tf 490 554 Td (149.40) Tj ET
+BT /F1 11 Tf 50 532 Td (Archive boxes, flat-pack) Tj ET
+BT /F1 11 Tf 332 532 Td (25) Tj ET
+BT /F1 11 Tf 410 532 Td (8.50) Tj ET
+BT /F1 11 Tf 490 532 Td (212.50) Tj ET
+BT /F1 11 Tf 50 510 Td (Label rolls, 4 in) Tj ET
+BT /F1 11 Tf 332 510 Td (12) Tj ET
+BT /F1 11 Tf 410 510 Td (15.00) Tj ET
+BT /F1 11 Tf 490 510 Td (180.00) Tj ET
+BT /F1 11 Tf 50 488 Td (Toner cartridge, black) Tj ET
+BT /F1 11 Tf 332 488 Td (2) Tj ET
+BT /F1 11 Tf 410 488 Td (121.30) Tj ET
+BT /F1 11 Tf 490 488 Td (242.60) Tj ET
+BT /F1 11 Tf 400 452 Td (Subtotal) Tj ET
+BT /F1 11 Tf 490 452 Td (1,284.50) Tj ET
+BT /F1 11 Tf 400 434 Td (Tax \(resale exempt\)) Tj ET
+BT /F1 11 Tf 490 434 Td (0.00) Tj ET
+BT /F2 13 Tf 360 406 Td (TOTAL DUE \(USD\)) Tj ET
+BT /F2 13 Tf 490 406 Td (1,284.50) Tj ET
+BT /F1 9 Tf 50 60 Td (Payment: bank transfer to account 00-000000 \(fictional\). Thank you for your business.) Tj ET
+BT /F1 8 Tf 50 46 Td (This invoice is a fictional sample created for the Ledgerly companion repository.) Tj ET
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000000321 00000 n 
+0000000396 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+2680
+%%EOF

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="BROADCAST_CONNECTION" value="null"/>
+        <env name="CACHE_STORE" value="array"/>
+        <env name="DB_CONNECTION" value="pgsql" force="true"/>
+        <env name="DB_DATABASE" value="ledgerly_testing" force="true"/>
+        <env name="LEDGERLY_AS_OF" value="2026-04-20" force="true"/>
+        <env name="AI_PROVIDER" value="ollama" force="true"/>
+        <env name="AI_BASE_URL" value="http://localhost:11434/v1" force="true"/>
+        <env name="AI_API_KEY" value="ollama" force="true"/>
+        <env name="AI_MODEL" value="llama3.1:8b" force="true"/>
+        <env name="AI_VISION_MODEL" value="llama3.2-vision:11b" force="true"/>
+        <env name="AI_EMBED_MODEL" value="nomic-embed-text" force="true"/>
+        <env name="AI_TOKEN_COUNTER" value="ratio" force="true"/>
+        <env name="AI_STRUCTURED_LEVEL" value="schema" force="true"/>
+        <env name="AI_ENCODING_DEFAULT" value="toon" force="true"/>
+        <env name="AI_SEMANTIC_CACHE" value="false" force="true"/>
+        <env name="AI_RETRIEVAL_MODE" value="hybrid" force="true"/>
+        <env name="AI_ROUTER" value="false" force="true"/>
+        <env name="AI_RERANKER" value="none" force="true"/>
+        <env name="AI_QUERY_REWRITE" value="off" force="true"/>
+        <env name="AI_RETRIEVAL_STRATEGY" value="heading" force="true"/>
+        <env name="AI_RETRIEVAL_CONTEXT_HEADERS" value="path" force="true"/>
+        <env name="SIDECAR_URL" value="http://sidecar.test" force="true"/>
+        <env name="AI_CACHE_BREAKPOINTS" value="" force="true"/>
+        <env name="AI_DEFAULT_PROVIDER" value="local" force="true"/>
+        <env name="FRONTIER_DRIVER" value="openai-compatible" force="true"/>
+        <env name="FRONTIER_URL" value="" force="true"/>
+        <env name="FRONTIER_KEY" value="" force="true"/>
+        <env name="FRONTIER_MODEL" value="" force="true"/>
+        <env name="FRONTIER_RATE_IN" value="0" force="true"/>
+        <env name="FRONTIER_RATE_OUT" value="0" force="true"/>
+        <env name="AI_MID_PROVIDER" value="local-70b" force="true"/>
+        <env name="LOCAL_70B_MODEL" value="" force="true"/>
+        <env name="AI_GPU_USD_PER_HOUR" value="0" force="true"/>
+        <env name="AI_70B_GPU_USD_PER_HOUR" value="0" force="true"/>
+        <env name="AI_RECORD_REQUESTS" value="false" force="true"/>
+        <env name="AI_KEEP_ALIVE" value="" force="true"/>
+        <env name="AI_LOCAL_PROVIDER" value="ollama" force="true"/>
+        <env name="LLAMA_URL" value="http://llama.test:8080/v1" force="true"/>
+        <env name="LLAMA_API_KEY" value="llama-test-key" force="true"/>
+        <env name="VLLM_URL" value="http://vllm.test:8000/v1" force="true"/>
+        <env name="VLLM_API_KEY" value="vllm-test-key" force="true"/>
+        <env name="VLLM_SERVED_MODEL" value="ledgerly-support" force="true"/>
+        <env name="VLLM_REVISION" value="" force="true"/>
+        <env name="VLLM_MODEL" value="" force="true"/>
+        <env name="VLLM_MAX_MODEL_LEN" value="8192" force="true"/>
+        <env name="VLLM_MAX_NUM_SEQS" value="32" force="true"/>
+        <env name="VLLM_TOOL_PARSER" value="llama3_json" force="true"/>
+        <env name="AI_VLLM_GPU_USD_PER_HOUR" value="0" force="true"/>
+        <env name="TRITON_URL" value="http://triton.test:9000/v1" force="true"/>
+        <env name="TRITON_API_KEY" value="triton-test-key" force="true"/>
+        <env name="TRITON_MODEL" value="chat" force="true"/>
+        <env name="AI_FALLBACK_LOCAL" value="" force="true"/>
+        <env name="AI_BREAKER_THRESHOLD" value="3" force="true"/>
+        <env name="AI_BREAKER_OPEN_SECONDS" value="60" force="true"/>
+        <env name="AI_BREAKER_STORE" value="" force="true"/>
+        <env name="OPS_METRICS_TOKEN" value="" force="true"/>
+        <env name="LLAMA_NGL" value="" force="true"/>
+        <env name="LLAMA_CACHE_TYPE" value="" force="true"/>
+        <env name="OLLAMA_KEEP_ALIVE" value="" force="true"/>
+        <env name="OLLAMA_NUM_PARALLEL" value="" force="true"/>
+        <env name="AI_CONCURRENCY" value="2" force="true"/>
+        <env name="DB_URL" value=""/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="PULSE_ENABLED" value="false"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="NIGHTWATCH_ENABLED" value="false"/>
+    </php>
+</phpunit>

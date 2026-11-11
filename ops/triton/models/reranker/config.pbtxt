@@ -1,0 +1,18 @@
+# Chapter 25, Figure 25-2: the Chapter 16 reranker (BAAI/bge-reranker-base) as an ONNX model. 1/model.onnx is made by ops/triton/export_onnx.py (about 400 MB, not in git).
+name: "reranker"
+backend: "onnxruntime"
+max_batch_size: 64
+input  [ { name: "input_ids",      data_type: TYPE_INT64, dims: [ -1 ] },
+         { name: "attention_mask", data_type: TYPE_INT64, dims: [ -1 ] } ]
+output [ { name: "logits",         data_type: TYPE_FP32,  dims: [ 1 ] } ]
+dynamic_batching { max_queue_delay_microseconds: 2000 }      # batch pairs that arrive within 2 ms
+instance_group [ { count: 2, kind: KIND_GPU, gpus: [ 0 ] } ]  # two copies on GPU 0
+version_policy { latest { num_versions: 1 } }
+model_warmup [
+  {
+    name: "one pair"
+    batch_size: 1
+    inputs { key: "input_ids"      value: { data_type: TYPE_INT64 dims: [ 16 ] zero_data: true } }
+    inputs { key: "attention_mask" value: { data_type: TYPE_INT64 dims: [ 16 ] zero_data: true } }
+  }
+]

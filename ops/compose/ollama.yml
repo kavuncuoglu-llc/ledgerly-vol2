@@ -1,0 +1,48 @@
+# Profile: ollama (Chapter 22). Ollama inside the stack, on the private `internal` network, with a volume for the models.
+#   docker compose -f ops/compose/base.yml -f ops/compose/ollama.yml --profile ollama up -d
+# CPU by default, so it starts on any Linux machine. On an NVIDIA GPU add the reservation:  -f ops/compose/ollama.gpu.yml
+# On a Mac do not use this file: Docker cannot reach Metal, so run native Ollama and use macos.override.yml.
+#
+# The book's Compose file publishes no port, because its Laravel app is a container on the same network. Here the app runs on the host,
+# so the one port is published on 127.0.0.1 only. Ollama has no authentication: never change that to 0.0.0.0 (Chapter 22, Topic 7).
+
+services:
+  ollama:
+    profiles: ["ollama"]
+    image: ${OLLAMA_IMAGE:-ollama/ollama:0.40.14}
+    networks: [internal]
+    ports:
+      - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+      - ../ollama:/modelfiles:ro
+    environment:
+      OLLAMA_HOST: 0.0.0.0                       # inside the container only; the published port above is loopback
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-2}
+      OLLAMA_MAX_LOADED_MODELS: ${OLLAMA_MAX_LOADED_MODELS:-3}
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-30m}
+      OLLAMA_FLASH_ATTENTION: ${OLLAMA_FLASH_ATTENTION:-1}
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # Pulls the embedding model and builds ledgerly-support from ops/ollama/Modelfile.ledgerly-support, then exits.
+  # The chat base (llama3.1:8b-instruct-q4_K_M) is fetched by `ollama create`; the vision model is pulled by hand (Appendix L.4).
+  ollama-init:
+    profiles: ["ollama"]
+    image: ${OLLAMA_IMAGE:-ollama/ollama:0.40.14}
+    networks: [internal]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ../ollama:/modelfiles:ro
+    entrypoint: ["sh", "-c", "OLLAMA_HOST=ollama:11434 ollama pull nomic-embed-text && OLLAMA_HOST=ollama:11434 ollama create ledgerly-support -f /modelfiles/Modelfile.ledgerly-support"]
+    restart: "no"
+
+volumes:
+  ollama-models:

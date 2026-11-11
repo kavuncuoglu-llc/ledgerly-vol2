@@ -1,0 +1,3 @@
+# The chart has no useful defaults: every value comes from ops/k8s/vllm-values.yaml or ops/k8s/triton-values.yaml.
+name: inference
+replicas: 1

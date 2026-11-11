@@ -1,0 +1,10 @@
+.git
+__pycache__
+*.pyc
+tests
+README.md
+Dockerfile
+.dockerignore
+requirements-dev.txt
+.env
+.env.*

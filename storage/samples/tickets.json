@@ -1,0 +1,102 @@
+[
+    {
+        "message": "Hi, my client at acme@example.com says they paid $1,284.50 on March 3 but invoice 4471 still shows unpaid",
+        "label": "billing",
+        "expect": {"invoice_number": "4471", "customer_email": "acme@example.com", "amount_mentioned": 1284.5, "date_mentioned": null}
+    },
+    {
+        "message": "Why was I charged a late fee on invoice 4471?",
+        "label": "billing",
+        "expect": {"invoice_number": "4471", "customer_email": null, "amount_mentioned": null, "date_mentioned": null}
+    },
+    {
+        "message": "How do I set up recurring invoices?",
+        "label": "howto",
+        "expect": {"invoice_number": null, "customer_email": null, "amount_mentioned": null, "date_mentioned": null}
+    },
+    {
+        "message": "The PDF export button does nothing when I click it",
+        "label": "bug",
+        "expect": {"invoice_number": null, "customer_email": null, "amount_mentioned": null, "date_mentioned": null}
+    },
+    {
+        "message": "Can you recommend an accountant in Jacksonville?",
+        "label": "other",
+        "expect": {"invoice_number": null, "customer_email": null, "amount_mentioned": null, "date_mentioned": null}
+    },
+    {
+        "message": "My client paid but it still shows unpaid on invoice 4480",
+        "label": "billing",
+        "expect": {"invoice_number": "4480", "customer_email": null, "amount_mentioned": null, "date_mentioned": null}
+    },
+    {
+        "message": "Invoice shows paid but my bank shows nothing",
+        "label": "billing",
+        "expect": {"invoice_number": null, "customer_email": null, "amount_mentioned": null, "date_mentioned": null}
+    },
+    {
+        "message": "Can I invite my accountant?",
+        "label": "howto",
+        "expect": {"invoice_number": null, "customer_email": null, "amount_mentioned": null, "date_mentioned": null}
+    },
+    {
+        "message": "I forgot my password and the reset email to maya@example.com never arrives",
+        "label": "account",
+        "expect": {"invoice_number": null, "customer_email": "maya@example.com", "amount_mentioned": null, "date_mentioned": null}
+    },
+    {
+        "message": "How do I turn on two-factor sign-in for my whole team?",
+        "label": "account",
+        "expect": {"invoice_number": null, "customer_email": null, "amount_mentioned": null, "date_mentioned": null}
+    },
+    {
+        "message": "Invoice 4502 for $430.00 downloads as a blank PDF in Safari",
+        "label": "bug",
+        "expect": {"invoice_number": "4502", "customer_email": null, "amount_mentioned": 430, "date_mentioned": null}
+    },
+    {
+        "message": "Please remove the $56.80 late fee on invoice 4438, my client disputed it on 2026-04-02",
+        "label": "billing",
+        "expect": {"invoice_number": "4438", "customer_email": null, "amount_mentioned": 56.8, "date_mentioned": "2026-04-02"}
+    },
+    {
+        "message": "Can you send a receipt for invoice 4465? The payment of $820.00 cleared on 2026-03-28",
+        "label": "billing",
+        "expect": {"invoice_number": "4465", "customer_email": null, "amount_mentioned": 820, "date_mentioned": "2026-03-28"}
+    },
+    {
+        "message": "Where do I upload my logo so it shows on invoice 4501?",
+        "label": "howto",
+        "expect": {"invoice_number": "4501", "customer_email": null, "amount_mentioned": null, "date_mentioned": null}
+    },
+    {
+        "message": "My client at billing@northgate.example.com was charged $210.00 twice for invoice 4490",
+        "label": "billing",
+        "expect": {"invoice_number": "4490", "customer_email": "billing@northgate.example.com", "amount_mentioned": 210, "date_mentioned": null}
+    },
+    {
+        "message": "The due date is a day early on the PDF of invoice 4512 ($1,950.00)",
+        "label": "bug",
+        "expect": {"invoice_number": "4512", "customer_email": null, "amount_mentioned": 1950, "date_mentioned": null}
+    },
+    {
+        "message": "Please remove sam@studio.example.com from my team, he left in January",
+        "label": "account",
+        "expect": {"invoice_number": null, "customer_email": "sam@studio.example.com", "amount_mentioned": null, "date_mentioned": null}
+    },
+    {
+        "message": "Do you give a discount to registered charities?",
+        "label": "other",
+        "expect": {"invoice_number": null, "customer_email": null, "amount_mentioned": null, "date_mentioned": null}
+    },
+    {
+        "message": "On invoice 4471 my client says they sent $1,284.50 by bank transfer on 2026-03-30",
+        "label": "billing",
+        "expect": {"invoice_number": "4471", "customer_email": null, "amount_mentioned": 1284.5, "date_mentioned": "2026-03-30"}
+    },
+    {
+        "message": "How do I send a reminder for invoice 4476 before it is due?",
+        "label": "howto",
+        "expect": {"invoice_number": "4476", "customer_email": null, "amount_mentioned": null, "date_mentioned": null}
+    }
+]

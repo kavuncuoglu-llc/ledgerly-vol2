@@ -1,0 +1,32 @@
+Ledgerly companion code for "Large Language Models for Laravel Developers,
+Volume 2 of 3: Running, Training, and Securing Large Language Models"
+
+Copyright (c) 2026 Jeremy Kavuncuoglu. All rights reserved, except as granted
+below.
+
+What you may do
+
+You may, free of charge:
+
+- read, run and modify this code, for personal and educational use, including
+  learning from it and teaching yourself or your own team with it;
+- use it, or code adapted from it, in your own projects, including commercial
+  ones.
+
+What you may not do
+
+- republish this repository, its history or its release files, in whole or in
+  part, as a repository, a download or a package that others can get in place of
+  this one;
+- resell the code, or use it to make a competing course, book or tutorial;
+- remove this notice from copies of substantial parts of the code.
+
+Ledgerly is a fictional product. Every name, company, address and figure in the
+sample data is invented, and any resemblance to a real person or business is
+accidental.
+
+No warranty
+
+The code is provided as is, without warranty of any kind, express or implied.
+You are responsible for how you use it, including the cost of any hosted
+service, GPU rental or model download it starts.

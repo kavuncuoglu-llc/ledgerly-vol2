@@ -1,0 +1,2 @@
+# Pins were chosen without network access and must be re-verified with pip. httpx is needed by fastapi.testclient.
+httpx==0.28.1

@@ -1,0 +1,5 @@
+# Chapter 25, Figure 25-2: the chat model through Triton's vLLM backend (the default profile). The engine arguments are in 1/model.json.
+# The compiled profile replaces this model with the TensorRT-LLM models that ops/triton/build-trtllm.sh produces (backend: "tensorrtllm"); see ops/compose/triton.yml.
+# The vLLM backend decodes into a stream, so the model is decoupled; the OpenAI frontend (port 9000 in the container) is what turns it into /v1/chat/completions.
+backend: "vllm"
+instance_group [ { count: 1, kind: KIND_MODEL } ]            # the device is chosen by the vLLM engine, not by Triton

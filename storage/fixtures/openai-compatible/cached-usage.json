@@ -1,0 +1,52 @@
+{
+    "recorded_at": null,
+    "provider": "synthetic",
+    "driver": "openai-compatible",
+    "note": "Hand-written to the documented response shape; not recorded from a live provider. Replace with `php artisan ai:record`.",
+    "request": {
+        "method": "POST",
+        "path": "/chat/completions",
+        "body": {
+            "model": "example-model",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "What is a late fee?"
+                }
+            ]
+        }
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": {
+            "id": "chatcmpl-fixture",
+            "object": "chat.completion",
+            "created": 1762000000,
+            "model": "example-model",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": "Cached."
+                    },
+                    "finish_reason": "stop"
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 2000,
+                "completion_tokens": 10,
+                "total_tokens": 2010,
+                "prompt_tokens_details": {
+                    "cached_tokens": 1536
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 4
+                }
+            }
+        }
+    }
+}

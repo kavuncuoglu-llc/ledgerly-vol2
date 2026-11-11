@@ -1,0 +1,61 @@
+# Profile: monitoring (Chapter 25, Figure 25-8). Prometheus scrapes whichever inference server is running; Grafana shows the Ledgerly inference dashboard.
+#   docker compose --env-file .env -f ops/compose/base.yml -f ops/compose/vllm.yml -f ops/compose/monitoring.yml --profile vllm --profile monitoring up -d
+# Works beside any of the server files (or alone: every target just reads `up == 0`).
+#
+# Prometheus publishes NOTHING: only Grafana talks to it. Grafana is the one published port, on 127.0.0.1, behind its own login: GRAFANA_ADMIN_PASSWORD has no default and Compose stops without one.
+# The images are PINNED, not `latest` (PROMETHEUS_IMAGE, GRAFANA_IMAGE in .env). Two keys reach Prometheus as Compose secrets (files in /run/secrets): LLAMA_API_KEY for llama-server's /metrics and
+# OPS_METRICS_TOKEN for the app's /ops/metrics (the circuit breaker). The app runs on the host: Prometheus reaches it at host.docker.internal:8000.
+
+services:
+  prometheus:
+    profiles: ["monitoring"]
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v3.15.1}
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    networks:
+      internal:
+        aliases: [prometheus]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    secrets:
+      - llama_api_key
+      - ops_metrics_token
+    restart: unless-stopped
+
+  grafana:
+    profiles: ["monitoring"]
+    image: ${GRAFANA_IMAGE:-grafana/grafana:13.2.4}
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env. Grafana is the one published port of the monitoring profile and it sits behind this login.}"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    networks:
+      internal:
+        aliases: [grafana]
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - ../monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+secrets:
+  llama_api_key:
+    environment: LLAMA_API_KEY
+  ops_metrics_token:
+    environment: OPS_METRICS_TOKEN
+
+volumes:
+  prometheus-data:
+  grafana-data:

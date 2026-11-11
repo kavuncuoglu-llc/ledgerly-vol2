@@ -1,0 +1,94 @@
+# Profile: app (Chapter 25, Figure 25-8's base stack: app, reverb, horizon, ai-warm). The Laravel app itself in containers, for a host that runs everything in Compose.
+#   docker compose --env-file .env -f ops/compose/base.yml -f ops/compose/vllm.yml -f ops/compose/app.yml --profile vllm --profile app up -d --build
+#   docker compose --env-file .env -f ops/compose/base.yml -f ops/compose/app.yml --profile app exec app php artisan db:seed --force      # the first time; `migrate` already ran as a one-shot service
+# On a developer machine the app runs on the host (`php artisan serve`, `horizon`, `reverb:start`) and this file is not needed: that is the default shape since Chapter 0.
+#
+# The chain of Figure 25-7 (with the migrations first, so ai-warm can log): migrate -> the model server is healthy (its own healthcheck is a real one-token completion) -> ai-warm sends the system message once and exits 0 -> only then does Horizon start the `ai` workers.
+# ai-warm does not name the model server in depends_on (Compose cannot know which one you started); it WAITS for it, retrying ai:warm for up to AI_WARM_ATTEMPTS x 10 s, and exits non-zero if the server never answers, which keeps Horizon down.
+# The model server is a separate service with its own lifecycle: deploying a new app image never restarts it (Topic 7).
+#
+# The app container reads .env (APP_KEY, DB_PASSWORD, FRONTIER_*, every *_API_KEY) and the `environment:` below overrides what changes inside the network. `php artisan serve` is the development server:
+# put a real web server in front of port 8000 for anything public. Ports are published on 127.0.0.1 only.
+# NOT run end to end by the author (no GPU, so no model server to warm against): the image builds, the file is valid Compose.
+
+x-app: &app
+  image: ledgerly/app:ch25
+  build:
+    context: ../..
+    dockerfile: ops/app/Dockerfile
+  env_file:
+    - ../../.env
+  environment: &app-environment
+    APP_ENV: production
+    APP_DEBUG: "false"
+    DB_HOST: postgres
+    DB_PORT: "5432"
+    REDIS_HOST: redis
+    REDIS_PORT: "6379"
+    CACHE_STORE: redis
+    SESSION_DRIVER: redis
+    QUEUE_CONNECTION: redis
+    OLLAMA_URL: ${OLLAMA_CONTAINER_URL:-http://ollama:11434/v1}
+    AI_BASE_URL: ${OLLAMA_CONTAINER_URL:-http://ollama:11434/v1}
+    LLAMA_URL: http://llama:8080/v1
+    VLLM_URL: http://vllm:8000/v1
+    TRITON_URL: http://triton-proxy:9000/v1
+    SIDECAR_URL: http://sidecar:8000
+  networks:
+    - default                  # Postgres and Redis (base.yml leaves them on the project's default network)
+    - internal                 # the model servers
+    - sidecar
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  app:
+    <<: *app
+    profiles: ["app"]
+    ports:
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
+    restart: unless-stopped
+
+  reverb:
+    <<: *app
+    profiles: ["app"]
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    ports:
+      - "127.0.0.1:${REVERB_PORT:-8080}:8080"
+    restart: unless-stopped
+
+  migrate:
+    <<: *app
+    profiles: ["app"]
+    command: ["php", "artisan", "migrate", "--force"]
+    restart: "no"
+
+  ai-warm:
+    <<: *app
+    profiles: ["app"]
+    command: ["sh", "-c", "php artisan ai:warm --provider=local --attempts=${AI_WARM_ATTEMPTS:-60}"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  horizon:
+    <<: *app
+    profiles: ["app"]
+    command: ["php", "artisan", "horizon"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ai-warm:
+        condition: service_completed_successfully
+    stop_grace_period: 120s
+    restart: unless-stopped

@@ -1,0 +1,97 @@
+# Chapter 25, Figure 25-5: vLLM on Kubernetes, as values for the small chart in ./inference (a GPU-requesting Deployment, a ClusterIP Service, a model-cache volume).
+#   kubectl create secret generic ledgerly-inference --from-literal=vllm-api-key="$(openssl rand -hex 24)"      # and --from-literal=hf-token=... only for a gated model
+#   helm upgrade --install vllm ops/k8s/inference -f ops/k8s/vllm-values.yaml
+# Needs the NVIDIA device plugin on the GPU nodes. Replicas are a fixed number sized from the Chapter 24 load test (`ai:load`); the `ai` queue's backpressure (Chapter 18) absorbs bursts.
+# vLLM rolls by replacing pods: maxSurge 0 because a surge pod would ask for a second GPU. A rolling restart is one replica at a time (Chapter 25, Topic 7).
+# PINNED: the image tag and the model revision are the same as ops/compose/vllm.yml and .env.example; change them together. The secret holds the keys; nothing in this file does.
+# NOT applied to a cluster by the author (none, no GPU): the chart passes `helm lint` and renders with `helm template` (checked in a container).
+
+name: vllm
+replicas: 2
+
+image:
+  repository: vllm/vllm-openai
+  tag: v0.32.0
+
+args:
+  - RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8
+  - --revision
+  - 870a1177ed082c0ba5dbefd62573ab8f91803f6a
+  - --served-model-name
+  - ledgerly-support
+  - --max-model-len
+  - "8192"
+  - --gpu-memory-utilization
+  - "0.92"
+  - --max-num-seqs
+  - "32"
+  - --enable-prefix-caching
+  - --enable-auto-tool-choice
+  - --tool-call-parser
+  - llama3_json
+  - --api-key
+  - $(VLLM_API_KEY)
+
+env:
+  - name: VLLM_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: ledgerly-inference
+        key: vllm-api-key
+  - name: HF_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: ledgerly-inference
+        key: hf-token
+        optional: true
+
+ports:
+  - name: http
+    port: 8000
+
+resources:
+  limits:
+    nvidia.com/gpu: 1
+  requests:
+    cpu: "4"
+    memory: 24Gi
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 120
+  periodSeconds: 10
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 300
+  periodSeconds: 30
+
+volumeMounts:
+  - name: hf-cache
+    mountPath: /root/.cache/huggingface
+  - name: shm
+    mountPath: /dev/shm
+
+volumes:
+  - name: hf-cache
+    persistentVolumeClaim:
+      claimName: hf-cache
+  - name: shm
+    emptyDir:
+      medium: Memory
+      sizeLimit: 8Gi
+
+persistentVolumeClaims:
+  - name: hf-cache
+    size: 100Gi
+
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+
+nodeSelector: {}

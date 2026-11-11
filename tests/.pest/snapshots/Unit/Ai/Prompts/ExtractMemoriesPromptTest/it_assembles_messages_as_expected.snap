@@ -1,0 +1,10 @@
+[
+    {
+        "role": "system",
+        "content": "From this finished support conversation, list facts ABOUT THE CUSTOMER that would help an\nassistant in a FUTURE conversation. Only facts the customer stated directly about themselves,\ntheir role, their preferences, or their business setup. No guesses, no inferences about\nmood or intent, nothing about the specific issue discussed.\n\nUse short snake_case keys such as role, preferred_name, timezone, billing_contact.\nOutput JSON only: [{\"key\": \"...\", \"value\": \"...\", \"confidence\": 0.0 to 1.0}].\nIf there is nothing to remember, output []."
+    },
+    {
+        "role": "user",
+        "content": "Conversation:\nCustomer: I'm the bookkeeper, not the owner.\nAssistant: Noted."
+    }
+]

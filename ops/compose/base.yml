@@ -1,0 +1,60 @@
+name: ledgerly
+
+# Always on: Postgres with pgvector and Redis. The Laravel app, Horizon and Reverb run on the host with `php artisan` (Chapters 0 and 18).
+# Every published port is bound to 127.0.0.1: nothing in this directory is reachable from another machine.
+# Paths are relative to this directory, which is the project directory for `docker compose -f ops/compose/base.yml ...` and for the root compose.yaml.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-ledgerly}
+      POSTGRES_USER: ${DB_USERNAME:-ledgerly}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../../docker/postgres/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  sidecar:
+    profiles: ["sidecar"]
+    build: ../../sidecar
+    ports:
+      - "127.0.0.1:${SIDECAR_PORT:-8008}:8000"
+    networks: [sidecar]
+    environment:
+      SIDECAR_RERANK_MODEL: ${SIDECAR_RERANK_MODEL:-BAAI/bge-reranker-base}
+    volumes:
+      - sidecar-models:/home/sidecar/.cache/huggingface
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2g
+
+networks:
+  sidecar: {}
+  internal: {}                 # where the model servers live (ollama.yml, llama.yml); they publish nothing beyond 127.0.0.1
+
+volumes:
+  postgres-data:
+  redis-data:
+  sidecar-models:

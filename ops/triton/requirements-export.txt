@@ -1,0 +1,6 @@
+# Chapter 25, Exercise 1: what ops/triton/export_onnx.py needs. Pinned to releases at least two weeks old on 2026-11-06. Not installed or run by the author (no GPU, and the export downloads about 1.5 GB).
+torch==2.14.1
+transformers==5.20.2
+onnx==1.23.2
+onnxruntime==1.31.0
+einops==0.8.2

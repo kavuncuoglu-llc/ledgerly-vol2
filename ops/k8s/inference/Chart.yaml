@@ -1,0 +1,6 @@
+apiVersion: v2
+name: inference
+description: One GPU-requesting inference Deployment with its Service and volumes. A starting point for ops/k8s/vllm-values.yaml and ops/k8s/triton-values.yaml (Chapter 25, Topic 5).
+type: application
+version: 0.1.0
+appVersion: "ch25"

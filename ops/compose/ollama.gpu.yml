@@ -1,0 +1,12 @@
+# Adds the NVIDIA reservation to the ollama service (Chapter 22, Figure 22-9). Needs the NVIDIA driver and nvidia-container-toolkit on the host.
+#   docker compose -f ops/compose/base.yml -f ops/compose/ollama.yml -f ops/compose/ollama.gpu.yml --profile ollama up -d
+
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

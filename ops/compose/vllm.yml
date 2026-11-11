@@ -1,0 +1,70 @@
+# Profile: vllm (Chapter 24). vLLM, the GPU production tier, behind the same driver: the `vllm` provider.
+#   export HF_TOKEN=...      # only for a gated model; the shell passes it through, nothing here stores it
+#   docker compose --env-file .env -f ops/compose/base.yml -f ops/compose/vllm.yml --profile vllm up -d
+# The health check is a real one-token completion (Chapter 25), not /health alone. Needs an NVIDIA GPU, the driver and nvidia-container-toolkit on the host (Appendix L.1). On a machine without one the profile cannot start; use ollama or llama.
+#
+# PINNED, not `latest`: the image tag (VLLM_IMAGE), the model repository (VLLM_MODEL) and the commit of that repository (VLLM_REVISION) all come from .env, where .env.example pins them.
+# An unpinned vLLM or a moved model branch changes answers and memory use without a line of your code changing. VLLM_REVISION has no default here for the same reason.
+#
+# VLLM_API_KEY has no default and the file refuses to start without one: vLLM with no --api-key is open to anyone who can reach the port.
+# Published on 127.0.0.1 only (the app runs on the host); a container on the `internal` network reaches it at http://vllm:8000/v1.
+# /health and /metrics are NOT behind the key (vLLM protects /v1/* only); that is why nothing here publishes a wider port.
+# Do not put this file in the root compose.yaml: the required key would stop `docker compose up -d` for everyone who has no GPU.
+#
+# The model is the first argument (`vllm serve <model>`); the image's entrypoint is `vllm serve`. The flags are Figure 24-5's.
+# Multi-LoRA (Topic 6): add "--enable-lora", "--max-loras", "4", "--max-lora-rank", "64", "--lora-modules", "ledgerly-support-v3=/adapters/support-v3"
+# to the command and mount your adapters at /adapters. Nothing is preloaded.
+
+services:
+  vllm:
+    profiles: ["vllm"]
+    image: ${VLLM_IMAGE:-vllm/vllm-openai:v0.32.0}
+    command:
+      - "${VLLM_MODEL:-RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8}"
+      - "--revision"
+      - "${VLLM_REVISION:?Set VLLM_REVISION in .env to the commit of the model repository (.env.example pins one). An unpinned model can change under you.}"
+      - "--served-model-name"
+      - "${VLLM_SERVED_MODEL:-ledgerly-support}"
+      - "--max-model-len"
+      - "${VLLM_MAX_MODEL_LEN:-8192}"
+      - "--gpu-memory-utilization"
+      - "${VLLM_GPU_UTILIZATION:-0.92}"
+      - "--max-num-seqs"
+      - "${VLLM_MAX_NUM_SEQS:-32}"
+      - "--enable-prefix-caching"
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser"
+      - "${VLLM_TOOL_PARSER:-llama3_json}"
+      - "--api-key"
+      - "${VLLM_API_KEY:?Set VLLM_API_KEY in .env (for example: openssl rand -hex 24). vLLM without a key is open to anyone who can reach it.}"
+    environment:
+      - HF_TOKEN
+      - VLLM_API_KEY
+      - VLLM_SERVED_MODEL
+    networks:
+      internal:
+        aliases: [vllm]
+    ports:
+      - "127.0.0.1:${VLLM_PORT:-8001}:8000"
+    ipc: host
+    volumes:
+      - hf-cache:/root/.cache/huggingface
+      - ../../storage/benchmarks:/benchmarks:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      # Chapter 25, Figure 25-7: health that means loaded. /health says the engine process is up; a one-token completion says the weights are on the GPU and a request gets through.
+      test: ["CMD-SHELL", "curl -sf -H \"Authorization: Bearer $$VLLM_API_KEY\" -H 'Content-Type: application/json' http://localhost:8000/v1/chat/completions -d \"{\\\"model\\\":\\\"$${VLLM_SERVED_MODEL:-ledgerly-support}\\\",\\\"messages\\\":[{\\\"role\\\":\\\"user\\\",\\\"content\\\":\\\"ok\\\"}],\\\"max_tokens\\\":1}\" > /dev/null"]
+      interval: 30s
+      timeout: 20s
+      retries: 5
+      start_period: 300s          # the model takes minutes to load; do not kill it while it does (an 8B: 2 to 5 minutes; a 70B: more)
+    restart: unless-stopped
+
+volumes:
+  hf-cache:

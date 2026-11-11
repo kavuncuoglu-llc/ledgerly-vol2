@@ -1,0 +1,26 @@
+# Chapter 25, Figure 25-4: embed and rerank in one request. The question is embedded and the candidates PHP retrieved are scored, server-side, with dynamic batching on both models.
+# The pgvector query stays in PHP (Topic 4): an ensemble chains models, it does not make decisions.
+#
+# Differences from the printed figure, all so the file is a valid ensemble (BOOK-ISSUES 186): the reranker takes input_ids AND attention_mask, so both are mapped; the 20 candidates are the request's batch
+# (one row per question/passage pair, at most max_batch_size) instead of a [20, -1] tensor that no composing model accepts; the question is repeated on each row, and PHP reads row 0 of question_vec.
+name: "support_pipeline"
+platform: "ensemble"
+max_batch_size: 32
+input  [ { name: "question_ids",  data_type: TYPE_INT64, dims: [ -1 ] },
+         { name: "question_mask", data_type: TYPE_INT64, dims: [ -1 ] },
+         { name: "passage_ids",   data_type: TYPE_INT64, dims: [ -1 ] },
+         { name: "passage_mask",  data_type: TYPE_INT64, dims: [ -1 ] } ]
+output [ { name: "question_vec",  data_type: TYPE_FP32, dims: [ 768 ] },
+         { name: "rerank_scores", data_type: TYPE_FP32, dims: [ 1 ] } ]
+ensemble_scheduling {
+  step [
+    { model_name: "embedder", model_version: -1,
+      input_map  { key: "input_ids"      value: "question_ids" }
+      input_map  { key: "attention_mask" value: "question_mask" }
+      output_map { key: "embedding"      value: "question_vec" } },
+    { model_name: "reranker", model_version: -1,
+      input_map  { key: "input_ids"      value: "passage_ids" }
+      input_map  { key: "attention_mask" value: "passage_mask" }
+      output_map { key: "logits"         value: "rerank_scores" } }
+  ]
+}

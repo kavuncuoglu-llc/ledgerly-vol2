@@ -1,0 +1,105 @@
+{
+    "rows": 50,
+    "questions": [
+        {
+            "question": "Which invoice has the largest total?",
+            "expected": "INV-4508",
+            "kind": "which"
+        },
+        {
+            "question": "Which invoice has the smallest total?",
+            "expected": "INV-4452",
+            "kind": "which"
+        },
+        {
+            "question": "Which invoice has the earliest due date?",
+            "expected": "INV-4462",
+            "kind": "which"
+        },
+        {
+            "question": "Which invoice has the latest due date?",
+            "expected": "INV-4539",
+            "kind": "which"
+        },
+        {
+            "question": "Which overdue invoice has been overdue the longest?",
+            "expected": "INV-4469",
+            "kind": "which"
+        },
+        {
+            "question": "How many invoices are overdue?",
+            "expected": "14",
+            "kind": "count"
+        },
+        {
+            "question": "How many invoices are paid?",
+            "expected": "22",
+            "kind": "count"
+        },
+        {
+            "question": "How many invoices are sent and not yet due?",
+            "expected": "11",
+            "kind": "count"
+        },
+        {
+            "question": "How many invoices have a late fee above zero?",
+            "expected": "3",
+            "kind": "count"
+        },
+        {
+            "question": "How many invoices are due on or after 2026-05-01?",
+            "expected": "10",
+            "kind": "count"
+        },
+        {
+            "question": "What is the due date of INV-4543?",
+            "expected": "2026-05-13",
+            "kind": "value"
+        },
+        {
+            "question": "What is the due date of INV-4514?",
+            "expected": "2026-04-26",
+            "kind": "value"
+        },
+        {
+            "question": "What is the due date of INV-4489?",
+            "expected": "2026-03-27",
+            "kind": "value"
+        },
+        {
+            "question": "What is the due date of INV-4463?",
+            "expected": "2026-03-27",
+            "kind": "value"
+        },
+        {
+            "question": "What is the total of INV-4533?",
+            "expected": "4926.28",
+            "kind": "value"
+        },
+        {
+            "question": "What is the total of INV-4498?",
+            "expected": "3980",
+            "kind": "value"
+        },
+        {
+            "question": "What is the total of INV-4476?",
+            "expected": "3538.69",
+            "kind": "value"
+        },
+        {
+            "question": "What is the status of INV-4525?",
+            "expected": "overdue",
+            "kind": "value"
+        },
+        {
+            "question": "What is the status of INV-4493?",
+            "expected": "sent",
+            "kind": "value"
+        },
+        {
+            "question": "How many days overdue is INV-4524?",
+            "expected": "11",
+            "kind": "value"
+        }
+    ]
+}

@@ -1,0 +1,80 @@
+# Profile: triton (Chapter 25). NVIDIA Triton Inference Server: the documented upgrade when the model list outgrows one server. Off by default; the `triton` provider in config/ai.php reaches it.
+#   cp .env.example .env     # set TRITON_API_KEY; export HF_TOKEN only for a gated model
+#   python3 ops/triton/export_onnx.py                     # the ONNX reranker and embedder (about 1.5 GB, once; not in git)
+#   docker compose --env-file .env -f ops/compose/base.yml -f ops/compose/triton.yml --profile triton up -d
+# For the compiled profile (TensorRT-LLM) run ops/triton/build-trtllm.sh, copy NVIDIA's inflight_batcher_llm models into ops/triton/models-trtllm with the engine,
+# and set TRITON_IMAGE=nvcr.io/nvidia/tritonserver:26.07-trtllm-python-py3, TRITON_BACKEND=tensorrtllm, TRITON_MODELS=../triton/models-trtllm.
+#
+# PINNED, not `latest`: the image tags (TRITON_IMAGE here, the proxy's nginx below) and the model revision in ops/triton/models/chat/1/model.json. An engine is built for one TensorRT-LLM version: a moved tag is a rebuild.
+#
+# Two containers. `triton` publishes NOTHING: the OpenAI frontend (9000), the KServe HTTP API (8000) and the metrics (8002) are reachable only on the internal network, where Prometheus scrapes 8002.
+# `triton-proxy` is the only door: bearer auth on TRITON_API_KEY (which has no default; Compose stops without one), model control refused, published on 127.0.0.1 only. See ops/triton/proxy/nginx.conf.template.
+#
+# NOT run by the author (no NVIDIA GPU). The flags of the OpenAI frontend (python/openai/openai_frontend/main.py inside the image) are written from NVIDIA's documentation for the 26.0x images;
+# `docker compose logs triton` says what a different release wants. A model that fails to load (the ONNX files are missing) is reported unavailable and the rest still serve.
+# Do not put this file in the root compose.yaml: the required key would stop `docker compose up -d` for everyone who has no GPU.
+
+services:
+  triton:
+    profiles: ["triton"]
+    image: ${TRITON_IMAGE:-nvcr.io/nvidia/tritonserver:26.09-vllm-python-py3}
+    command:
+      - python3
+      - /opt/tritonserver/python/openai/openai_frontend/main.py
+      - "--model-repository"
+      - "/models"
+      - "--tokenizer"
+      - "${TRITON_TOKENIZER:-RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8}"
+      - "--backend"
+      - "${TRITON_BACKEND:-vllm}"
+      - "--openai-port"
+      - "9000"
+      - "--enable-kserve-frontends"
+    environment:
+      - HF_TOKEN
+    networks:
+      internal:
+        aliases: [triton]
+    ipc: host
+    volumes:
+      - ${TRITON_MODELS:-../triton/models}:/models:ro
+      - hf-cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/v2/health/ready && curl -fsS http://localhost:8000/v2/models/chat/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 600s
+    restart: unless-stopped
+
+  triton-proxy:
+    profiles: ["triton"]
+    image: ${TRITON_PROXY_IMAGE:-nginx:1.31.7-alpine}
+    environment:
+      TRITON_API_KEY: "${TRITON_API_KEY:?Set TRITON_API_KEY in .env (for example: openssl rand -hex 24). Triton has no authentication of its own, so this key is the only thing between the network and the models.}"
+    networks:
+      internal:
+        aliases: [triton-proxy]
+    ports:
+      - "127.0.0.1:${TRITON_PORT:-9000}:9000"
+    volumes:
+      - ../triton/proxy/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+    depends_on:
+      triton:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:9000/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  hf-cache:

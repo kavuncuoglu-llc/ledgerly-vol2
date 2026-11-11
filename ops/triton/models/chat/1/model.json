@@ -1,0 +1,8 @@
+{
+    "model": "RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8",
+    "revision": "870a1177ed082c0ba5dbefd62573ab8f91803f6a",
+    "max_model_len": 8192,
+    "gpu_memory_utilization": 0.7,
+    "enable_prefix_caching": true,
+    "max_num_seqs": 32
+}

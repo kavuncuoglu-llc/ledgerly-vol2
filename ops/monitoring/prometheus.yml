@@ -1,0 +1,34 @@
+# Chapter 25, Topic 5: one scrape config for whichever inference server is running. A target that is not up just reads `up == 0`; nothing here needs editing to switch servers.
+# Prometheus runs on the Compose `internal` network, publishes nothing, and is reached only by Grafana (ops/compose/monitoring.yml).
+# vLLM and Triton need no key on their metrics; llama-server's /metrics sits behind its API key and the app's /ops/metrics behind OPS_METRICS_TOKEN: both keys reach Prometheus as Compose secrets (files under /run/secrets), never as text in this file.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: vllm
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["vllm:8000"]
+
+  - job_name: triton
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["triton:8002"]
+
+  - job_name: llama
+    metrics_path: /metrics
+    authorization:
+      type: Bearer
+      credentials_file: /run/secrets/llama_api_key
+    static_configs:
+      - targets: ["llama:8080"]
+
+  - job_name: ledgerly-app
+    metrics_path: /ops/metrics
+    authorization:
+      type: Bearer
+      credentials_file: /run/secrets/ops_metrics_token
+    static_configs:
+      - targets: ["host.docker.internal:8000"]

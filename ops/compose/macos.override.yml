@@ -1,0 +1,12 @@
+# Mac developer (Chapter 22, Topic 2): Ollama runs natively so it can use Metal, and there is no inference profile in Compose.
+#   docker compose -f ops/compose/base.yml -f ops/compose/macos.override.yml up -d
+# A container reaches the native server at host.docker.internal. At this chapter the only container with a use for it is the optional sidecar profile,
+# which does not call Ollama; the lines below are the pattern for any container that does. The Laravel app itself runs on the host and uses
+# OLLAMA_URL=http://localhost:11434/v1 from .env.
+
+services:
+  sidecar:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      OLLAMA_URL: http://host.docker.internal:11434/v1

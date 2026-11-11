@@ -1,0 +1,23 @@
+{
+    "prompts": [
+        {
+            "name": "short-howto",
+            "prompt": "In two sentences, how do I make an invoice repeat every month?"
+        },
+        {
+            "name": "late-fees-article",
+            "article": "billing/late-fees",
+            "instruction": "Using only the article above, explain to a customer when a late fee is applied and how it is calculated."
+        },
+        {
+            "name": "statuses-article",
+            "article": "invoices/statuses",
+            "instruction": "List every invoice status from the article above with a one-line meaning for each."
+        },
+        {
+            "name": "dispute-article",
+            "article": "billing/disputes",
+            "instruction": "A customer says: \"My March invoice is wrong and I do not want to pay the late fee while you look at it.\" Using only the article above, write the reply a support agent should send."
+        }
+    ]
+}

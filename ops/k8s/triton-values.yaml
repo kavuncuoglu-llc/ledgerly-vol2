@@ -1,0 +1,103 @@
+# Chapter 25, Figure 25-5: Triton on Kubernetes, as values for the small chart in ./inference.
+#   kubectl create secret generic ledgerly-inference --from-literal=hf-token=...         # only for a gated tokenizer; Triton itself has no key
+#   helm upgrade --install triton ops/k8s/inference -f ops/k8s/triton-values.yaml
+# The model repository is a PersistentVolume (ops/triton/models copied onto it, plus the ONNX files from ops/triton/export_onnx.py); a model-pulling init container is the other option.
+# Triton has no authentication: unlike Compose there is no nginx here, so do not expose this Service outside the cluster; put a NetworkPolicy or an authenticating ingress in front of it.
+# Rollouts: Triton's model-control API loads a new model version into running replicas without restarting pods (Figure 25-5); this Deployment replaces pods only when the image changes.
+# PINNED image, like ops/compose/triton.yml. NOT applied to a cluster by the author (none, no GPU).
+
+name: triton
+replicas: 2
+
+image:
+  repository: nvcr.io/nvidia/tritonserver
+  tag: 26.09-vllm-python-py3
+
+command:
+  - python3
+  - /opt/tritonserver/python/openai/openai_frontend/main.py
+
+args:
+  - --model-repository
+  - /models
+  - --tokenizer
+  - RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8
+  - --backend
+  - vllm
+  - --openai-port
+  - "9000"
+  - --enable-kserve-frontends
+
+env:
+  - name: HF_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: ledgerly-inference
+        key: hf-token
+        optional: true
+
+ports:
+  - name: http
+    port: 8000
+  - name: grpc
+    port: 8001
+  - name: metrics
+    port: 8002
+  - name: openai
+    port: 9000
+
+resources:
+  limits:
+    nvidia.com/gpu: 1
+  requests:
+    cpu: "4"
+    memory: 32Gi
+
+readinessProbe:
+  httpGet:
+    path: /v2/health/ready
+    port: 8000
+  initialDelaySeconds: 120
+  periodSeconds: 10
+
+livenessProbe:
+  httpGet:
+    path: /v2/health/live
+    port: 8000
+  initialDelaySeconds: 300
+  periodSeconds: 30
+
+volumeMounts:
+  - name: models
+    mountPath: /models
+    readOnly: true
+  - name: hf-cache
+    mountPath: /root/.cache/huggingface
+  - name: shm
+    mountPath: /dev/shm
+
+volumes:
+  - name: models
+    persistentVolumeClaim:
+      claimName: triton-models
+  - name: hf-cache
+    persistentVolumeClaim:
+      claimName: hf-cache
+  - name: shm
+    emptyDir:
+      medium: Memory
+      sizeLimit: 8Gi
+
+persistentVolumeClaims:
+  - name: triton-models
+    size: 20Gi
+    accessMode: ReadOnlyMany
+  - name: hf-cache
+    size: 100Gi
+
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+
+nodeSelector: {}

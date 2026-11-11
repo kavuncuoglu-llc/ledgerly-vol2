@@ -1,0 +1,58 @@
+# Chapter 25, Topic 8 (Figure 25-6: Triton's auth is "Proxy"). Triton has no authentication of its own, so this is the only door: it checks the bearer key, forwards the OpenAI frontend (/v1), the read and infer
+# endpoints of the KServe API (/v2) and the metrics (/metrics), and refuses the model-control API outright, so nothing on the network can load or unload a model.
+# The nginx image fills ${TRITON_API_KEY} from the environment when it starts (envsubst on /etc/nginx/templates); the key is never in this file.
+
+map $http_authorization $triton_authorised {
+    default 0;
+    "Bearer ${TRITON_API_KEY}" 1;
+}
+
+server {
+    listen 9000;
+    server_name _;
+    client_max_body_size 8m;
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location ^~ /v2/repository/ {
+        return 403;
+    }
+
+    location /v1/ {
+        if ($triton_authorised = 0) {
+            return 401;
+        }
+
+        proxy_pass http://triton:9000;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+        proxy_set_header Connection "";
+    }
+
+    location /v2/ {
+        if ($triton_authorised = 0) {
+            return 401;
+        }
+
+        proxy_pass http://triton:8000;
+        proxy_http_version 1.1;
+        proxy_read_timeout 300s;
+    }
+
+    location = /metrics {
+        if ($triton_authorised = 0) {
+            return 401;
+        }
+
+        proxy_pass http://triton:8002/metrics;
+    }
+
+    location / {
+        return 404;
+    }
+}

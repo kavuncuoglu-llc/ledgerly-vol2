@@ -1,0 +1,484 @@
+{
+  "uid": "ledgerly-inference",
+  "title": "Ledgerly inference",
+  "tags": [
+    "ledgerly",
+    "inference"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Servers up",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ledgerly-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "up{job=~\"vllm|triton|llama\"}",
+          "legendFormat": "{{job}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "1 = the server answered the last scrape. Only the server you run is 1; the others read 0 and that is normal."
+    },
+    {
+      "id": 2,
+      "title": "Circuit breaker (1 = open)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ledgerly-prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "ledgerly_ai_breaker_open",
+          "legendFormat": "{{provider}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "From the app's /ops/metrics. Open means the app stopped calling that server and is using the fallback or the cache-only path."
+    },
+    {
+      "id": 3,
+      "title": "Failed jobs (total)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ledgerly-prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "ledgerly_ai_failed_jobs_total",
+          "legendFormat": "failed"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "description": "Should stay flat through a model-server outage: the app answers with the notice instead of failing the job."
+    },
+    {
+      "id": 4,
+      "title": "Time to first token, p50 and p99 (vLLM)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ledgerly-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket[5m])))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Chapter 24, Topic 7. p99 climbing while p50 is flat means saturation is starting."
+    },
+    {
+      "id": 5,
+      "title": "Inter-token latency, p50 and p99 (vLLM)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ledgerly-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 6,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(vllm:inter_token_latency_seconds_bucket[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(vllm:inter_token_latency_seconds_bucket[5m])))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 6,
+      "title": "Output tokens per second",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ledgerly-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "sum(rate(vllm:generation_tokens_total[1m]))",
+          "legendFormat": "vLLM"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "sum(rate(llamacpp:tokens_predicted_total[1m]))",
+          "legendFormat": "llama-server"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "description": "Token throughput: the efficiency number. Compare flags here."
+    },
+    {
+      "id": 7,
+      "title": "Requests running and waiting",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ledgerly-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "sum(vllm:num_requests_running)",
+          "legendFormat": "vLLM running"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "sum(vllm:num_requests_waiting)",
+          "legendFormat": "vLLM waiting"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "sum(llamacpp:requests_processing)",
+          "legendFormat": "llama processing"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "sum(llamacpp:requests_deferred)",
+          "legendFormat": "llama deferred"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "description": "Waiting above zero for long is queueing inside the server."
+    },
+    {
+      "id": 8,
+      "title": "KV cache usage",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ledgerly-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "max(vllm:gpu_cache_usage_perc or vllm:kv_cache_usage_perc)",
+          "legendFormat": "vLLM"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "max(llamacpp:kv_cache_usage_ratio)",
+          "legendFormat": "llama-server"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Near 100% means preemption and TTFT spikes (Chapter 24)."
+    },
+    {
+      "id": 9,
+      "title": "Triton: requests per execution (batching)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ledgerly-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 22,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "sum by (model) (rate(nv_inference_request_success[5m])) / sum by (model) (rate(nv_inference_exec_count[5m]))",
+          "legendFormat": "{{model}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "description": "Above 1 means dynamic batching is merging requests into one forward pass (Chapter 25, Figure 25-5)."
+    },
+    {
+      "id": 10,
+      "title": "Triton: time waiting for a batch",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ledgerly-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "sum by (model) (rate(nv_inference_queue_duration_us[5m])) / sum by (model) (rate(nv_inference_request_success[5m]))",
+          "legendFormat": "{{model}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "\u00b5s"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 11,
+      "title": "GPU utilisation and memory (Triton)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ledgerly-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 30,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "avg(nv_gpu_utilization)",
+          "legendFormat": "utilisation"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ledgerly-prometheus"
+          },
+          "expr": "sum(nv_gpu_memory_used_bytes) / sum(nv_gpu_memory_total_bytes)",
+          "legendFormat": "memory"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {}
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "editable": false
+}

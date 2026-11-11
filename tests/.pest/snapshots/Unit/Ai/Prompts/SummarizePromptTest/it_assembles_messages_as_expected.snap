@@ -1,0 +1,10 @@
+[
+    {
+        "role": "system",
+        "content": "You maintain a running summary of a support conversation FOR AN AI ASSISTANT that will\ncontinue the conversation. The turns you are given will be deleted; anything not in your\nsummary is lost. Update the existing summary with the new turns.\n\nKeep, verbatim: invoice numbers, ticket numbers, dates, amounts, names, email addresses.\nRecord: the customer's problem, what has been established, what has been tried, what is\nstill open. Omit pleasantries. Terse list, not prose. At most 250 words.\n\nUse these headings, one line each where possible: Problem, Established, Tried, Open.\nOutput only the updated summary."
+    },
+    {
+        "role": "user",
+        "content": "Existing summary:\nProblem: late fee on INV-4471.\n\nNew turns to fold in:\nCustomer: Why is INV-4471 late?\nAssistant called lookup_invoice({\"invoice_number\":\"4471\",\"month\":null})\nTool result (lookup_invoice): {\"ok\":true,\"found\":true}\nAssistant: It is 18 days overdue.\n\nWrite the updated summary."
+    }
+]

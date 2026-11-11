@@ -1,0 +1,31 @@
+{
+    "recorded_at": null,
+    "provider": "synthetic",
+    "driver": "openai-compatible",
+    "note": "Hand-written to the documented response shape; not recorded from a live provider. Replace with `php artisan ai:record`.",
+    "request": {
+        "method": "POST",
+        "path": "/chat/completions",
+        "body": {
+            "model": "example-model",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "What is a late fee?"
+                }
+            ]
+        }
+    },
+    "response": {
+        "status": 503,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": {
+            "error": {
+                "message": "The server is overloaded",
+                "type": "server_error"
+            }
+        }
+    }
+}

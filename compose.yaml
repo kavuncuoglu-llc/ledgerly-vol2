@@ -1,0 +1,11 @@
+# Chapter 0 says `docker compose up -d` at the repository root. From Chapter 22 the real files live in ops/compose/ (Appendix L);
+# this file includes them so the Chapter 0 command still starts Postgres and Redis, and `--profile ollama` adds Ollama.
+# Everything else (the macOS override, the GPU reservation, later the llama, vLLM and Triton profiles) is composed with -f as Appendix L shows.
+name: ledgerly
+
+include:
+  - path:
+      - ops/compose/base.yml
+      - ops/compose/ollama.yml
+    project_directory: ops/compose
+    env_file: .env
