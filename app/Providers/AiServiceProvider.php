@@ -9,8 +9,11 @@ use App\Ai\Budgets\RedisCounters;
 use App\Ai\Events\BudgetThresholdReached;
 use App\Ai\Events\EmergencyKillSwitchActivated;
 use App\Ai\Events\ToolCalled;
+use App\Ai\FineTuning\FineTuneEnded;
+use App\Ai\FineTuning\FineTuneSucceeded;
 use App\Ai\Listeners\AnnounceKillSwitch;
 use App\Ai\Listeners\NotifyBudgetThreshold;
+use App\Ai\Listeners\NotifyFineTuneFinished;
 use App\Ai\Listeners\RecordToolCall;
 use App\Ai\Privacy\AllowList;
 use App\Ai\Privacy\Detectors\CardNumber;
@@ -44,6 +47,7 @@ use App\Ai\Tools\ToolKind;
 use App\Ai\Tools\ToolRegistry;
 use App\Ai\Training\HubUploader;
 use App\Ai\Training\HuggingFaceHub;
+use App\Evals\MlflowReporter;
 use App\Livewire\Pulse\AiBudgets;
 use App\Livewire\Pulse\AiHealth;
 use App\Livewire\Pulse\AiSpend;
@@ -64,6 +68,8 @@ class AiServiceProvider extends ServiceProvider
         $this->registerPrivacy();
 
         $this->app->singleton(FakeBatchDriver::class);
+
+        $this->app->bind(MlflowReporter::class, fn () => MlflowReporter::fromConfig());
 
         $this->app->singleton(Counters::class, fn () => config('ai.budgets.store') === 'array'
             ? new ArrayCounters
@@ -137,6 +143,8 @@ class AiServiceProvider extends ServiceProvider
 
         Event::listen(EmergencyKillSwitchActivated::class, AnnounceKillSwitch::class);
         Event::listen(BudgetThresholdReached::class, NotifyBudgetThreshold::class);
+        Event::listen(FineTuneSucceeded::class, NotifyFineTuneFinished::class);
+        Event::listen(FineTuneEnded::class, NotifyFineTuneFinished::class);
 
         Gate::policy(PendingToolCall::class, PendingActionPolicy::class);
 

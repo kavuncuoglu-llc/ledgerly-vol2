@@ -42,6 +42,7 @@ Each chapter of this volume is a tag, `ch26` through `ch51`, taken at the end of
 | `ch38` | When to fine-tune: `php artisan eval:failure-modes` (every failing billing case sorted into retrieval miss, coverage gap, behavior and format, arithmetic or unclear, with a judge for what the checks cannot place and a backlog file for the cases that are not fine-tuning problems), the decision record `docs/adr/fine-tune-local-billing.md` with its evidence, `docs/backlog/billing-retrieval-and-coverage.md`, and the `calculate_proration` tool so arithmetic stays out of training. |
 | `ch39` | Fine-tuning methods: the first LoRA run at a size that finishes in minutes: `training/scripts/first_lora.py` (Qwen2.5-0.5B-Instruct, rank 16 on all linear layers, logged to the `first-lora` MLflow experiment), `quick_eval.py` (required facts present, base against base plus adapter, on 20 held-out cases in `tests/golden/billing_holdout.jsonl`), `training/data/mix.py` (replay mixing), and the 200 synthetic billing examples in `training/data/fixtures/billing_sft_small.jsonl` (`php artisan dataset:fixture` writes both from the seeded database). `peft` and `trl` are in the lock now, `trl` pinned below 1.0. |
 | `ch40` | Building a training dataset: tenant training-use settings (off by default), a per-user exclusion and residency-aware exports; `php artisan dataset:export` (every answered turn rebuilt by `ContextAssembler::rebuild` with the fine-tuned system message, personal data replaced by consistent surrogates, sources hashed with `AI_TRAINING_HASH_KEY`); `dataset:review` (accept, edit, reject with reasons, a judge-sorted queue, a second reviewer's agreement); `training/data/clean.py` and `split.py` (filters, near-duplicates, decontamination against the golden set, balance caps, split by conversation, mixing); `dataset:publish`, `dataset:show`, `dataset:forget` and `dataset:scan` (planted instructions, trigger phrases, unsourced links, concentration); `ai:template-check` (training and serving chat templates compared by token); and `user:forget` finding the dataset versions that hold a person's conversations. `db:seed --class=TrainingCorpusSeeder` builds the corpus the Build runs on. |
+| `ch41` | A hosted fine-tune as a baseline: `php artisan ai:ft:prepare` (the parts of `billing-v1` with no customer data, as chat JSON lines, every row validated and the tokens counted before anything is uploaded), `ai:ft:submit` (idempotent by dataset hash, base and settings), `ai:ft:poll` (every five minutes: events, loss to MLflow, a `training` ledger row, the uploaded files deleted, the team told), `ai:ft:cancel`, `ai:ft:register`; the `FineTuningClient` interface with an OpenAI-shaped driver and an offline fake one; the `fine_tune_jobs` table; the `frontier-billing-ft` role (pinned, with provenance, its own price and the short system message bound to it); `php artisan eval:compare` (roles compared on the golden billing slice) and `adr:append` (the result into the decision record); `dataset:allow`. No hosted account was used to build it: see "From `ch41`". |
 
 ## Set up `vol2-start`
 
@@ -271,6 +272,24 @@ php artisan ai:template-check llama3.1:8b --tokenizer=NousResearch/Meta-Llama-3.
 ```
 
 The datasets live in `storage/datasets/` (git-ignored: they are customer-derived even when redacted) and the regional copy in `storage/app/training/<region>/`. Training data takes the fine-tuned system message (`SupportPrompt::fineTuned()`, version `2026-11-11.ft1`, never the canary), the passages and tool traffic of the turn, and the agent's edit where there is one; replacing a name needs Presidio (`--profile privacy`), the rest does not. Exemplars, the synthetic set and the replay set (the base model's own answers, written by `training/data/replay.py` through Ollama) are in `training/data/fixtures/`. `ai:template-check` found a real difference on the first try: with tool turns in the row, Ollama's `llama3.1:8b` template renders 557 tokens where the Hugging Face template renders 538, and without them the two agree (122 and 122).
+
+### From `ch41`: a hosted fine-tune, and an offline one
+
+The hosted path needs an account with a provider that lets you tune a model through an OpenAI-shaped API; the **offline path needs nothing** and exercises every line of the Laravel side.
+
+```bash
+php artisan migrate                                                       # fine_tune_jobs, fine_tune_job_events
+# Offline (no account, no money): set FRONTIER_FT_DRIVER=fake, FT_FAKE_SECONDS=20, and for the comparison AI_EVAL_ENABLED=true, AI_FAKE_FT_CHAT=true, FRONTIER_URL=http://localhost:8000/fake-ft/v1, FRONTIER_KEY=fake, FRONTIER_MODEL=fake-base-8b
+# Hosted: FRONTIER_FT_DRIVER=openai, FRONTIER_URL, FRONTIER_KEY, and BILLING_FT_BASE (a model the provider lets you tune: Appendix F.8)
+php artisan ai:ft:prepare billing-v1 --provider=frontier --only=exemplars,synthetic,replay --out=storage/ft/billing-hosted.jsonl --validation
+php artisan ai:ft:submit billing-v1 --provider=frontier --base="$BILLING_FT_BASE" --method=supervised --epochs=3
+php artisan ai:ft:poll                                                    # scheduled every five minutes by `schedule:run`; shown here once
+php artisan ai:ft:register 1 --role=frontier-billing-ft                   # writes BILLING_FT_* to .env; fill BILLING_FT_RATE_IN, _OUT and _TRAIN_RATE from the provider's page, then `config:clear`
+php artisan eval:compare --set=golden:billing --roles=frontier,frontier-billing-ft,cascade --with=gates,judge,injection,tripwire:generation
+php artisan adr:append docs/adr/fine-tune-local-billing.md --section="Hosted baseline" --from=eval:last
+```
+
+What may leave is decided before the format: `--only` defaults to the three parts of `billing-v1` with no customer data. Production conversations and agent edits need a recorded decision (`php artisan dataset:allow billing-v1 --provider=frontier --reason="..."`) **and** a provider whose privacy block says it does not train on API data and has a signed DPA. A second submission of the same dataset hash, base and settings is refused unless you pass `--again`. The role `frontier-billing-ft` is sent the short system message (`SupportPrompt::boundTo`) and `local` and every other role the long one. The OpenAI-shaped driver has been exercised with faked HTTP only; nothing here has called a hosted fine-tuning API.
 
 ## The app as Volume 1 left it
 

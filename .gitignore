@@ -66,3 +66,4 @@ __pycache__/
 
 # Chapter 40: datasets built from customer conversations (surrogate-redacted, still customer data) stay out of the repository; the regional store is storage/app/training/
 /storage/datasets/
+/storage/ft/

@@ -26,7 +26,7 @@ it('says for every configured provider whether it redacts, and redacts by defaul
         ->keys()
         ->all();
 
-    expect($redacting)->toBe(['frontier']);
+    expect($redacting)->toBe(['frontier', 'frontier-billing-ft']);       // the hosted fine-tune is a hosted role too (Chapter 41)
 });
 
 it('refuses to escalate to a provider whose recorded answers the feature requires and lacks', function () {

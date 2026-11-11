@@ -50,7 +50,8 @@ describe('ai:providers', function () {
             ->toContain('frontier-example')
             ->toContain('https://frontier.example.com/v1')
             ->not->toContain('sk-test-frontier-key')
-            ->not->toContain('Not set up: frontier');
+            ->not->toContain('Not set up: frontier,')
+            ->not->toContain('Not set up: frontier.');            // frontier-billing-ft (Chapter 41) is still unset: it is listed on its own
     });
 
     it('records the license and the date it was reviewed next to each model (Chapter 20, Topic 6)', function () {

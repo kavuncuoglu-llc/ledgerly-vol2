@@ -2,6 +2,7 @@
 
 use App\Ai\Batch\JudgeNightlySource;
 use App\Ai\Batch\SynthesizeHelpCenterSource;
+use App\Ai\Prompts\FineTunedSupportPrompt;
 use App\Ai\Prompts\SupportPrompt;
 
 return [
@@ -173,6 +174,39 @@ return [
                 'source' => env('FRONTIER_TERMS_URL'),
             ],
         ],
+        // Chapter 41, Figure 41-5: the hosted fine-tune of the billing model, a role beside its base. Unset until ai:ft:register has written BILLING_FT_MODEL; routed to nothing until a route names it. Its model ID is pinned, its provenance is recorded
+        // here, and the prompt version it was trained on is bound to it: SupportAssistant sends this role the short system message and no other role.
+        'frontier-billing-ft' => [
+            'driver' => env('FRONTIER_DRIVER', 'openai-compatible'),
+            'base_url' => env('FRONTIER_URL'),
+            'api_key' => env('FRONTIER_KEY'),
+            'model' => env('BILLING_FT_MODEL'),
+            'timeout' => env('FRONTIER_TIMEOUT', 60),
+            'hosted' => true,
+            'capabilities' => ['tools', 'structured', 'seed'],
+            'drop_options' => ['min_p', 'top_k', 'repeat_penalty'],
+            'license' => env('FRONTIER_LICENSE', 'Provider terms'),
+            'license_reviewed' => env('FRONTIER_LICENSE_REVIEWED'),
+            'pinned' => true,
+            'deprecates_on' => env('BILLING_FT_DEPRECATES_ON', env('FRONTIER_DEPRECATES_ON')),     // a fine-tune retires with its base
+            'fine_tuned' => [
+                'base' => env('BILLING_FT_BASE'),
+                'dataset' => env('BILLING_FT_DATASET', 'billing-v1'),
+                'dataset_hash' => env('BILLING_FT_DATASET_HASH'),
+                'job' => env('BILLING_FT_JOB'),
+                'prompt_version' => FineTunedSupportPrompt::VERSION,                                 // the short system message it was trained on
+            ],
+            'privacy' => [
+                'redact' => true,
+                'trains_on_api_data' => false,
+                'retention_days' => env('FRONTIER_RETENTION_DAYS'),
+                'zdr' => (bool) env('FRONTIER_ZDR', false),
+                'region' => env('FRONTIER_REGION'),
+                'dpa_signed' => (bool) env('FRONTIER_DPA_SIGNED', false),
+                'checked_on' => env('FRONTIER_TERMS_CHECKED_ON'),
+                'source' => env('FRONTIER_TERMS_URL'),
+            ],
+        ],
         // The middle tier: a 30B to 70B model on a bigger GPU, or a cheap hosted model. Unset until you name a model.
         // Chapter 21: on a 64 GB+ unified-memory machine, `ollama create ledgerly-support-70b -f ops/ollama/Modelfile.ledgerly-support-70b`, set LOCAL_70B_MODEL=ledgerly-support-70b, and `ai:profile --provider=mid` measures it.
         'local-70b' => [
@@ -214,7 +248,7 @@ return [
     'features' => [
         'ticket.classify' => ['provider' => 'local', 'profile' => 'deterministic'],
         'ticket.extract' => ['provider' => 'local', 'profile' => 'deterministic'],
-        'support.reply' => ['provider' => 'local', 'profile' => 'assistant', 'escalate_to' => 'frontier', 'allowed_providers' => ['local', 'local-70b', 'frontier'], 'requires' => ['dpa_signed'], 'ladder' => ['cheaper_role', 'tighter_limits', 'cache_only', 'search']],
+        'support.reply' => ['provider' => 'local', 'profile' => 'assistant', 'escalate_to' => 'frontier', 'allowed_providers' => ['local', 'local-70b', 'frontier', 'frontier-billing-ft', 'local-billing-ft'], 'requires' => ['dpa_signed'], 'ladder' => ['cheaper_role', 'tighter_limits', 'cache_only', 'search']],
         'triage.draft' => ['provider' => 'local', 'profile' => 'grounded', 'escalate_to' => 'frontier', 'background' => true],          // Chapter 36: nobody is waiting on a draft: over budget it pauses instead of degrading
         'invoice.extract' => ['provider' => 'vision', 'profile' => 'deterministic', 'allowed_providers' => ['local', 'vision']],   // scanned documents never leave
         'conversation.summarize' => ['provider' => 'local', 'profile' => 'deterministic', 'background' => true],
@@ -350,7 +384,7 @@ return [
         'support' => ['prefixes' => ['support.', 'ticket.', 'triage.', 'conversation.', 'retrieval.'], 'email' => [env('TEAM_SUPPORT_EMAIL')]],
         'billing' => ['prefixes' => ['invoice.', 'reminder.'], 'email' => [env('TEAM_BILLING_EMAIL')]],
         'growth' => ['prefixes' => ['widget.'], 'email' => [env('TEAM_GROWTH_EMAIL')]],
-        'platform' => ['prefixes' => ['ai.', 'compare.', 'eval.', 'judge.'], 'email' => [env('TEAM_PLATFORM_EMAIL')]],
+        'platform' => ['prefixes' => ['ai.', 'compare.', 'eval.', 'judge.', 'training.'], 'email' => [env('TEAM_PLATFORM_EMAIL')]],
         'finance' => ['prefixes' => [], 'email' => [env('TEAM_FINANCE_EMAIL')]],
     ],
 
@@ -699,5 +733,32 @@ return [
         'retire_after_days' => (int) env('BACKUP_RETENTION_DAYS', 35),
         'region_disk_prefix' => 'training-',
         'tokenizer' => env('TEMPLATE_CHECK_TOKENIZER', 'meta-llama/Llama-3.1-8B-Instruct'),   // the base the adapter trains on: ai:template-check renders with this tokenizer's chat template
+    ],
+
+    // Chapter 41, Topic 6 (eval:compare): the roles compared with their bases, the judge's provider (a different family from the model under test), and how lm_eval reaches each role. A hosted model has no log-probabilities, so it is `generation_only` and runs through its chat endpoint
+    // (lm_eval reads the key from OPENAI_API_KEY); a local model runs from its weights, which Chapter 42's export leaves in training/runs/billing/fused (BILLING_FT_FUSED_PATH).
+    'compare' => [
+        'judge_provider' => env('COMPARE_JUDGE_PROVIDER', 'local'),
+        'max_drop' => 2.0,
+        'bases' => ['frontier-billing-ft' => 'frontier', 'local-billing-ft' => 'local'],
+        'tripwire' => [
+            'frontier' => ['model' => 'local-chat-completions', 'from_provider' => 'frontier', 'generation_only' => true],
+            'frontier-billing-ft' => ['model' => 'local-chat-completions', 'from_provider' => 'frontier-billing-ft', 'generation_only' => true],
+            'local' => ['model' => 'hf', 'model_args' => 'pretrained='.env('TEMPLATE_CHECK_TOKENIZER', 'meta-llama/Llama-3.1-8B-Instruct').',dtype=bfloat16'],
+            'local-billing-ft' => ['model' => 'hf', 'model_args' => 'pretrained='.env('BILLING_FT_FUSED_PATH', 'runs/billing/fused').',dtype=bfloat16'],
+        ],
+    ],
+
+    // Chapter 41: hosted fine-tuning. `drivers` says how each provider's fine-tuning API is spoken to (`openai` for an OpenAI-shaped API, `fake` for the offline Build); `max_tokens_per_row` is the provider's documented row limit that ai:ft:prepare validates against;
+    // `fake` is the offline provider: a job that finishes after `seconds`, with its state in `directory`. `fake_chat` turns on POST /fake-ft/v1/chat/completions, which answers the fake model's ID with scripted billing replies (development only, never in production).
+    'fine_tuning' => [
+        'drivers' => ['frontier' => env('FRONTIER_FT_DRIVER', 'openai')],
+        'directory' => storage_path('ft'),
+        'max_tokens_per_row' => (int) env('FT_MAX_TOKENS_PER_ROW', 16_384),
+        'default_epochs' => 3,
+        'notify_team' => 'platform',
+        'fake' => ['directory' => storage_path('app/fake-fine-tuning'), 'seconds' => (int) env('FT_FAKE_SECONDS', 20)],
+        'fake_chat' => (bool) env('AI_FAKE_FT_CHAT', false),
+        'mlflow_experiment' => 'hosted-fine-tunes',
     ],
 ];

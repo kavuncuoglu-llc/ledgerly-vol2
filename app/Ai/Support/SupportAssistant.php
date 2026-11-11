@@ -236,9 +236,11 @@ final class SupportAssistant
     // One role's attempt: the tool loop on that provider (null = the feature's own), then the citation check with its one repair, then the answer guard. Chapter 37 runs this once per role in the chain.
     private function attempt(AssembledPrompt $prompt, ToolContext $ctx, array $options, Route $route, ?StreamListener $stream, Conversation $conversation, User $user, ?string $provider, ?array $cascade): AttemptResult
     {
-        $options = ($provider === null ? [] : ['provider' => $provider]) + ($cascade === null ? [] : ['cascade' => $cascade]) + $options;
+        $role = $provider ?? $this->ai->providerFor('support.reply');
 
-        $result = $this->runner->run(messages: $prompt->messages, ctx: $ctx, options: $options, feature: 'support.reply', tools: $this->tools($route), stream: $stream);
+        $options = ($provider === null ? [] : ['provider' => $provider]) + ($cascade === null ? [] : ['cascade' => $cascade]) + ['prompt_version' => SupportPrompt::versionFor($role, (string) ($options['prompt_version'] ?? SupportPrompt::VERSION))] + $options;
+
+        $result = $this->runner->run(messages: SupportPrompt::boundTo($prompt->messages, $role), ctx: $ctx, options: $options, feature: 'support.reply', tools: $this->tools($route), stream: $stream);
 
         return $this->checked($result, $prompt, $ctx, $options, $conversation, $user, $provider ?? '');
     }

@@ -28,6 +28,51 @@ final class SupportPrompt
         return FineTunedSupportPrompt::system();
     }
 
+    // Chapter 41, Topic 5: a role that was fine-tuned on the short system message is sent that message and no other, and every other role is sent the long one. Both classic mistakes (the fine-tune with the long prompt, the base with the short one) end here: the swap is made when a request goes to a role, and a system message that is neither expected text for the role is refused rather than sent.
+    /** @param list<array> $messages
+     * @return list<array> */
+    public static function boundTo(array $messages, string $provider): array
+    {
+        $role = config('ai.providers')[$provider] ?? [];
+
+        $fineTuned = is_array($role) && ($role['fine_tuned']['prompt_version'] ?? null) === self::FINE_TUNED_VERSION;
+
+        $system = (string) ($messages[0]['content'] ?? '');
+
+        $long = self::withCanary(self::base());
+
+        $short = self::withCanary(self::fineTuned());
+
+        if ($fineTuned && str_contains($system, $long)) {
+            $messages[0]['content'] = str_replace($long, $short, $system);
+
+            return $messages;
+        }
+
+        if ($fineTuned && str_contains($system, $short)) {
+            return $messages;
+        }
+
+        if ($fineTuned) {
+            throw PromptBindingViolated::for($provider, 'it was fine-tuned on the short system message, and this request carries neither the long one to swap nor the short one');
+        }
+
+        if (str_contains($system, $short) && ! str_contains($system, $long)) {
+            throw PromptBindingViolated::for($provider, 'it is not a fine-tuned role, and this request carries the short system message the fine-tune was trained on');
+        }
+
+        return $messages;
+    }
+
+    public static function versionFor(string $provider, string $default = self::VERSION): string
+    {
+        $role = config('ai.providers')[$provider] ?? [];
+
+        return is_array($role) && isset($role['fine_tuned']['prompt_version'])
+            ? (string) $role['fine_tuned']['prompt_version']
+            : $default;
+    }
+
     public static function withCanary(string $system): string
     {
         $canary = (string) config('ai.security.canary');

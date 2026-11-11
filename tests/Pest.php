@@ -40,6 +40,7 @@ require_once __DIR__.'/Support/EnvExample.php';
 require_once __DIR__.'/Support/TriageWorld.php';
 require_once __DIR__.'/Support/Widget.php';
 require_once __DIR__.'/Support/Spend.php';
+require_once __DIR__.'/Support/FineTuningWorld.php';
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)

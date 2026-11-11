@@ -39,6 +39,39 @@ final class MlflowReporter
         return $run;
     }
 
+    // Chapter 41, Topic 4: a run that stays open while a hosted job trains, so the provider's reported loss lands beside the self-run experiments (Chapter 28).
+    public function start(string $experiment, string $runName, array $params = [], array $tags = []): string
+    {
+        $run = $this->post('runs/create', [
+            'experiment_id' => $this->experimentId($experiment),
+            'start_time' => (int) (microtime(true) * 1000),
+            'run_name' => $runName,
+            'tags' => $this->pairs($tags),
+        ])['run']['info']['run_id'];
+
+        if ($params !== []) {
+            $this->post('runs/log-batch', ['run_id' => $run, 'params' => $this->pairs($params)]);
+        }
+
+        return $run;
+    }
+
+    /** @param list<array{key: string, value: float, step: int}> $metrics */
+    public function metrics(string $runId, array $metrics): void
+    {
+        $now = (int) (microtime(true) * 1000);
+
+        $this->post('runs/log-batch', [
+            'run_id' => $runId,
+            'metrics' => array_map(fn (array $metric) => ['key' => $metric['key'], 'value' => (float) $metric['value'], 'timestamp' => $now, 'step' => (int) $metric['step']], $metrics),
+        ]);
+    }
+
+    public function finish(string $runId, string $status = 'FINISHED'): void
+    {
+        $this->post('runs/update', ['run_id' => $runId, 'status' => $status, 'end_time' => (int) (microtime(true) * 1000)]);
+    }
+
     private function experimentId(string $name): string
     {
         $found = Http::acceptJson()->get($this->baseUrl.'/api/2.0/mlflow/experiments/get-by-name', ['experiment_name' => $name]);

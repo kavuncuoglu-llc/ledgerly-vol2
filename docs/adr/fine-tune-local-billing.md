@@ -34,6 +34,23 @@ Billing pass rate on local at least 96% (measured with retrieval fixed) · never
 
 Dataset: Chapter 40 (`billing-v1`). Training: Chapters 42 and 43. Serving and registry: Chapter 44. Retrain quarterly and on any base-model change. Arithmetic moves to the `calculate_proration` tool (a plan change prorated by the days left, a late fee at 1.5% a month prorated by day, nothing under 1.00); retrieval misses go to the retrieval backlog, coverage gaps to the help center. Rerun `eval:failure-modes` after every retrieval change and before every retrain: it is how this record's evidence is refreshed.
 
+## Hosted baseline
+
+Not a result. No hosted fine-tuning account was available when this repository was built, so this section holds the output of the offline run: the fake fine-tuning driver and the scripted replies of the fake chat endpoint, on three golden billing cases. It proves that the command, the roles and the record agree; its figures are the fake's. Rerun `ai:ft:prepare`, `ai:ft:submit`, `ai:ft:poll`, `ai:ft:register` and `eval:compare` against a provider (Chapter 41, Build) and `adr:append` again: the section is replaced.
+
+Run 2026-11-11 on golden:billing (3 cases) with gates.
+
+| | frontier | frontier-billing-ft |
+| --- | --- | --- |
+| Golden pass rate | 100% | 33% |
+| Required facts present | — | — |
+| Judge pass rate | — | — |
+| Injection model-level success | — | — |
+| Tripwire, generation tasks | — | — |
+| Tripwire, all tasks | — | — |
+| Input tokens per answer | ~4,474 | ~3,005 |
+| Cost per answer | $0.0000 | $0.0000 |
+
 ## Exit
 
 If two iterations miss the success criteria, stop and record why.
