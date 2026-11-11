@@ -1,6 +1,7 @@
 {
     "DraftReplyPrompt": {
-        "2026-11-03.1": "ae6cef429122c3263e8c09e49c80d70c8a47b5df175fd367bcdba094e7b69c02"
+        "2026-11-03.1": "ae6cef429122c3263e8c09e49c80d70c8a47b5df175fd367bcdba094e7b69c02",
+        "2026-11-06.1": "84af03996e752eec446d16872255dfc7541f116749f44dbca05c4f5d60f92011"
     },
     "ExtractMemoriesPrompt": {
         "2026-11-01.1": "ba82284a88e0de1862e6298128409955ab6dfd4fea229b98b5570e3f6dc7e7aa"
@@ -24,12 +25,15 @@
         "2026-11-01.1": "2d426b6f46b6cf6e2e7fa5470508fa7539c749224e91383f7e46a4cdbb9c9f7f"
     },
     "SupportPrompt": {
-        "2026-11-01.6": "fffc970010da5138d888007be5fd957eb9109d4b2127e918227aec5fc691cefd"
+        "2026-11-01.6": "fffc970010da5138d888007be5fd957eb9109d4b2127e918227aec5fc691cefd",
+        "2026-11-06.1": "d22597e81aa2c0fb58f77f4d036cbc273a98de0fc6641701515b1da3530b6ff2"
     },
     "TicketClassifyPrompt": {
-        "2026-11-01.1": "1eb208aaf2154ee84eac9ccea8495aa40baa541f1fc5942c0eb6c4012e688127"
+        "2026-11-01.1": "1eb208aaf2154ee84eac9ccea8495aa40baa541f1fc5942c0eb6c4012e688127",
+        "2026-11-06.1": "be9cff1662ed9b7c97f31a49fc4795bdf4bd7d8ffa70aae1eaf9c9adaaf57512"
     },
     "TicketExtractPrompt": {
-        "2026-11-01.1": "1f0aae38e8e4663e087a0a0c7db7386ad8b3bf7bec0567d783d4892072931fff"
+        "2026-11-01.1": "1f0aae38e8e4663e087a0a0c7db7386ad8b3bf7bec0567d783d4892072931fff",
+        "2026-11-06.1": "e7ac16bf6d9f2c77477650c4207c6b196a9ed7a95f9386f6b75e2c64672b6be7"
     }
 }

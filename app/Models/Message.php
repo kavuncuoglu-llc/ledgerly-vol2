@@ -20,6 +20,7 @@ class Message extends Model
             'tokens' => 'integer',
             'tool_calls' => 'array',
             'retrieved' => 'array',
+            'guard' => 'array',
         ];
     }
 

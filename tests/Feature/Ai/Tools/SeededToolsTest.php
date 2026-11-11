@@ -1,5 +1,6 @@
 <?php
 
+use App\Ai\Security\Untrusted;
 use App\Ai\Tools\ToolContext;
 use App\Ai\Tools\ToolRegistry;
 use App\Ai\Tools\ToolRunner;
@@ -37,6 +38,11 @@ describe('lookup_invoice reads the seeded invoices', function () {
             'days_overdue' => 18,
             'total' => 1284.5,
             'late_fee' => 21.6,
+            'lines' => [
+                ['description' => Untrusted::wrap('Brand identity: design phase', 'tool:lookup_invoice'), 'quantity' => 1.0, 'amount' => 800.0],
+                ['description' => Untrusted::wrap('Revisions and handoff', 'tool:lookup_invoice'), 'quantity' => 4.0, 'amount' => 400.0],
+            ],
+            'payments' => [],
         ]]);
     });
 

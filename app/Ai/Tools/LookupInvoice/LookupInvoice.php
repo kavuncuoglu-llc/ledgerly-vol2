@@ -2,11 +2,13 @@
 
 namespace App\Ai\Tools\LookupInvoice;
 
+use App\Ai\Security\Untrusted;
 use App\Ai\Tools\Tool;
 use App\Ai\Tools\ToolContext;
 use App\Ai\Tools\ToolDefaults;
 use App\Ai\Tools\ToolKind;
 use App\Ai\Tools\ToolResult;
+use App\Models\Invoice;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
@@ -57,6 +59,8 @@ final class LookupInvoice implements Tool
             'days_overdue' => $invoice->daysOverdue(),
             'total' => (float) $invoice->total,
             'late_fee' => $invoice->lateFee(),
+            'lines' => $this->lines($invoice),
+            'payments' => $this->payments($invoice),
         ]];
 
         if ($matches->count() > 1) {
@@ -64,6 +68,38 @@ final class LookupInvoice implements Tool
         }
 
         return ToolResult::ok($result);
+    }
+
+    // Chapter 32, Topic 5: the words on a line item were typed by the customer for their own client, and a payment reference by whoever paid. They travel as JSON values and each is wrapped, so a sentence in them is data the model reads, not text that reads like the tool's own.
+    private function lines(Invoice $invoice): array
+    {
+        return $invoice->lineItems()
+            ->orderBy('position')
+            ->limit(10)
+            ->get(['description', 'quantity', 'amount'])
+            ->map(fn ($line) => [
+                'description' => Untrusted::wrap((string) $line->description, 'tool:lookup_invoice'),
+                'quantity' => (float) $line->quantity,
+                'amount' => (float) $line->amount,
+            ])
+            ->all();
+    }
+
+    private function payments(Invoice $invoice): array
+    {
+        return $invoice->payments()
+            ->orderBy('paid_at')
+            ->limit(5)
+            ->get(['method', 'amount', 'paid_at', 'reference'])
+            ->map(fn ($payment) => [
+                'method' => $payment->method,
+                'amount' => (float) $payment->amount,
+                'paid_on' => $payment->paid_at->toDateString(),
+                'reference' => $payment->reference === null
+                    ? null
+                    : Untrusted::wrap($payment->reference, 'tool:lookup_invoice'),
+            ])
+            ->all();
     }
 
     private function issuedIn(HasMany $query, string $month): Collection

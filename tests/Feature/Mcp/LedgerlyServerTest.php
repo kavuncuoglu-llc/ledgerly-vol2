@@ -244,7 +244,7 @@ describe('prompts', function () {
         $messages = streamedResult(mcp($this->token, 'prompts/get', ['name' => 'support-prompt', 'arguments' => ['question' => 'What is a late fee?']]))['messages'];
 
         expect($messages[0]['content']['text'])->toContain('You are the support assistant for Ledgerly')
-            ->and(collect($messages)->pluck('content.text')->join("\n"))->toContain('Question: What is a late fee?');
+            ->and(collect($messages)->pluck('content.text')->join("\n"))->toContain('What is a late fee?')->toContain('untrusted-');
     });
 
     it('serves TicketClassifyPrompt', function () {

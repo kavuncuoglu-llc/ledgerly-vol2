@@ -33,7 +33,7 @@ final readonly class TicketData
     {
         return [
             'category' => ['required', Rule::enum(Category::class)],
-            'invoice_number' => ['nullable', 'string', 'max:64'],
+            'invoice_number' => ['nullable', 'string', 'max:16', 'regex:/^(INV-)?\d{3,8}$/i'],     // Chapter 32: a pattern, so the field cannot carry a sentence to the privileged step
             'customer_email' => ['nullable', 'email', 'max:200'],
             'amount_mentioned' => ['nullable', 'numeric', 'min:0'],
             'date_mentioned' => ['nullable', 'date_format:Y-m-d', 'after:2000-01-01', 'before:2100-01-01'],

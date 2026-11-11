@@ -5,6 +5,7 @@ namespace App\Ai\Support;
 use App\Ai\Cache\CachePolicy;
 use App\Ai\Cache\SemanticCache;
 use App\Ai\Context\AssembledPrompt;
+use App\Ai\Contracts\ChatRequest;
 use App\Ai\Contracts\ChatResponse;
 use App\Ai\Contracts\FinishReason;
 use App\Ai\Contracts\Usage;
@@ -22,6 +23,7 @@ use App\Ai\Retrieval\CitationChecker;
 use App\Ai\Retrieval\RetrievalScope;
 use App\Ai\Retrieval\Retriever;
 use App\Ai\Schemas\Category;
+use App\Ai\Security\AnswerGuard;
 use App\Ai\Streaming\DeltaBatcher;
 use App\Ai\Streaming\StreamListener;
 use App\Ai\Structured\RepairPrompt;
@@ -37,6 +39,7 @@ use App\Models\User;
 use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 final class SupportAssistant
@@ -53,6 +56,7 @@ final class SupportAssistant
         private Router $router,
         private ToolRegistry $registry,
         private ProviderHealth $health,
+        private AnswerGuard $guard,
     ) {}
 
     public function answerStreaming(Conversation $c, string $question, Closure $onDelta, ?Closure $onToolStart = null, ?Message $reply = null): ToolRunResult
@@ -148,9 +152,11 @@ final class SupportAssistant
 
         $result = $this->verify($result, $prompt, $sent, $ctx, $options, $conversation);
 
-        $reply = $this->remember($conversation, $result, sent: $sent, reply: $reply);
+        [$result, $blocked, $findings] = $this->guarded($result, $prompt, $user);
 
-        $reply->update(['retrieved' => $this->retrievedOf($prompt), 'prompt_version' => $candidate?->version ?? SupportPrompt::VERSION, 'experiment_variant' => $variant, 'category' => $route->category?->value]);               // Chapter 29: what the model was shown, so a gate or a shadow run can look at the same sources
+        $reply = $this->remember($conversation, $result, sent: $sent, reply: $reply, blocked: $blocked);
+
+        $reply->update(['guard' => $findings === [] ? null : $findings, 'retrieved' => $this->retrievedOf($prompt), 'prompt_version' => $candidate?->version ?? SupportPrompt::VERSION, 'experiment_variant' => $variant, 'category' => $route->category?->value]);               // Chapter 29: what the model was shown, so a gate or a shadow run can look at the same sources
 
         if ($result->citations !== null && $result->citations->cited !== [] && ! $result->citations->hasErrors()) {
             $this->store->recordSources($reply, $result->citations->cited);
@@ -160,7 +166,7 @@ final class SupportAssistant
             MemoryBlock::touch($user);
         }
 
-        if ($eligible) {
+        if ($eligible && ! $blocked) {
             $this->storeInCache($question, $result, sent: $sent, chunks: $chunks, tenantId: $user->tenant_id, known: $route->category);
         }
 
@@ -305,6 +311,24 @@ final class SupportAssistant
         return $retry->withCitations($second);
     }
 
+    // Chapter 32, Topics 4 and 7: the last thing between the model and the customer. A blocked answer is replaced by a fixed message and stored as blocked; a link or image to a host nobody listed is cut out of what is stored and shown.
+    private function guarded(ToolRunResult $result, AssembledPrompt $prompt, User $user): array
+    {
+        if ($result->response === null || $result->pendingApprovals !== [] || $result->response->toolCalls !== []) {
+            return [$result, false, []];
+        }
+
+        $verdict = $this->guard->inspect((string) $result->response->content, ChatRequest::make($prompt->messages, [], 'support.reply'), $user);
+
+        if ($verdict->blocked()) {
+            Log::warning('An answer was blocked before it was shown', ['rule' => $verdict->blockedBy, 'user_id' => $user->id]);      // the rule, never the text
+
+            return [$result->withContent(SupportPrompt::blockedMessage()), true, $verdict->findings()];
+        }
+
+        return [$result->withContent($verdict->text), false, $verdict->findings()];
+    }
+
     private function recordCitationErrors(Conversation $conversation, int $errors): void
     {
         $id = $this->lastModelCallId($conversation);
@@ -416,7 +440,7 @@ final class SupportAssistant
         return $this->store->complete($reply, $message, $status);                  // the job updates the placeholder, it never creates a second reply
     }
 
-    private function remember(Conversation $conversation, ToolRunResult $result, int $sent, ?Message $reply = null): Message
+    private function remember(Conversation $conversation, ToolRunResult $result, int $sent, ?Message $reply = null, bool $blocked = false): Message
     {
         $new = array_slice($result->messages, $sent);                              // assistant tool-call turns and their results
 
@@ -436,7 +460,7 @@ final class SupportAssistant
             'role' => 'assistant',
             'content' => $this->finalText($result),
             'model_call_id' => $this->lastModelCallId($conversation),
-        ], $this->statusOf($result));
+        ], $blocked ? 'blocked' : $this->statusOf($result));
     }
 
     // Chapter 29: a reply that ran out of tokens is stored as truncated and never shown as if it were finished.

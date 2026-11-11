@@ -3,6 +3,7 @@
 namespace App\Ai\Context;
 
 use App\Ai\Retrieval\RetrievedChunk;
+use App\Ai\Security\Untrusted;
 
 // How retrieved passages are written into the window: a one-line preamble, then each passage under a short bracketed label the model cites and the checker verifies.
 final class ContextBlock
@@ -18,7 +19,7 @@ final class ContextBlock
         $passages = [];
 
         foreach (self::labels($chunks) as $label => $chunk) {
-            $passages[] = "[{$label}]\n".$chunk->body();
+            $passages[] = "[{$label}]\n".Untrusted::wrap($chunk->body(), 'help_center');
         }
 
         return implode("\n\n", [

@@ -135,7 +135,7 @@ final class TriagePipeline
 
         $result = $this->agents->run(                                                       // the ONE agentic step, bounded
             $agent,
-            AgentState::fresh(goal: 'Gather the facts needed to resolve: '.$ticket->title, facts: $facts),
+            AgentState::fresh(goal: 'Gather the facts needed to resolve ticket '.$ticket->number, facts: $facts),
             new ToolContext($owner, conversationId: null, source: 'triage', triageRunId: $run->id),
         );
 
@@ -171,12 +171,18 @@ final class TriagePipeline
     private function facts(TicketData $fields, Ticket $ticket): array
     {
         return array_filter([
-            'subject' => $ticket->subject,
-            'invoice_number' => $fields->invoice_number ?? $ticket->invoice_number,
-            'customer_email' => $fields->customer_email,
+            'ticket' => $ticket->number,
+            'invoice_number' => $this->patterned($fields->invoice_number ?? $ticket->invoice_number),
             'amount_mentioned' => $fields->amount_mentioned,
             'date_mentioned' => $fields->date_mentioned,
         ], fn ($value) => $value !== null);
+    }
+
+    private function patterned(?string $number): ?string
+    {
+        return $number !== null && preg_match('/^(INV-)?\d{3,8}$/i', $number) === 1
+            ? $number
+            : null;                                                                          // the privileged step only ever sees a value shaped like an invoice number
     }
 
     private function text(Ticket $ticket): string

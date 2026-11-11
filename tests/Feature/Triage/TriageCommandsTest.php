@@ -114,7 +114,7 @@ describe('agent:trace', function () {
 
         $this->artisan("agent:trace {$run->id}")
             ->expectsOutputToContain("run {$run->id} · triage · done")
-            ->expectsOutputToContain('goal: Gather the facts needed to resolve: Client paid but invoice shows unpaid')
+            ->expectsOutputToContain('goal: Gather the facts needed to resolve ticket T-'.$this->ticket->id)
             ->expectsOutputToContain('r1 decision → lookup_invoice(invoice_number: "4471", month: null)')
             ->expectsOutputToContain('r2 decision → list_invoices(status: null, months: 3)')
             ->expectsOutputToContain('r3 decision → done: INV-4471 is 18 days overdue.')

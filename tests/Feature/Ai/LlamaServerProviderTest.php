@@ -7,6 +7,7 @@ use App\Ai\Contracts\ChatRequest;
 use App\Ai\Exceptions\ContextTooLong;
 use App\Ai\Prompts\TicketClassifyPrompt;
 use App\Ai\Schemas\Category;
+use App\Ai\Security\Untrusted;
 use App\Ai\Support\ClassifyTicket;
 use App\Ai\Tokens\LlamaServerTokenCounter;
 use App\Ai\Tokens\RatioCounter;
@@ -139,7 +140,7 @@ describe('grammar', function () {
         $prompt = TicketClassifyPrompt::rendered('The export is broken');
 
         expect($prompt)->toStartWith('<|start_header_id|>system<|end_header_id|>'."\n\n".'You classify Ledgerly support messages')
-            ->and($prompt)->toContain('<|eot_id|><|start_header_id|>user<|end_header_id|>'."\n\n".'The export is broken<|eot_id|>')
+            ->and($prompt)->toContain('<|eot_id|><|start_header_id|>user<|end_header_id|>'."\n\n".Untrusted::wrap('The export is broken', 'ticket').'<|eot_id|>')
             ->and($prompt)->toEndWith('<|start_header_id|>assistant<|end_header_id|>'."\n\n")
             ->and($prompt)->not->toContain('<|begin_of_text|>');                          // the server adds the BOS token
     });

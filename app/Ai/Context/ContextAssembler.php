@@ -3,6 +3,7 @@
 namespace App\Ai\Context;
 
 use App\Ai\Conversations\SummaryNote;
+use App\Ai\Security\Untrusted;
 use App\Ai\Tokens\TokenCounter;
 use Illuminate\Support\Facades\Log;
 
@@ -42,7 +43,7 @@ final class ContextAssembler
     {
         return $msgs === []
             ? $this
-            : $this->slot('history', $msgs);
+            : $this->slot('history', array_map(fn (array $message) => $this->wrapped($message), $msgs));
     }
 
     public function context(array $chunks): self
@@ -54,7 +55,7 @@ final class ContextAssembler
 
     public function question(string $q): self
     {
-        return $this->slot('question', [['role' => 'user', 'content' => "Question: {$q}"]]);
+        return $this->slot('question', [['role' => 'user', 'content' => "Question:\n".Untrusted::wrap($q, 'customer_message')]]);
     }
 
     public function build(): AssembledPrompt
@@ -85,6 +86,18 @@ final class ContextAssembler
         $this->warnAboutSlotsOverBudget($breakdown);
 
         return new AssembledPrompt($messages, $breakdown, $this->labelMap);
+    }
+
+    // The customer's earlier turns are stored as typed; tool results and assistant turns are not text a customer wrote.
+    private function wrapped(array $message): array
+    {
+        if (($message['role'] ?? '') !== 'user') {
+            return $message;
+        }
+
+        $message['content'] = Untrusted::wrap((string) ($message['content'] ?? ''), 'customer_message');
+
+        return $message;
     }
 
     private function slot(string $name, array $messages, bool $breakpoint = false): self

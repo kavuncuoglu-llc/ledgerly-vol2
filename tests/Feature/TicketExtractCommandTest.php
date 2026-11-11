@@ -15,6 +15,7 @@ function fakeExtractor(array $overrides = [], array $invalid = []): void
         $message = collect($request['messages'])
             ->where('role', 'user')
             ->pluck('content')
+            ->map(fn (string $content) => unwrapped($content))
             ->filter(fn (string $content) => isset($expectations[$content]))
             ->last();
 

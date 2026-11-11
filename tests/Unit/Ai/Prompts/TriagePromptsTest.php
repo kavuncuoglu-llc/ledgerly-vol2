@@ -11,8 +11,8 @@ it('pins the investigate prompt and keeps it small', function () {
 });
 
 it('pins the draft prompt and keeps it small', function () {
-    expect(md5(DraftReplyPrompt::system()))->toBe('757e28d69acf6433a59647ea0c4abc05')
-        ->and(DraftReplyPrompt::VERSION)->toBe('2026-11-03.1')
+    expect(md5(DraftReplyPrompt::system()))->toBe('5474dfc806b831cfbd417c9dd6611276')
+        ->and(DraftReplyPrompt::VERSION)->toBe('2026-11-06.1')
         ->and(app(TokenCounter::class)->count(DraftReplyPrompt::system()))->toBeLessThan(250);
 });
 

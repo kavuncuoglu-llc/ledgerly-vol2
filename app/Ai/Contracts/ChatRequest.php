@@ -32,6 +32,14 @@ final readonly class ChatRequest
         return new self($messages, $feature, $model, $options, $tools, $format, [], $profile, $meta);
     }
 
+    public function systemText(): string
+    {
+        return collect($this->messages)
+            ->where('role', 'system')
+            ->map(fn (array $message) => (string) ($message['content'] ?? ''))
+            ->implode("\n");
+    }
+
     public function with(
         ?array $messages = null,
         ?array $options = null,

@@ -10,7 +10,7 @@ function fakeClassifier(array $overrides = []): void
     $labels = collect(ticketSamples())->pluck('label', 'message')->all();
 
     Http::fake(['*/chat/completions' => function (Request $request) use ($labels, $overrides) {
-        $message = collect($request['messages'])->last()['content'];
+        $message = unwrapped(collect($request['messages'])->last()['content']);
 
         $label = $overrides[$message] ?? $labels[$message] ?? 'other';
 

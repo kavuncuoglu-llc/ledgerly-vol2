@@ -58,6 +58,14 @@ window.followReply = function (replyId, handlers) {
             return;
         }
 
+        if (message.status === 'blocked') {
+            finish();
+
+            handlers.onFailed(message.content);
+
+            return;
+        }
+
         if (message.status === 'paused') {
             finish();
 

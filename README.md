@@ -31,6 +31,7 @@ Each chapter of this volume is a tag, `ch26` through `ch51`, taken at the end of
 | `ch29` | Tests for a system whose output varies: failure-path tests with `Ai::fake()`, prompt snapshots and `prompts.lock`, the golden set in `tests/golden/`, `POST /eval/answer` (only with `AI_EVAL_ENABLED=true`), promptfoo gates in `evals/`, `eval:gates`, `eval:check`, `eval:synthesize`, `eval:capture` and friends, and `.github/workflows/ai-evals.yml`. |
 | `ch30` | Evaluation as an ongoing practice: thumbs and reason chips (`answer_feedback`), `ComputeOnlineSignals`, `eval:sample` with the Python judge (`training/evals/`, RAGAS and DeepEval), `Experiment` with shadow runs and A/B tests (`ai:experiment`), `eval:scorecard`, `eval:tripwire` and `ai:models:audit`. |
 | `ch31` | Observability: the `observability` Compose profile (OpenTelemetry collector that deletes content attributes, Jaeger on `127.0.0.1:16686`), `TracingModel` and tool spans, trace context through queues and Redis streams, `trace_id`/`span_id` on `model_calls` and `tool_calls`, Laravel Pulse cards (`/pulse`), `ai:sample --trace` and `ai:drift`. |
+| `ch32` | Direct and indirect prompt injection: `Untrusted::wrap` (random-token tags) around every customer-written turn, retrieved passage and tool-result text; the untrusted-content convention and a canary in the system message; quarantined ticket extraction (the privileged triage agent never sees the ticket body); `ExtractionGuard`, `AnswerGuard` and `AnswerRenderer` (blocked answers, links and images to unlisted hosts stripped); the fooled-model Pest suite (`--group=security`), injection fixtures in `tests/Fixtures/injection/` and `php artisan eval:injection`. |
 
 ## Set up `vol2-start`
 
@@ -135,6 +136,17 @@ open http://127.0.0.1:8000/pulse                                           # sta
 ```
 
 The collector deletes any span attribute named like prompt or completion content (`ops/compose/otel-collector.yaml`), whatever the code sets; the audit tables are where content lives. Jaeger keeps the last `JAEGER_MAX_TRACES` traces in memory. Both ports are bound to `127.0.0.1`; the Jaeger UI has no login. To trace the sidecar and the Python worker too, add `--profile sidecar --profile python` to the command above (the file adds `opentelemetry-instrument` and the exporter to both). The app image (`ops/app/Dockerfile`) now builds `ext-opentelemetry` 1.4.2 from PECL; on a host without it, manual spans (the model calls, the tools, the queue) work, and the auto-instrumentation of requests and queries does not. `OTEL_PHP_AUTOLOAD_ENABLED` is a real environment variable to the SDK, but the app starts the SDK itself after `.env` is read, so setting it in `.env` is enough. Tracing is off by default and adds nothing then.
+
+### From `ch32`: injection defences and `eval:injection`
+
+```bash
+php artisan migrate                                                       # messages.guard: what the answer checks found
+vendor/bin/pest --group=security                                          # the fooled-model suite and the fixture checks: no model, seconds
+php artisan eval:injection --smoke                                        # 10 planted payloads through the real pipeline and your local model; exit 1 on any system-level success
+php artisan eval:injection --carrier=invoice_line_item --report=mlflow     # one carrier; log the rates to MLflow (the mlflow profile)
+```
+
+`eval:injection` plants each payload in its carrier inside a database transaction (an invoice line item, a payment reference, a tenant-private help passage, a ticket body, or the customer's own message), asks the assistant (or runs triage for a ticket), reads what happened and rolls the plant back. It needs a seeded database (`php artisan migrate --seed`), `help:ingest` and a model; with `llama3.1:8b` expect a minute or two per fixture. Model-level success will not be zero. System-level success must be: the command prints which fixture broke through and exits 1. Set your own `AI_PROMPT_CANARY` in `.env` (the one in `.env.example` is public) and list the hosts an answer may link to in `AI_LINK_HOSTS`; a link or image to any other host is cut out of the stored answer. A blocked answer is stored with `status = blocked` and `messages.guard` names the rule that stopped it, never the text.
 
 ## The app as Volume 1 left it
 

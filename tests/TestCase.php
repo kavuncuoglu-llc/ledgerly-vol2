@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use App\Ai\Security\Untrusted;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -20,6 +21,8 @@ abstract class TestCase extends BaseTestCase
         }
 
         DB::statement('SET LOCAL enable_indexscan = off');   // an HNSW index keeps the entries of every rolled-back test and starts missing rows in a long run; at this table size a scan is exact and as fast
+
+        Untrusted::reset('b1f3ec6d');   // the wrapper's tag is random per request; a test needs the same bytes every time
 
         Http::preventStrayRequests();   // no test may reach a model server, the sidecar or the internet
     }

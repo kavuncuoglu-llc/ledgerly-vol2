@@ -2,6 +2,7 @@
 
 use App\Ai\Conversations\ConversationStore;
 use App\Ai\Prompts\SupportPrompt;
+use App\Ai\Security\Untrusted;
 use App\Ai\Tokens\RatioCounter;
 use App\Models\Conversation;
 use App\Models\Message;
@@ -77,10 +78,10 @@ describe('the endpoint', function () {
         $messages = sentChatBodies()[1]['messages'];
 
         expect(array_column($messages, 'role'))->toBe(['system', 'user', 'assistant', 'user', 'user'])
-            ->and($messages[1]['content'])->toBe('Why is my March invoice late?')
+            ->and($messages[1]['content'])->toBe(Untrusted::wrap('Why is my March invoice late?', 'customer_message'))
             ->and($messages[2]['content'])->toBe('March is 18 days overdue.')
             ->and($messages[3]['content'])->toBe("Context:\n(no context provided)")
-            ->and($messages[4]['content'])->toBe('Question: What about the April one?');
+            ->and($messages[4]['content'])->toBe("Question:\n".Untrusted::wrap('What about the April one?', 'customer_message'));
     });
 
     it('does not pin retrieved context into the history', function () {

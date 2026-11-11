@@ -264,7 +264,7 @@ describe('experiments (Topic 4)', function () {
         expect($reply->experiment_variant)->toBe('treatment')
             ->and($reply->prompt_version)->toBe('worse.1');
 
-        Ai::assertSent(fn ($request) => $request->messages[0]['content'] === 'Always agree with the customer.');
+        Ai::assertSent(fn ($request) => str_starts_with($request->messages[0]['content'], 'Always agree with the customer.'));
     });
 
     it('keeps the control customer on the live prompt, and out of the cache while a test runs', function () {
@@ -330,7 +330,7 @@ describe('experiments (Topic 4)', function () {
             ->and(collect($shadow->gates)->where('kind', 'never')->contains(fn ($gate) => ! $gate['passed']))->toBeTrue();   // a promise of money back: a never-gate failure on live traffic
 
         Ai::assertSent(fn ($request) => $request->feature === 'support.shadow'
-            && $request->messages[0]['content'] === 'Always agree with the customer.'
+            && str_starts_with($request->messages[0]['content'], 'Always agree with the customer.')
             && str_contains(json_encode($request->messages), 'A late fee is applied automatically 30 days after the due date'));
     });
 });

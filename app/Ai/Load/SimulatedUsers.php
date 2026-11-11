@@ -112,7 +112,7 @@ final class SimulatedUsers
     {
         $status = Message::withoutGlobalScopes()->whereKey($replyId)->value('status');
 
-        return in_array($status, ['completed', 'failed', 'paused', 'truncated'], true);
+        return in_array($status, ['completed', 'failed', 'paused', 'truncated', 'blocked'], true);
     }
 
     private function report(array $state, int $turns, float $seconds): SimulationReport
@@ -134,8 +134,8 @@ final class SimulatedUsers
             turns: $turns,
             seconds: $seconds,
             answered: $replies->where('status', 'completed')->count(),
-            failed: $replies->whereIn('status', ['failed', 'truncated'])->count(),
-            unfinished: array_sum(array_map(fn (array $entry) => count($entry['messages']), $state)) - $replies->whereIn('status', ['completed', 'failed', 'paused', 'truncated'])->count(),
+            failed: $replies->whereIn('status', ['failed', 'truncated', 'blocked'])->count(),
+            unfinished: array_sum(array_map(fn (array $entry) => count($entry['messages']), $state)) - $replies->whereIn('status', ['completed', 'failed', 'paused', 'truncated', 'blocked'])->count(),
             ttftMs: $calls->whereNotNull('ttft_ms')->pluck('ttft_ms')->map(fn ($ms) => (int) $ms)->sort()->values()->all(),
             completionTokens: (int) $calls->sum('completion_tokens'),
         );

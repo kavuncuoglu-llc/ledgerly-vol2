@@ -1,6 +1,7 @@
 <?php
 
 use App\Ai\Prompts\SupportPrompt;
+use App\Ai\Security\Untrusted;
 use App\Ai\Tokens\TokenCounter;
 
 it('fits the budget', function () {
@@ -8,12 +9,12 @@ it('fits the budget', function () {
 });
 
 it('is versioned with its text', function () {
-    expect(md5(SupportPrompt::system()))->toBe('6212d634760eb998b8517c790191c2cf');   // bump VERSION and this hash together
+    expect(md5(SupportPrompt::base()))->toBe('aad007466f287d8aedcae345b70a0009');   // bump VERSION and this hash together; the canary is configuration, so it is not in the hash
 });
 
-it('is version 6: the v5 text plus the citation rule, 359 tokens by the ratio counter', function () {
-    expect(SupportPrompt::VERSION)->toBe('2026-11-01.6')
-        ->and(app(TokenCounter::class)->count(SupportPrompt::system()))->toBeLessThanOrEqual(359);
+it('is version 2026-11-06.1: the v6 text plus the untrusted-content paragraph (Chapter 32) and the canary line', function () {
+    expect(SupportPrompt::VERSION)->toBe('2026-11-06.1')
+        ->and(app(TokenCounter::class)->count(SupportPrompt::base()))->toBeLessThanOrEqual(430);
 });
 
 it('assembles messages as expected', function () {
@@ -34,7 +35,7 @@ it('says there is no context when none is given, so the escape hatch applies', f
     $messages = SupportPrompt::messages('What late fee does Ledgerly charge?');
 
     expect($messages[1]['content'])->toBe("Context:\n(no context provided)")
-        ->and($messages[2]['content'])->toBe('Question: What late fee does Ledgerly charge?');
+        ->and($messages[2]['content'])->toBe("Question:\n".Untrusted::wrap('What late fee does Ledgerly charge?', 'customer_message'));
 });
 
 it('puts the customer text only in the last user turn', function () {
@@ -77,7 +78,7 @@ it('puts the summary as a system note between the system message and the history
     expect(array_column($messages, 'role'))->toBe(['system', 'system', 'user', 'assistant', 'user', 'user'])
         ->and($messages[1]['content'])->toBe("Earlier in this conversation:\nProblem: late fee on INV-4471.")
         ->and($messages[4]['content'])->toStartWith('Context:')
-        ->and($messages[5]['content'])->toBe('Question: And now?');
+        ->and($messages[5]['content'])->toBe("Question:\n".Untrusted::wrap('And now?', 'customer_message'));
 });
 
 it('leaves the summary slot out when there is no summary', function () {

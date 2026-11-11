@@ -4,12 +4,15 @@ use App\Ai\Conversations\ConversationStore;
 use App\Ai\Prompts\SupportPrompt;
 use App\Ai\Python\Streams;
 use App\Ai\Retrieval\RetrievedChunk;
+use App\Ai\Security\AnswerRenderer;
+use App\Ai\Streaming\ReplyStarter;
 use App\Ai\Tools\Tool;
 use App\Ai\Tools\ToolRegistry;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\HelpChunk;
 use App\Models\Invoice;
+use App\Models\Message;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Tenancy\CurrentTenant;
@@ -39,6 +42,27 @@ pest()->extend(TestCase::class)
 
 pest()->extend(TestCase::class)
     ->in('Unit');
+
+// Chapter 32: every customer-written turn reaches the model inside a random-token wrapper; a fake server that looks the text up by value needs it back.
+function unwrapped(string $content): string
+{
+    return trim((string) preg_replace('/^<untrusted-[0-9a-f]+[^>]*>\n?|\n?<\/untrusted-[0-9a-f]+>$/', '', trim($content)));
+}
+
+// Chapter 32: the whole answer path for one question, as a queued reply with the sync queue, and what the page would show of it.
+function runAnswerQuestion(string $question, User $as): Message
+{
+    test()->actingAs($as);
+
+    $reply = app(ReplyStarter::class)->start($as, $question);
+
+    return Message::withoutGlobalScopes()->findOrFail($reply->id);
+}
+
+function render_answer(Message $message): string
+{
+    return app(AnswerRenderer::class)->render((string) $message->content);
+}
 
 function fakeStreams(): FakeStreams
 {

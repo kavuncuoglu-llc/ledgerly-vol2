@@ -348,6 +348,12 @@ return [
         'closed_conversation_days' => 90,
     ],
 
+    // Chapter 32: nothing here is a secret. The canary is a phrase planted in every system message so that an answer repeating it is caught; set your own in production. link_hosts are the only hosts an answer may link to or load an image from (the app's own host is always allowed).
+    'security' => [
+        'canary' => env('AI_PROMPT_CANARY', 'amber-heron-4471-lattice'),
+        'link_hosts' => array_values(array_filter(array_map('trim', explode(',', (string) env('AI_LINK_HOSTS', 'ledgerly.test,example.com'))))),
+    ],
+
     'rates' => [ // $ per 1M tokens, per provider and model; '*' matches any model of the provider
         'ollama' => ['*' => ['in' => 0, 'out' => 0]],
         'local' => ['*' => ['in' => 0, 'out' => 0]],       // own hardware: Chapter 20's ai:compare adds the GPU-hour cost

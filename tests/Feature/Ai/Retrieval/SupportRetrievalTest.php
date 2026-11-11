@@ -3,6 +3,7 @@
 use App\Ai\Cache\HelpVersion;
 use App\Ai\Prompts\SupportPrompt;
 use App\Ai\Retrieval\PgRetriever;
+use App\Ai\Security\Untrusted;
 use App\Models\CachedAnswer;
 use App\Models\HelpChunk;
 use App\Models\Message;
@@ -69,7 +70,7 @@ it('grounds the reply in the retrieved passage and returns the sources it cited'
     expect($context['content'])->toContain('(version v1)')
         ->toContain('['.LATE_FEE_LABEL.']')
         ->toContain('30 days after the due date')
-        ->and(end($sent)['content'])->toBe('Question: '.LATE_FEE_QUESTION);
+        ->and(end($sent)['content'])->toBe("Question:\n".Untrusted::wrap(LATE_FEE_QUESTION, 'customer_message'));
 });
 
 it('records which passages the reply used, under the reply message, in the customer\'s tenant', function () {

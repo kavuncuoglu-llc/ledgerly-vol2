@@ -3,6 +3,7 @@
 use App\Ai\Cache\PrefixCacheEstimator;
 use App\Ai\Context\ContextAssembler;
 use App\Ai\Context\ProviderProfile;
+use App\Ai\Security\Untrusted;
 use App\Ai\Tokens\RatioCounter;
 use Illuminate\Support\Facades\Log;
 
@@ -35,9 +36,9 @@ it('builds in the stable-first order whatever order the slots were filled in', f
     expect(array_column($prompt->messages, 'role'))->toBe(['system', 'system', 'user', 'assistant', 'user', 'user'])
         ->and($prompt->messages[0]['content'])->toBe('You are the support assistant.')
         ->and($prompt->messages[1]['content'])->toStartWith('Earlier in this conversation:')
-        ->and($prompt->messages[2]['content'])->toStartWith('question 1')
-        ->and($prompt->messages[4]['content'])->toContain("[late-fees › How the fee is calculated]\nFees start after 30 days.")
-        ->and($prompt->messages[5]['content'])->toBe('Question: The question');
+        ->and($prompt->messages[2]['content'])->toStartWith('<untrusted-b1f3ec6d source="customer_message">'."\nquestion 1")
+        ->and($prompt->messages[4]['content'])->toContain("[late-fees › How the fee is calculated]\n".Untrusted::wrap('Fees start after 30 days.', 'help_center'))
+        ->and($prompt->messages[5]['content'])->toBe("Question:\n".Untrusted::wrap('The question', 'customer_message'));
 });
 
 it('keeps the order in one constant so Exercise 1 is a one-line change', function () {
@@ -50,7 +51,7 @@ it('leaves out an empty summary and an empty history, and says when there is no 
     expect($prompt->messages)->toBe([
         ['role' => 'system', 'content' => 'S'],
         ['role' => 'user', 'content' => "Context:\n(no context provided)"],
-        ['role' => 'user', 'content' => 'Question: Q'],
+        ['role' => 'user', 'content' => "Question:\n".Untrusted::wrap('Q', 'customer_message')],
     ]);
 });
 
@@ -65,8 +66,8 @@ it('counts tokens per slot', function () {
 
     expect($prompt->breakdown['system'])->toBe(100)
         ->and($prompt->breakdown['summary'])->toBe((new RatioCounter)->count("Earlier in this conversation:\n".str_repeat('m', 100)))
-        ->and($prompt->breakdown['history'])->toBe(4 * (new RatioCounter)->count('question 1 '.str_repeat('x', 100)))
-        ->and($prompt->breakdown['question'])->toBe(13)
+        ->and($prompt->breakdown['history'])->toBe(2 * (new RatioCounter)->count(Untrusted::wrap('question 1 '.str_repeat('x', 100), 'customer_message')) + 2 * (new RatioCounter)->count('answer 1 '.str_repeat('y', 100)))
+        ->and($prompt->breakdown['question'])->toBe((new RatioCounter)->count("Question:\n".Untrusted::wrap(str_repeat('q', 36), 'customer_message')))
         ->and(array_keys($prompt->breakdown))->toBe(['system', 'summary', 'history', 'context', 'question'])
         ->and($prompt->tokens())->toBe(array_sum($prompt->breakdown));
 });

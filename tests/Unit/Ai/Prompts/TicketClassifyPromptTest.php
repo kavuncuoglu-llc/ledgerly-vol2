@@ -1,6 +1,7 @@
 <?php
 
 use App\Ai\Prompts\TicketClassifyPrompt;
+use App\Ai\Security\Untrusted;
 use App\Ai\Tokens\TokenCounter;
 
 it('fits the budget', function () {
@@ -8,7 +9,7 @@ it('fits the budget', function () {
 });
 
 it('is versioned with its text', function () {
-    expect(md5(TicketClassifyPrompt::system()))->toBe('e3ff7df9bc06c94a8eb24533c93ce141');   // bump VERSION and this hash together
+    expect(md5(TicketClassifyPrompt::system()))->toBe('46d6cd35895eaf1e81b4c4ffdf3649e8');   // bump VERSION and this hash together
 });
 
 it('assembles messages as expected', function () {
@@ -29,5 +30,5 @@ it('has a label for every category in the system text and an example that declin
 it('puts the message to classify last, in a user turn', function () {
     $messages = TicketClassifyPrompt::messages('My card was charged twice');
 
-    expect(end($messages))->toBe(['role' => 'user', 'content' => 'My card was charged twice']);
+    expect(end($messages))->toBe(['role' => 'user', 'content' => Untrusted::wrap('My card was charged twice', 'ticket')]);
 });
