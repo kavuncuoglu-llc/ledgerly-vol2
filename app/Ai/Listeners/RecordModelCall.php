@@ -33,9 +33,13 @@ final class RecordModelCall
             'semantic_cache_hit' => $e->semanticCacheHit,
             'request' => $e->request,
             'variant' => $e->variant,
+            'trace_id' => $e->traceId,
+            'span_id' => $e->spanId,
         ]);
 
         $e->modelCallId = $row->id;
+
+        $e->costMicros = $row->cost_micros;
 
         if ($e->finishReason === 'length') {
             Log::warning('Completion truncated', ['feature' => $e->feature, 'usage' => $e->usage]);

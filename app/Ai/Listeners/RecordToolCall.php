@@ -19,6 +19,8 @@ final class RecordToolCall
             'source' => $e->context->source,
             'token_name' => $e->context->tokenName,
             'duration_ms' => $e->durationMs,
+            'trace_id' => $e->traceId,
+            'span_id' => $e->spanId,
         ]);
     }
 }

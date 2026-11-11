@@ -7,10 +7,13 @@ use App\Ai\Local\OllamaNative;
 use App\Ai\Sampling\Sampler;
 use App\Ai\Sampling\SampleResult;
 use App\Ai\Sampling\SamplingParameters;
+use App\Ai\Tracing\TracedQuestion;
+use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use InvalidArgumentException;
+use Throwable;
 
 class AiSample extends Command
 {
@@ -30,12 +33,18 @@ class AiSample extends Command
         {--max-tokens= : Cap on completion length}
         {--runs=1 : How many times to send the same request}
         {--api=auto : auto | openai | native. auto uses native only for knobs /v1/ cannot carry}
-        {--no-log : Do not write model_calls rows}';
+        {--no-log : Do not write model_calls rows}
+        {--trace : Chapter 31: ask the question through the whole assistant instead, and print its trace id and a link to Jaeger}
+        {--as-user=12 : With --trace, the user who asks (12 is the owner of Acme Studios)}';
 
     protected $description = 'Send a prompt with chosen sampling parameters and print the completion, finish reason and token counts (Chapter 5)';
 
     public function handle(): int
     {
+        if ($this->option('trace')) {
+            return $this->traced();
+        }
+
         $sampler = new Sampler(OllamaNative::fromConfig());
 
         try {
@@ -58,6 +67,40 @@ class AiSample extends Command
         }
 
         $this->summarise($outputs);
+
+        return self::SUCCESS;
+    }
+
+    // Chapter 31, Build: the sampling flags do not apply here: the assistant chooses its own profile. What this shows is the shape of one answer.
+    private function traced(): int
+    {
+        $question = (string) $this->argument('prompt');
+
+        $user = User::query()->find((int) $this->option('as-user'));
+
+        if ($question === '' || $user === null || $user->tenant_id === null) {
+            $this->error('--trace wants a question and a customer user (--as-user): php artisan ai:sample "Why did my March invoice go up?" --trace');
+
+            return self::FAILURE;
+        }
+
+        try {
+            ['reply' => $reply, 'trace_id' => $traceId] = app(TracedQuestion::class)->ask($user, $question);
+        } catch (Throwable $e) {
+            $this->error('The assistant could not answer: '.class_basename($e));
+
+            return self::FAILURE;
+        }
+
+        $this->line('  '.trim((string) $reply->content));
+
+        if ($traceId === null) {
+            $this->warn('  Tracing is off. Set OTEL_PHP_AUTOLOAD_ENABLED=true in .env and start the observability profile (README, Chapter 31).');
+
+            return self::SUCCESS;
+        }
+
+        $this->line("  trace {$traceId} · ".rtrim((string) config('ai.tracing.jaeger_url'), '/')."/trace/{$traceId}");
 
         return self::SUCCESS;
     }

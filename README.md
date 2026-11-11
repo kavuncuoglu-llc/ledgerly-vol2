@@ -30,6 +30,7 @@ Each chapter of this volume is a tag, `ch26` through `ch51`, taken at the end of
 | `ch28` | The Python AI stack, mapped: the `mlflow` Compose profile (`ops/compose/mlflow.yml`, `127.0.0.1:5050`), `help:export --jsonl`, `training/scripts/dataset_stats.py`, and the decision record `docs/adr/python-libraries.md`. |
 | `ch29` | Tests for a system whose output varies: failure-path tests with `Ai::fake()`, prompt snapshots and `prompts.lock`, the golden set in `tests/golden/`, `POST /eval/answer` (only with `AI_EVAL_ENABLED=true`), promptfoo gates in `evals/`, `eval:gates`, `eval:check`, `eval:synthesize`, `eval:capture` and friends, and `.github/workflows/ai-evals.yml`. |
 | `ch30` | Evaluation as an ongoing practice: thumbs and reason chips (`answer_feedback`), `ComputeOnlineSignals`, `eval:sample` with the Python judge (`training/evals/`, RAGAS and DeepEval), `Experiment` with shadow runs and A/B tests (`ai:experiment`), `eval:scorecard`, `eval:tripwire` and `ai:models:audit`. |
+| `ch31` | Observability: the `observability` Compose profile (OpenTelemetry collector that deletes content attributes, Jaeger on `127.0.0.1:16686`), `TracingModel` and tool spans, trace context through queues and Redis streams, `trace_id`/`span_id` on `model_calls` and `tool_calls`, Laravel Pulse cards (`/pulse`), `ai:sample --trace` and `ai:drift`. |
 
 ## Set up `vol2-start`
 
@@ -121,6 +122,19 @@ php artisan eval:tripwire runs/lm-eval/base runs/lm-eval/support-v1 --max-drop=2
 ```
 
 `worse-prompt.php` is a candidate that is worse on purpose; `candidate-prompt.php` is the one to A/B test (`--mode=ab --percent=50`: a customer's variant is a hash of the experiment and the customer, so it never flips). The judge in `.env` (`JUDGE_BASE_URL`, `JUDGE_MODEL`) defaults to your local Ollama, which is fine for checking the wiring and wrong for judging: use a different model family for real scores. Scorecard targets and floors are in `config/ai.php` (`ai.scorecards`), deprecation dates and digests under `ai.providers`. The simulated users are one owner per seeded tenant, so `--users` stops at 40. `lm_eval` on a small model takes a while for the two generation tasks (`ifeval`, `gsm8k`); use `--limit`.
+
+### From `ch31`: one question, one trace
+
+```bash
+docker compose --env-file .env -f ops/compose/base.yml -f ops/compose/observability.yml --profile observability up -d
+# in .env: OTEL_PHP_AUTOLOAD_ENABLED=true (the other OTEL_* lines are already there; the app on the host exports to 127.0.0.1:4318)
+php artisan migrate                                                       # trace_id and span_id on model_calls and tool_calls, the Pulse tables, messages.category
+php artisan ai:sample "Why did my March invoice go up by \$18?" --trace      # prints  trace <id> · http://localhost:16686/trace/<id>
+php artisan ai:drift --feature=support.reply --window=7d --baseline=28d   # scheduled daily; reads the audit trail only
+open http://127.0.0.1:8000/pulse                                           # staff users only: AI tokens, cost, time to first token, breaker trips per feature
+```
+
+The collector deletes any span attribute named like prompt or completion content (`ops/compose/otel-collector.yaml`), whatever the code sets; the audit tables are where content lives. Jaeger keeps the last `JAEGER_MAX_TRACES` traces in memory. Both ports are bound to `127.0.0.1`; the Jaeger UI has no login. To trace the sidecar and the Python worker too, add `--profile sidecar --profile python` to the command above (the file adds `opentelemetry-instrument` and the exporter to both). The app image (`ops/app/Dockerfile`) now builds `ext-opentelemetry` 1.4.2 from PECL; on a host without it, manual spans (the model calls, the tools, the queue) work, and the auto-instrumentation of requests and queries does not. `OTEL_PHP_AUTOLOAD_ENABLED` is a real environment variable to the SDK, but the app starts the SDK itself after `.env` is read, so setting it in `.env` is enough. Tracing is off by default and adds nothing then.
 
 ## The app as Volume 1 left it
 

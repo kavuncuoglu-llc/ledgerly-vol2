@@ -7,6 +7,7 @@ use App\Models\PythonTask;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
 
 // The Laravel side of the round trip (Figure 27-3): validate, record the task and its deadline, then XADD. Python never sees the database.
 final class PythonTasks
@@ -42,10 +43,22 @@ final class PythonTasks
                 'deadline_at' => now()->addSeconds((int) config('ai.python.task_timeout_seconds')),
             ]);
 
-            app(Streams::class)->add($stream, ['task' => json_encode($payload, JSON_THROW_ON_ERROR)]);
+            app(Streams::class)->add($stream, ['task' => json_encode($payload, JSON_THROW_ON_ERROR)] + self::traceFields());
         });
 
         return $taskId;
+    }
+
+    // Chapter 31, Topic 6: the trace context rides in a field beside the task, not inside it (the contract is closed), and the worker links its batch span to it.
+    public static function traceFields(): array
+    {
+        $carrier = [];
+
+        TraceContextPropagator::getInstance()->inject($carrier);
+
+        return isset($carrier['traceparent'])
+            ? ['traceparent' => $carrier['traceparent']]
+            : [];
     }
 
     // Chapter 30, Topic 3: a sample of answers (question, answer, the sources it was given) for the RAGAS judge. $items follow eval-sample.v1.
@@ -87,7 +100,7 @@ final class PythonTasks
                 'deadline_at' => now()->addSeconds((int) config('ai.python.task_timeout_seconds')),
             ]);
 
-            app(Streams::class)->add($stream, ['task' => json_encode($payload, JSON_THROW_ON_ERROR)]);
+            app(Streams::class)->add($stream, ['task' => json_encode($payload, JSON_THROW_ON_ERROR)] + self::traceFields());
         });
 
         return $taskId;

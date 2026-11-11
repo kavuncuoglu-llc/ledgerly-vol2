@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from contracts.embed_batch_v1 import EmbedBatch
 from contracts.embed_result_v1 import EmbedResult
+from workers.tracing import links_from, tracer
 
 STREAM = "py:tasks:embed"
 GROUP = "py-workers"
@@ -93,7 +94,11 @@ def ensure_group(r: redis.Redis) -> None:
 def process(r: redis.Redis, entry_id: str, fields: dict) -> bool:
     try:
         task = parse_task(fields["task"])  # the contract
-        result = embed(task)  # the actual work
+
+        with tracer.start_as_current_span("embed batch", links=links_from(fields)) as span:
+            span.set_attribute("ledgerly.batch_size", len(task.items))
+            span.set_attribute("ledgerly.task_id", str(task.task_id))
+            result = embed(task)  # the actual work
     except (ValidationError, ValueError, KeyError) as error:
         log.warning("entry %s failed: %s", entry_id, error)
         return False

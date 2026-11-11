@@ -8,6 +8,7 @@ use App\Ai\Contracts\Reranker;
 use App\Ai\Decorators\ProfileMergingModel;
 use App\Ai\Decorators\RetryingEmbeddings;
 use App\Ai\Decorators\RetryingModel;
+use App\Ai\Decorators\TracingModel;
 use App\Ai\Decorators\UsageLoggingModel;
 use App\Ai\Drivers\FakeDriver;
 use App\Ai\Drivers\OpenAiCompatibleDriver;
@@ -214,13 +215,13 @@ final class AiManager
         return new OpenAiCompatibleDriver($config);
     }
 
-    // Cross-cutting, once, for every driver. Outermost first: usage is logged once however many attempts the retries took.
+    // Cross-cutting, once, for every driver. Outermost first: one span, and usage logged once, however many attempts the retries took.
     private function decorate(string $name, ChatModel $driver): ChatModel
     {
         if ($this->faking) {
-            return new ProfileMergingModel(new FakeDriver($name, $this->fake()));  // a fake logs nothing and never sleeps, but a test can still assert on the merged profile
+            return new TracingModel(new ProfileMergingModel(new FakeDriver($name, $this->fake())));  // a fake logs nothing and never sleeps, but a test can still assert on the merged profile, and on its span (Chapter 31)
         }
 
-        return new UsageLoggingModel(new RetryingModel(new ProfileMergingModel($driver)));
+        return new TracingModel(new UsageLoggingModel(new RetryingModel(new ProfileMergingModel($driver))));      // tracing outermost: its span is the current one when usage is logged (Chapter 31)
     }
 }

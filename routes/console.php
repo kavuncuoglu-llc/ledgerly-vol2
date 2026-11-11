@@ -12,4 +12,5 @@ Artisan::command('inspire', function () {
 Schedule::command('conversations:retain')->daily();
 Schedule::command('replies:sweep')->everyFiveMinutes();
 Schedule::command('reminders:draft')->dailyAt('03:00');
+Schedule::command('ai:drift --feature=support.reply')->daily();                      // Chapter 31: input, output and quality drift, once a day
 Schedule::job(new ComputeOnlineSignals)->dailyAt('02:30');     // Chapter 30: yesterday's re-asks, follow-up tickets, escalations and resolutions

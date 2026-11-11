@@ -13,10 +13,13 @@ use App\Ai\Tools\OpenTicket\OpenTicket;
 use App\Ai\Tools\SearchHelpCenter\SearchHelpCenter;
 use App\Ai\Tools\ToolKind;
 use App\Ai\Tools\ToolRegistry;
+use App\Livewire\Pulse\AiHealth;
+use App\Livewire\Pulse\AiSpend;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
 
 class AiServiceProvider extends ServiceProvider
 {
@@ -44,6 +47,11 @@ class AiServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Event::listen(ToolCalled::class, RecordToolCall::class);
+
+        Gate::define('viewPulse', fn (?User $user = null) => $user?->role === 'support');       // Pulse shows tenants' busiest users and slow queries: Ledgerly staff only
+
+        Livewire::component('ai-spend', AiSpend::class);
+        Livewire::component('ai-health', AiHealth::class);
 
         Gate::define('use-tool', function (User $user, string $tool): bool {
             if ($user->customer_id === null) {

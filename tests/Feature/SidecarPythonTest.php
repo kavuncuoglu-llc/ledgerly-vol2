@@ -26,7 +26,7 @@ it('builds the sidecar image for a conservative Python, pinned, with no credenti
 
     expect($dockerfile)->toContain('FROM python:3.12-slim')->toContain('USER sidecar')->not->toContain('API_KEY')
         ->and($pins)->not->toBeEmpty()
-        ->and(collect($pins)->every(fn (string $line) => preg_match('/^[A-Za-z0-9_.-]+==\d+(\.\d+)*$/', $line) === 1))->toBeTrue();
+        ->and(collect($pins)->every(fn (string $line) => preg_match('/^[A-Za-z0-9_.-]+==\d+(\.\d+)*(b\d+)?$/', $line) === 1))->toBeTrue();
 });
 
 it('declares the sidecar in Compose under a profile, on a network of its own', function () {

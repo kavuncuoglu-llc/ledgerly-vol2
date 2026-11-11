@@ -5,3 +5,8 @@ python-multipart==0.0.20
 pydantic==2.11.4
 sentence-transformers==3.4.1
 marker-pdf==1.6.2
+# Chapter 31: `opentelemetry-instrument uvicorn …` traces FastAPI and outgoing HTTP without code changes. It exports nowhere unless OTEL_TRACES_EXPORTER is set (the observability profile sets it).
+opentelemetry-distro==0.66b1
+opentelemetry-exporter-otlp-proto-http==1.45.1
+opentelemetry-instrumentation-fastapi==0.66b1
+opentelemetry-instrumentation-requests==0.66b1

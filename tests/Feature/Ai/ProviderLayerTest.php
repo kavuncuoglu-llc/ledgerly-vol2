@@ -6,7 +6,7 @@ use App\Ai\Contracts\Capability;
 use App\Ai\Contracts\ChatRequest;
 use App\Ai\Contracts\EmbedKind;
 use App\Ai\Contracts\FinishReason;
-use App\Ai\Decorators\UsageLoggingModel;
+use App\Ai\Decorators\TracingModel;
 use App\Ai\Drivers\OpenAiCompatibleDriver;
 use App\Ai\Exceptions\ProviderNotConfigured;
 use App\Ai\Testing\ScriptedJsonInvalid;
@@ -31,7 +31,7 @@ describe('the manager', function () {
     it('resolves role names to decorated drivers and caches them', function () {
         $local = Ai::chat('local');
 
-        expect($local)->toBeInstanceOf(UsageLoggingModel::class)
+        expect($local)->toBeInstanceOf(TracingModel::class)                          // Chapter 31: tracing outermost, then usage logging, retries, profile merging
             ->and($local->name())->toBe('local')
             ->and($local->unwrap())->toBeInstanceOf(OpenAiCompatibleDriver::class)
             ->and(Ai::chat('local'))->toBe($local)

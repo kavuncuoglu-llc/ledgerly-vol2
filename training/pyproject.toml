@@ -19,6 +19,10 @@ dependencies = [
     "langchain-community<0.4",
     "lm-eval[ifeval]>=0.4.13",
     "accelerate>=1.15.0",
+    "opentelemetry-distro>=0.66b1",
+    "opentelemetry-exporter-otlp-proto-http>=1.45.1",
+    "opentelemetry-instrumentation-redis>=0.66b1",
+    "opentelemetry-instrumentation-requests>=0.66b1",
 ]
 
 [project.optional-dependencies]

@@ -449,6 +449,11 @@ return [
         ],
     ],
 
+    // Chapter 31: where ai:sample --trace points the link. The app exports through OTEL_* variables (.env.example); this is only the Jaeger UI's address on your machine.
+    'tracing' => [
+        'jaeger_url' => env('JAEGER_URL', 'http://localhost:16686'),
+    ],
+
     'mcp_servers' => [
         // 'postgres' => [
         //     'transport' => 'stdio',

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
 
 // The one door to the Python sidecar. When it does not answer, the door closes for a short cool-down so a dead sidecar costs one timeout, not one per question.
 final class SidecarClient
@@ -76,9 +77,15 @@ final class SidecarClient
     {
         $requestId = Context::get('request_id');
 
-        return $requestId === null
+        $headers = $requestId === null
             ? []
             : ['X-Request-Id' => (string) $requestId];            // the sidecar writes it into its logs (Chapter 27, Topic 2)
+
+        $carrier = [];
+
+        TraceContextPropagator::getInstance()->inject($carrier);   // Chapter 31, Topic 6: the trace ID replaces the request ID; FastAPI's instrumentation reads this header. Only the sidecar gets it: it is ours, a hosted model API is not.
+
+        return $headers + $carrier;
     }
 
     private function decode(Response $response): array

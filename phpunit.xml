@@ -58,6 +58,8 @@
         <env name="AI_RECORD_REQUESTS" value="false" force="true"/>
         <env name="AI_EVAL_ENABLED" value="false" force="true"/>
         <env name="EVAL_TOKEN" value="" force="true"/>
+        <env name="OTEL_PHP_AUTOLOAD_ENABLED" value="false" force="true"/>
+        <env name="PULSE_ENABLED" value="false" force="true"/>
         <env name="AI_LOCAL_DIGEST" value="" force="true"/>
         <env name="FRONTIER_DEPRECATES_ON" value="" force="true"/>
         <env name="FRONTIER_CANDIDATE" value="" force="true"/>

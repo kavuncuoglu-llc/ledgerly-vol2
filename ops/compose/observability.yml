@@ -1,0 +1,58 @@
+# Profile: observability (Chapter 31, Figure 31-9). An OpenTelemetry collector and Jaeger, so one assistant answer shows up as one trace from the web request to the citation check.
+#   docker compose --env-file .env -f ops/compose/base.yml -f ops/compose/observability.yml --profile observability up -d
+# Then set OTEL_PHP_AUTOLOAD_ENABLED=true in .env (the app on the host exports to the collector on 127.0.0.1:4318), run a question with `php artisan ai:sample "…" --trace` and open the printed link.
+#
+# The collector is the only thing the apps talk to: it batches spans, DELETES any attribute that carries prompt or completion content (otel-collector.yaml, Chapter 31 Topic 2), and forwards to Jaeger.
+# Jaeger keeps traces in memory (the last MEMORY_MAX_TRACES), which is right for development and staging; Chapter 31 Topic 7 names Grafana Tempo for production.
+# Both ports are published on 127.0.0.1 only: the Jaeger UI has no login, and the collector accepts any span from anyone who can reach it. Appendix L.3 lists the collector without a host port; the app runs on the host
+# in this repository's README, so the OTLP/HTTP port is published too. From a container the collector is http://otel-collector:4318 (OTEL_EXPORTER_OTLP_ENDPOINT in the app and worker services).
+# Images are pinned by tag (OTEL_COLLECTOR_IMAGE, JAEGER_IMAGE in .env.example).
+
+services:
+  otel-collector:
+    profiles: ["observability"]
+    image: ${OTEL_COLLECTOR_IMAGE:-otel/opentelemetry-collector-contrib:0.163.2}
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "127.0.0.1:${OTEL_HTTP_PORT:-4318}:4318"                  # OTLP/HTTP from an app running on the host
+    networks: [default, internal, sidecar]                          # Compose's default network (the PHP and Python workers), the model network and the sidecar's
+    depends_on:
+      - jaeger
+    restart: unless-stopped
+
+  jaeger:
+    profiles: ["observability"]
+    image: ${JAEGER_IMAGE:-jaegertracing/all-in-one:1.76.0}
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      MEMORY_MAX_TRACES: ${JAEGER_MAX_TRACES:-5000}
+    ports:
+      - "127.0.0.1:${JAEGER_PORT:-16686}:16686"                   # the UI, localhost only
+    networks: [default]
+    restart: unless-stopped
+
+  # The services that already exist get an exporter and the OpenTelemetry launcher; nothing else about them changes. Without this file they export nowhere.
+  sidecar:
+    environment:
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_SERVICE_NAME: ledgerly-sidecar
+    networks: [sidecar]
+
+  py-worker:
+    command: ["uv", "run", "opentelemetry-instrument", "python", "-m", "workers.embed_worker"]
+    environment:
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_SERVICE_NAME: ledgerly-py-worker
+
+networks:
+  default: {}
+  internal: {}
+  sidecar: {}

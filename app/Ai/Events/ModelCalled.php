@@ -24,7 +24,11 @@ final class ModelCalled
         public readonly ?bool $semanticCacheHit = null,
         public readonly ?array $request = null,               // Chapter 20: the normalised request, only when ai.debug.record_requests is on
         public readonly ?string $variant = null,              // Chapter 30: the experiment variant that wrote this call
+        public readonly ?string $traceId = null,              // Chapter 31: the trace and span current when the call was made, so the audit row joins its span
+        public readonly ?string $spanId = null,
     ) {}
 
     public ?int $modelCallId = null;                          // set by RecordModelCall, so the decorator that dispatched the event can hand the id on (Chapters 30 and 31)
+
+    public ?int $costMicros = null;                           // set by RecordModelCall too: Pulse's cost card records it (Chapter 31, Topic 7)
 }

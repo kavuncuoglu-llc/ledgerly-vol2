@@ -150,7 +150,7 @@ final class SupportAssistant
 
         $reply = $this->remember($conversation, $result, sent: $sent, reply: $reply);
 
-        $reply->update(['retrieved' => $this->retrievedOf($prompt), 'prompt_version' => $candidate?->version ?? SupportPrompt::VERSION, 'experiment_variant' => $variant]);               // Chapter 29: what the model was shown, so a gate or a shadow run can look at the same sources
+        $reply->update(['retrieved' => $this->retrievedOf($prompt), 'prompt_version' => $candidate?->version ?? SupportPrompt::VERSION, 'experiment_variant' => $variant, 'category' => $route->category?->value]);               // Chapter 29: what the model was shown, so a gate or a shadow run can look at the same sources
 
         if ($result->citations !== null && $result->citations->cited !== [] && ! $result->citations->hasErrors()) {
             $this->store->recordSources($reply, $result->citations->cited);

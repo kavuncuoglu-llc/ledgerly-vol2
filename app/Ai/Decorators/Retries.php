@@ -6,6 +6,7 @@ use App\Ai\Exceptions\AiRequestFailed;
 use Closure;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Sleep;
+use OpenTelemetry\API\Trace\Span;
 use Throwable;
 
 // Chapter 8's policy, now written once for every driver: three attempts; 500 ms, 1 s (plus jitter) between them, or the server's Retry-After; only for failures that can pass.
@@ -30,6 +31,8 @@ final class Retries
 
     public static function pause(Throwable $e, int $attempt): void
     {
+        Span::getCurrent()->addEvent('retry', ['attempt' => $attempt, 'error.type' => class_basename($e)]);      // an event on the model span, not a span of its own (Chapter 31, Topic 5)
+
         Sleep::for(self::delayMs($e, $attempt))->milliseconds();
     }
 

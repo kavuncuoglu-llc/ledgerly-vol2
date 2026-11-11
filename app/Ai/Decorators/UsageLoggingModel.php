@@ -10,7 +10,9 @@ use App\Ai\Drivers\OllamaNativeShape;
 use App\Ai\Events\ModelCalled;
 use App\Ai\Http\StreamTruncated;
 use App\Ai\Tokens\TokenCounter;
+use App\Ai\Tracing\Tracing;
 use Generator;
+use Laravel\Pulse\Facades\Pulse;
 
 // Every call, from every driver, becomes one ModelCalled event (Chapter 2): written here once, so no feature and no driver logs by hand.
 // A non-streamed call has no first delta to time; when the answer came from Ollama's /api/chat the server's own timings give the time to first token (Chapter 22).
@@ -106,11 +108,25 @@ final class UsageLoggingModel extends ModelDecorator
             $request->meta['semantic_cache_hit'] ?? null,
             $this->recordable($request),
             $request->meta['variant'] ?? null,
+            ...array_values(Tracing::ids()),                                    // TracingModel is outside this decorator, so its span is the current one
         );
 
         event($event);
 
+        $this->pulse($request, $usage, $event, $firstDeltaMs);
+
         return $event->modelCallId;
+    }
+
+    // Chapter 31, Topic 7: tokens, cost and time to first token per feature, for the two Pulse cards. Nothing here carries content.
+    private function pulse(ChatRequest $request, array $usage, ModelCalled $event, ?int $ttftMs): void
+    {
+        Pulse::record('ai_tokens', $request->feature, (int) ($usage['prompt_tokens'] ?? 0) + (int) ($usage['completion_tokens'] ?? 0))->sum();
+        Pulse::record('ai_cost_microusd', $request->feature, (int) $event->costMicros)->sum();
+
+        if ($ttftMs !== null) {
+            Pulse::record('ai_ttft_ms', $request->feature, $ttftMs)->avg()->max();
+        }
     }
 
     // Off by default. When on, ai:compare --from-calls can replay real requests against other providers; they hold customer text, so they expire (conversations:retain) and are forgotten with the user.

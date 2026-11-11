@@ -6,6 +6,7 @@ use App\Ai\Exceptions\ProviderUnavailable;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Http\Client\ConnectionException;
+use Laravel\Pulse\Facades\Pulse;
 use Throwable;
 
 // Chapter 25, Topic 7: three consecutive "the server is not there" errors open the breaker for sixty seconds. While it is open nobody waits on a dead server: the router uses the fallback or the cache-only path.
@@ -53,6 +54,8 @@ final class CircuitBreaker
         $state['reason'] = $reason;
 
         if ($state['failures'] >= $this->threshold()) {
+            Pulse::record('ai_breaker_trip', $provider)->count();                  // Chapter 31, Topic 7: the Pulse card counts every time a breaker opens or reopens
+
             $state['opened_at'] = $this->now();                                    // in half-open every failure reopens it: the failure count never went back to zero
         }
 
