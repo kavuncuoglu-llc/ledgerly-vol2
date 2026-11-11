@@ -1,0 +1,21 @@
+base: "meta-llama/Llama-3.1-8B-Instruct"     # gated: accept the license on the Hub, log in, and pin `revision` to the commit you accepted
+revision: null
+data: "../storage/datasets/billing-v1"        # train.jsonl and validation.jsonl, prompt-and-completion rows
+max_seq_length: 2048
+lora:
+  r: 16
+  lora_alpha: 16                            # equal to r, as in Chapter 39 (mlx-lm's scale 1.0)
+  lora_dropout: 0.05
+trainer:
+  output_dir: "runs/billing-peft"
+  num_train_epochs: 2
+  learning_rate: 1.0e-4
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 8
+  warmup_ratio: 0.05
+  lr_scheduler_type: "cosine"
+  eval_strategy: "steps"
+  eval_steps: 200
+  save_steps: 200
+  logging_steps: 10
+  gradient_checkpointing: true

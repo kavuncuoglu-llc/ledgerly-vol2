@@ -60,6 +60,7 @@ return [
         'ollama' => ['input' => 0.0, 'output' => 0.0, 'per' => 1_000_000, 'source' => 'local'],
         'local' => ['input' => 0.0, 'output' => 0.0, 'per' => 1_000_000, 'source' => 'local'],
         'local-70b' => ['input' => 0.0, 'output' => 0.0, 'per' => 1_000_000, 'source' => 'local'],
+        'local-billing-ft' => ['input' => 0.0, 'output' => 0.0, 'per' => 1_000_000, 'source' => 'local'],
         'local-embed' => ['input' => 0.0, 'output' => 0.0, 'per' => 1_000_000, 'source' => 'local'],
         'vllm' => ['input' => 0.0, 'output' => 0.0, 'per' => 1_000_000, 'source' => 'local'],
         'triton' => ['input' => 0.0, 'output' => 0.0, 'per' => 1_000_000, 'source' => 'local'],

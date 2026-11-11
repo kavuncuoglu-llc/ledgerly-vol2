@@ -43,6 +43,7 @@ Each chapter of this volume is a tag, `ch26` through `ch51`, taken at the end of
 | `ch39` | Fine-tuning methods: the first LoRA run at a size that finishes in minutes: `training/scripts/first_lora.py` (Qwen2.5-0.5B-Instruct, rank 16 on all linear layers, logged to the `first-lora` MLflow experiment), `quick_eval.py` (required facts present, base against base plus adapter, on 20 held-out cases in `tests/golden/billing_holdout.jsonl`), `training/data/mix.py` (replay mixing), and the 200 synthetic billing examples in `training/data/fixtures/billing_sft_small.jsonl` (`php artisan dataset:fixture` writes both from the seeded database). `peft` and `trl` are in the lock now, `trl` pinned below 1.0. |
 | `ch40` | Building a training dataset: tenant training-use settings (off by default), a per-user exclusion and residency-aware exports; `php artisan dataset:export` (every answered turn rebuilt by `ContextAssembler::rebuild` with the fine-tuned system message, personal data replaced by consistent surrogates, sources hashed with `AI_TRAINING_HASH_KEY`); `dataset:review` (accept, edit, reject with reasons, a judge-sorted queue, a second reviewer's agreement); `training/data/clean.py` and `split.py` (filters, near-duplicates, decontamination against the golden set, balance caps, split by conversation, mixing); `dataset:publish`, `dataset:show`, `dataset:forget` and `dataset:scan` (planted instructions, trigger phrases, unsourced links, concentration); `ai:template-check` (training and serving chat templates compared by token); and `user:forget` finding the dataset versions that hold a person's conversations. `db:seed --class=TrainingCorpusSeeder` builds the corpus the Build runs on. |
 | `ch41` | A hosted fine-tune as a baseline: `php artisan ai:ft:prepare` (the parts of `billing-v1` with no customer data, as chat JSON lines, every row validated and the tokens counted before anything is uploaded), `ai:ft:submit` (idempotent by dataset hash, base and settings), `ai:ft:poll` (every five minutes: events, loss to MLflow, a `training` ledger row, the uploaded files deleted, the team told), `ai:ft:cancel`, `ai:ft:register`; the `FineTuningClient` interface with an OpenAI-shaped driver and an offline fake one; the `fine_tune_jobs` table; the `frontier-billing-ft` role (pinned, with provenance, its own price and the short system message bound to it); `php artisan eval:compare` (roles compared on the golden billing slice) and `adr:append` (the result into the decision record); `dataset:allow`. No hosted account was used to build it: see "From `ch41`". |
+| `ch42` | Fine-tuning on unified memory: `training/configs/billing-mlx.yaml` and `billing-peft.yaml` (the 8B runs, committed), `training/data/to_mlx.py` (prompt-and-completion rows to `mlx_lm.lora`'s chat files), `training/scripts/train_estimate.py` (a fifty-step trial, then the run's length), `run_mlx.py` (`mlx_lm.lora` with its losses copied to MLflow), `train_lora.py` (PyTorch, CUDA, ROCm, MPS or CPU) and `export_to_ollama.py` (fuse, convert to GGUF, quantize, create); `training/configs/*-smoke.yaml` run the same pipeline on a 135M model in a minute; the `local-billing-ft` role; and `registry:add` with the `model_registry` table (a candidate, with its dataset hash and artifact hashes). The 8B run itself was not made here: see "From `ch42`". |
 
 ## Set up `vol2-start`
 
@@ -290,6 +291,32 @@ php artisan adr:append docs/adr/fine-tune-local-billing.md --section="Hosted bas
 ```
 
 What may leave is decided before the format: `--only` defaults to the three parts of `billing-v1` with no customer data. Production conversations and agent edits need a recorded decision (`php artisan dataset:allow billing-v1 --provider=frontier --reason="..."`) **and** a provider whose privacy block says it does not train on API data and has a signed DPA. A second submission of the same dataset hash, base and settings is refused unless you pass `--again`. The role `frontier-billing-ft` is sent the short system message (`SupportPrompt::boundTo`) and `local` and every other role the long one. The OpenAI-shaped driver has been exercised with faked HTTP only; nothing here has called a hosted fine-tuning API.
+
+### From `ch42`: train on a Mac (or an AMD APU), serve from Ollama
+
+The 8B run needs a 32 GB Mac (16-bit LoRA is about 22 to 26 GB, Appendix E) or more, and the gated Llama 3.1 8B (accept the license on the Hub and log in). **The same commands run on a small ungated model in about a minute**, which is how this chapter was checked, and the steps after training do not change.
+
+```bash
+cd training
+uv sync --extra mlx                                                  # macOS arm64: mlx and mlx-lm, pinned in uv.lock (uv sync --extra rocm on an AMD APU)
+# The small run: SmolLM2-135M-Instruct (ungated), the 200 synthetic billing rows
+uv run python data/to_mlx.py data/fixtures/billing_sft_small.jsonl data/billing-small/mlx
+uv run python scripts/train_estimate.py --config configs/billing-mlx-smoke.yaml --steps 50     # sustained tokens/s, peak memory, run time
+uv run python scripts/run_mlx.py configs/billing-mlx-smoke.yaml --experiment billing-mlx       # losses go to MLFLOW_TRACKING_URI
+git clone --depth 1 https://github.com/ggml-org/llama.cpp ../../llama.cpp                       # the converter (convert_hf_to_gguf.py) and llama-quantize
+LLAMA_CPP_DIR=../../llama.cpp uv run python scripts/export_to_ollama.py runs/billing-mlx-smoke/adapters --base HuggingFaceTB/SmolLM2-135M-Instruct --name ledgerly-billing-ft-tiny --quant none
+cd .. && php artisan ai:template-check ledgerly-billing-ft-tiny --against=training --tokenizer=HuggingFaceTB/SmolLM2-135M-Instruct --rows=training/data/fixtures/billing_sft_small.jsonl
+php artisan migrate && php artisan registry:add ledgerly-billing-ft-tiny --dataset=billing-v1 --run=mlflow:billing-mlx --status=candidate --export=training/models/ledgerly-billing-ft-tiny/export.json
+# The full run, on a Mac with the Llama base and billing-v1:
+#   uv run python data/to_mlx.py ../storage/datasets/billing-v1 data/billing-v1/mlx
+#   uv run python scripts/train_estimate.py --config configs/billing-mlx.yaml --steps 50
+#   uv run python scripts/run_mlx.py configs/billing-mlx.yaml          (set iters to rows × epochs ÷ batch)
+#   uv run python scripts/export_to_ollama.py runs/billing-mlx/adapters --base meta-llama/Llama-3.1-8B-Instruct --quant Q4_K_M --name ledgerly-billing-ft
+# On an AMD APU or an NVIDIA card: uv run python scripts/train_lora.py --config configs/billing-peft.yaml
+# A CPU smoke run of that script: uv run python scripts/train_lora.py --config configs/billing-peft-smoke.yaml --device cpu --report-to none
+```
+
+`--quant none` serves the 16-bit GGUF; `Q4_K_M` needs `llama-quantize` from the llama.cpp checkout (built or from a package), which `ollama create` cannot replace: this Ollama (0.40) imports only pre-quantized GGUF files, and its own safetensors importer did not accept the Qwen2 or SmolLM2 files tried. `to_mlx.py --tool-turns=drop` leaves out the rows with tool turns, the alternative Chapter 40 gives for the training and serving templates that disagree on them. To use the fine-tune from the app, set `BILLING_FT_URL` (the Ollama server that has it) and route a role to `local-billing-ft`; Chapter 44 resolves the model name from the registry. Nothing in the repository ran the 8B base: its configs are written, and `train_estimate.py` is how you find out what your machine does with them.
 
 ## The app as Volume 1 left it
 

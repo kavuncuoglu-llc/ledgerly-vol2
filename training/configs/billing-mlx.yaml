@@ -1,0 +1,18 @@
+model: "meta-llama/Llama-3.1-8B-Instruct"    # gated: accept the license on the Hub and log in (Chapter 26)
+train: true
+data: "data/billing-v1/mlx"                  # train.jsonl and valid.jsonl, chat format
+fine_tune_type: lora
+num_layers: -1                              # adapters on every layer
+batch_size: 2
+iters: 2236                                 # 2,236 training examples × 2 epochs ÷ batch 2
+learning_rate: 1e-4
+max_seq_length: 2048
+grad_checkpoint: true
+mask_prompt: true                           # loss on the final assistant message only
+steps_per_eval: 200
+save_every: 200
+adapter_path: "runs/billing-mlx/adapters"
+lora_parameters:
+  rank: 16
+  scale: 1.0                                # alpha ÷ rank, as in Chapter 39
+  dropout: 0.05

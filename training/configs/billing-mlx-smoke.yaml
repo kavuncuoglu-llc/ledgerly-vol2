@@ -1,0 +1,20 @@
+model: "HuggingFaceTB/SmolLM2-135M-Instruct"  # ungated, Apache 2.0, a Llama-architecture model (rev 12fd25f): small enough to train in a minute, and Ollama can import its fused weights directly
+train: true
+data: "data/billing-small/mlx"
+fine_tune_type: lora
+num_layers: -1
+batch_size: 2
+iters: 90                                   # 180 training examples × 1 epoch ÷ batch 2
+learning_rate: 1e-4
+max_seq_length: 1024
+grad_checkpoint: true
+mask_prompt: true
+steps_per_report: 10
+steps_per_eval: 30
+val_batches: 10
+save_every: 30
+adapter_path: "runs/billing-mlx-smoke/adapters"
+lora_parameters:
+  rank: 16
+  scale: 1.0
+  dropout: 0.05

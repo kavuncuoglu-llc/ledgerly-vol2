@@ -51,6 +51,10 @@ Run 2026-11-11 on golden:billing (3 cases) with gates.
 | Input tokens per answer | ~4,474 | ~3,005 |
 | Cost per answer | $0.0000 | $0.0000 |
 
+## Local fine-tune
+
+Not run at the scale this record is about. Chapter 42 asks for the local 8B model fine-tuned on all of `billing-v1` on a machine in the data's region, compared with the production cascade and the hosted baseline including the full tripwire. The repository's pipeline is built and was run end to end on a 135M model (SmolLM2-135M-Instruct, MLX, 90 iterations over the 200 synthetic rows, about 40 seconds, peak 0.97 GB, validation loss 1.55 to 0.001, fused, converted to a 16-bit GGUF, created in Ollama, template check 143 = 143 tokens, 20 of 20 required facts on the held-out cases, registered as candidate version 1). That shows the steps work; it says nothing about 8B quality, speed or the thresholds above. To fill this section: `train_estimate.py` on the target machine, `run_mlx.py` or `train_lora.py` with `billing-v1`, `export_to_ollama.py`, `ai:template-check`, then `php artisan eval:compare --roles=cascade,local-billing-ft,frontier-billing-ft --with=gates,judge,injection,tripwire:all` and `adr:append --section="Local fine-tune"`. One known risk: with tool turns in the rows, the Ollama template for Llama 3.1 and the Hugging Face template disagree (Chapter 40: 538 against 557 tokens); `to_mlx.py --tool-turns=drop` is the way out if `ai:template-check` still fails after the export.
+
 ## Exit
 
 If two iterations miss the success criteria, stop and record why.

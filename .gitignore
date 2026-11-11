@@ -55,6 +55,8 @@ __pycache__/
 /training/data/*.parquet
 /training/data/*.arrow
 /training/runs/
+/training/models/
+/training/data/billing-*/
 /training/mlruns/
 .pytest_cache/
 .ruff_cache/

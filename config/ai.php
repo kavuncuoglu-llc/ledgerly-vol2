@@ -207,6 +207,28 @@ return [
                 'source' => env('FRONTIER_TERMS_URL'),
             ],
         ],
+        // Chapter 42, Topic 8: the billing fine-tune trained on your own hardware (Chapter 42) and served from it: `ledgerly-billing-ft`, the Q4_K_M model `export_to_ollama.py` made. Unset until BILLING_FT_URL names the server (the regional Ollama box), so no route can send
+        // a question to a model that is not there. Pinned, with its provenance and the short system message it was trained on (bound to the role by SupportPrompt::boundTo). Chapter 44 resolves `model` from the registry alias billing@production instead of the environment.
+        'local-billing-ft' => [
+            'driver' => 'openai-compatible',
+            'base_url' => env('BILLING_FT_URL'),
+            'api_key' => env('BILLING_FT_LOCAL_KEY', 'ollama'),
+            'model' => env('BILLING_FT_LOCAL_MODEL', 'ledgerly-billing-ft'),
+            'timeout' => env('BILLING_FT_TIMEOUT', 120),
+            'native' => 'ollama',
+            'license' => 'Llama 3.1 Community License',                                  // a fine-tune inherits its base's license (Appendix C.3)
+            'license_reviewed' => env('BILLING_FT_LICENSE_REVIEWED'),
+            'pinned' => true,
+            'digest' => env('BILLING_FT_LOCAL_DIGEST'),
+            'fine_tuned' => [
+                'base' => env('BILLING_FT_LOCAL_BASE', 'meta-llama/Llama-3.1-8B-Instruct'),
+                'dataset' => env('BILLING_FT_LOCAL_DATASET', 'billing-v1'),
+                'dataset_hash' => env('BILLING_FT_LOCAL_DATASET_HASH'),
+                'run' => env('BILLING_FT_LOCAL_RUN'),
+                'prompt_version' => FineTunedSupportPrompt::VERSION,
+            ],
+            'privacy' => ['redact' => false, 'trains_on_api_data' => false, 'retention_days' => 0, 'zdr' => true, 'region' => env('BILLING_FT_REGION', 'local'), 'dpa_signed' => true, 'checked_on' => '2026-11-11', 'source' => 'Your own hardware, in the data\'s region: the data never leaves it.'],
+        ],
         // The middle tier: a 30B to 70B model on a bigger GPU, or a cheap hosted model. Unset until you name a model.
         // Chapter 21: on a 64 GB+ unified-memory machine, `ollama create ledgerly-support-70b -f ops/ollama/Modelfile.ledgerly-support-70b`, set LOCAL_70B_MODEL=ledgerly-support-70b, and `ai:profile --provider=mid` measures it.
         'local-70b' => [
@@ -745,7 +767,7 @@ return [
             'frontier' => ['model' => 'local-chat-completions', 'from_provider' => 'frontier', 'generation_only' => true],
             'frontier-billing-ft' => ['model' => 'local-chat-completions', 'from_provider' => 'frontier-billing-ft', 'generation_only' => true],
             'local' => ['model' => 'hf', 'model_args' => 'pretrained='.env('TEMPLATE_CHECK_TOKENIZER', 'meta-llama/Llama-3.1-8B-Instruct').',dtype=bfloat16'],
-            'local-billing-ft' => ['model' => 'hf', 'model_args' => 'pretrained='.env('BILLING_FT_FUSED_PATH', 'runs/billing/fused').',dtype=bfloat16'],
+            'local-billing-ft' => ['model' => 'hf', 'model_args' => 'pretrained='.env('BILLING_FT_FUSED_PATH', 'models/ledgerly-billing-ft/fused').',dtype=bfloat16'],
         ],
     ],
 
