@@ -76,6 +76,11 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff check
       - run: uv run pytest
+      - name: Ruff on the privacy sidecar with this project's rules
+        run: uv run ruff check --config pyproject.toml ../ops/privacy
+      - name: The privacy sidecar's tests, with the engine faked so Presidio is not needed
+        run: uv run --no-project --python 3.12 --with pytest==8.4.2 --with fastapi==0.115.12 --with httpx==0.28.1 --with pydantic==2.12.5 pytest -q
+        working-directory: ops/privacy
 
   contracts:
     runs-on: ubuntu-24.04

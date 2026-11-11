@@ -1,0 +1,6 @@
+# Chapter 34: the Presidio sidecar. Versions are the newest at least two weeks old on 2026-11-11.
+fastapi==0.115.12
+uvicorn==0.34.2
+pydantic==2.12.5
+presidio-analyzer==2.2.366
+spacy==3.8.16

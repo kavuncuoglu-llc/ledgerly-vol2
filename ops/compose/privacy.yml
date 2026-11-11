@@ -1,0 +1,25 @@
+# Profile: privacy (Chapter 34, Appendix L.3). Presidio's named-entity recognition behind /pii/analyze: the service RedactingModel asks for names and addresses before a hosted call.
+#   docker compose --env-file .env -f ops/compose/base.yml -f ops/compose/privacy.yml --profile privacy up -d --build presidio
+# Then set PRESIDIO_URL=http://127.0.0.1:5002 in .env (the app on the host); the service answers GET /health when it is ready (the first start loads a language model).
+#
+# Without it a hosted call is not sent: RedactingModel cannot screen names and addresses, so it fails closed and reroutes the call to the local role (Chapter 34, Topic 9). Local calls and every pattern detector (card, SSN, email, phone, IBAN) run in PHP and do not need it.
+# The port is published on 127.0.0.1 only: the service has no login and is handed customer text. Appendix L.3 says "no published port"; the app runs on the host in this repository's README, so the port is published to it, as Chapter 31 did for the collector.
+# From a container the service is http://presidio:8000 (PRESIDIO_URL in app.yml).
+
+services:
+  presidio:
+    profiles: ["privacy"]
+    build: ../privacy
+    image: ${PRESIDIO_IMAGE:-ledgerly-presidio:vol2}
+    ports:
+      - "127.0.0.1:${PRESIDIO_PORT:-5002}:8000"
+    networks: [default]
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1g
+    restart: unless-stopped
+
+networks:
+  default: {}

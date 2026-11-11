@@ -5,6 +5,7 @@ namespace App\Ai\Triage;
 use App\Ai\Agents\AgentRunner;
 use App\Ai\Agents\AgentState;
 use App\Ai\Agents\InvestigateAgent;
+use App\Ai\Privacy\DeclaredFields;
 use App\Ai\Prompts\TicketExtractPrompt;
 use App\Ai\Schemas\Category;
 use App\Ai\Schemas\TicketData;
@@ -24,6 +25,14 @@ use Throwable;
 // A workflow with one agentic step: classify (by vote), extract, apply the urgency rule, assign, investigate (billing and account only), draft. A person approves the draft.
 final class TriagePipeline
 {
+    // Chapter 34, Topic 3: what the privileged step is told about a ticket. A ticket number and an invoice number point at rows; nothing here identifies a person (Chapter 32, Figure 32-6).
+    public const FACTS = [
+        'ticket' => null,
+        'invoice_number' => null,
+        'amount_mentioned' => null,
+        'date_mentioned' => null,
+    ];
+
     public function __construct(
         private Router $router,
         private StructuredClient $structured,
@@ -171,12 +180,12 @@ final class TriagePipeline
 
     private function facts(TicketData $fields, Ticket $ticket): array
     {
-        return array_filter([
+        return array_filter(DeclaredFields::select([
             'ticket' => $ticket->number,
             'invoice_number' => $this->patterned($fields->invoice_number ?? $ticket->invoice_number),
             'amount_mentioned' => $fields->amount_mentioned,
             'date_mentioned' => $fields->date_mentioned,
-        ], fn ($value) => $value !== null);
+        ], self::FACTS), fn ($value) => $value !== null);
     }
 
     // The privileged triage step reads and may open one ticket. Money and account changes are for a customer in the chat and an agent in the queue, never for a background run.

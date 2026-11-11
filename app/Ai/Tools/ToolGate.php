@@ -3,6 +3,8 @@
 namespace App\Ai\Tools;
 
 use App\Ai\Events\ToolCalled;
+use App\Ai\Privacy\AcceptsVaultReferences;
+use App\Ai\Privacy\VaultFactory;
 use App\Ai\Security\ForeignIdentifierScan;
 use App\Ai\Tracing\Tracing;
 use Closure;
@@ -21,22 +23,26 @@ final class ToolGate
 
     public const WRITE_ROLE = 'ledgerly_tool_write';
 
-    public function __construct(private ForeignIdentifierScan $scanner) {}
+    public function __construct(private ForeignIdentifierScan $scanner, private VaultFactory $vaults) {}
 
     public function dispatch(Tool $tool, array $args, ToolContext $ctx, bool $approved = false): ToolResult
     {
         $started = hrtime(true);
 
+        $given = $args;                                                                             // what the model wrote: the audit row keeps this, placeholders and all
+
+        $args = $this->withVaultReferences($tool, $args, $ctx);                                     // Chapter 34, Topic 5: only a tool that says it accepts them gets the real value back
+
         [$validated, $errors] = $this->validate($tool, $args);                                      // 1. strict schema; unknown fields rejected
 
         if ($errors !== []) {
-            return $this->audit($tool, $args, ToolResult::error('invalid arguments', $errors), $ctx, 'invalid', $started);
+            return $this->audit($tool, $given, ToolResult::error('invalid arguments', $errors), $ctx, 'invalid', $started);
         }
 
         $decision = $this->check($tool, $args, $ctx);                                               // 2. policy: the session's user and customer, never an ID the model wrote.  3. budget: this tool and this conversation
 
         if (! $decision->allowed && ! $decision->requiresApproval) {
-            return $this->audit($tool, $args, ToolResult::denied($decision->reason), $ctx, 'denied', $started);
+            return $this->audit($tool, $given, ToolResult::denied($decision->reason), $ctx, 'denied', $started);
         }
 
         $result = match ($tool->risk()) {                                                           // 4. execution context by declared risk
@@ -59,7 +65,20 @@ final class ToolGate
             $outcome = 'blocked';
         }
 
-        return $this->audit($tool, $args, $result, $ctx, $outcome, $started);                       // 6. audit
+        return $this->audit($tool, $given, $result, $ctx, $outcome, $started);   // 6. audit
+    }
+
+    private function withVaultReferences(Tool $tool, array $args, ToolContext $ctx): array
+    {
+        if (! $tool instanceof AcceptsVaultReferences) {
+            return $args;
+        }
+
+        if ($ctx->conversationId === null) {
+            return $args;
+        }
+
+        return $this->vaults->for($ctx->conversationId)->restoreArguments($args);
     }
 
     public function check(Tool $tool, array $args, ToolContext $ctx): GateDecision

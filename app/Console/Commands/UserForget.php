@@ -2,79 +2,82 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Conversation;
-use App\Models\Message;
-use App\Models\ModelCall;
-use App\Models\PendingToolCall;
-use App\Models\ToolCall;
-use App\Models\User;
-use App\Models\UserMemory;
+use App\Ai\Privacy\ErasureSubject;
+use App\Ai\Privacy\UserErasure;
+use App\Models\ErasureRequest;
 use App\Tenancy\CurrentTenant;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
+// Chapter 13 built this for conversations and memories. Chapter 34 makes it cover every copy on the data map that can be deleted on request, report the copies it cannot touch with their expiry, and leave a receipt.
 class UserForget extends Command
 {
-    protected $signature = 'user:forget {user : The user id} {--confirm : Actually delete; without it the command only counts}';
+    protected $signature = 'user:forget {user : A user id, or customer:ID for every user of a customer account} {--confirm : Actually delete; without it the command only counts} {--reason= : Why, for the receipt (a request date or a ticket number, not a name)}';
 
-    protected $description = 'Delete everything the assistant stored about a user: conversations, messages, memories and tool-call content';
+    protected $description = 'Erase everything the assistant stored about a user or a customer account, report what expires on its own, and write a receipt';
 
-    public function handle(CurrentTenant $tenant): int
+    public function handle(CurrentTenant $tenant, UserErasure $erasure): int
     {
-        $user = User::find($this->argument('user'));
+        $subject = $tenant->run(null, fn () => ErasureSubject::parse((string) $this->argument('user')));
 
-        if ($user === null) {
+        if (! $subject->exists()) {
             $this->error("There is no user {$this->argument('user')}.");
 
             return self::FAILURE;
         }
 
         if (! $this->option('confirm')) {
-            $counts = $tenant->run(null, fn () => $this->count($user));
+            $this->printReport('would delete', $tenant->run(null, fn () => $erasure->count($subject)));
 
-            $this->line("Would delete: {$counts['conversations']} conversations, {$counts['messages']} messages, {$counts['memories']} memories, {$counts['tool_calls']} tool_call rows with content. Would anonymize: {$counts['model_calls']} model_calls rows (kept counts).");
             $this->warn('Nothing was deleted. Run again with --confirm.');
 
             return self::FAILURE;
         }
 
-        $counts = $tenant->run(null, fn () => DB::transaction(fn () => $this->forget($user)));
+        $report = $tenant->run(null, fn () => $erasure->erase($subject));
 
-        Log::info('user.forgotten', ['user_id' => $user->id] + $counts);                       // counts only: never the content
+        $expiring = $erasure->expiring();
 
-        $this->line("Deleted: {$counts['conversations']} conversations, {$counts['messages']} messages, {$counts['memories']} memories, {$counts['tool_calls']} tool_call rows with content. Anonymized: {$counts['model_calls']} model_calls rows (kept counts). Logged to audit.");
+        $receipt = $this->writeReceipt($subject, $report, $expiring);
+
+        Log::info('user.forgotten', ['subject' => $subject->label, 'user_id' => $subject->customerId === null ? $subject->users->first()?->id : null] + $report['deleted']);   // counts only: never the content
+
+        $this->printReport('deleted', $report);
+
+        $this->printExpiring($expiring);
+
+        $this->line("  receipt     erasure_requests #{$receipt->id} written");
 
         return self::SUCCESS;
     }
 
-    private function count(User $user): array
+    private function printReport(string $verb, array $report): void
     {
-        $conversationIds = Conversation::where('user_id', $user->id)->pluck('id');
+        $deleted = $report['deleted'];
 
-        return [
-            'conversations' => $conversationIds->count(),
-            'messages' => Message::whereIn('conversation_id', $conversationIds)->count(),
-            'memories' => UserMemory::where('user_id', $user->id)->count(),
-            'tool_calls' => ToolCall::where('user_id', $user->id)->count() + PendingToolCall::where('user_id', $user->id)->count(),
-            'model_calls' => ModelCall::whereIn('conversation_id', $conversationIds)->count(),
-        ];
+        $this->line("  {$verb}  conversations {$deleted['conversations']} · messages {$deleted['messages']} · memories {$deleted['memories']} · tool_calls {$deleted['tool_calls']} · message_sources {$deleted['message_sources']} · agent_runs {$deleted['agent_runs']}");
+
+        $this->line("  {$verb}  semantic-cache entries {$deleted['semantic_cache_entries']} · private passages {$deleted['private_passages']} · golden cases {$deleted['golden_cases']} (production) · vaults {$deleted['vaults']} · pending actions {$deleted['pending_actions']}");
+
+        $this->line("  {$verb}  feedback {$deleted['feedback']} · signals {$deleted['signals']} · shadow answers {$deleted['shadow_answers']} · judgments {$deleted['judgments']}");
+
+        $this->line("  anonymized  model_calls {$report['anonymized']['model_calls']} (the row stays for cost history; the conversation link and the recorded request go)");
     }
 
-    private function forget(User $user): array
+    private function printExpiring(array $expiring): void
     {
-        $conversationIds = Conversation::where('user_id', $user->id)->pluck('id');
+        $this->line("  expiring    logs ({$expiring['logs']}) · traces ({$expiring['traces']}) · backups ({$expiring['backups']}) · provider copies ({$expiring['provider_copies']})");
+    }
 
-        $counts = $this->count($user);
-
-        ModelCall::whereIn('conversation_id', $conversationIds)->update(['conversation_id' => null, 'request' => null]);   // the row stays for cost reporting; the link to the person, and any recorded request, go
-
-        Message::whereIn('conversation_id', $conversationIds)->delete();
-        Conversation::where('user_id', $user->id)->delete();
-        UserMemory::where('user_id', $user->id)->delete();
-        ToolCall::where('user_id', $user->id)->delete();
-        PendingToolCall::where('user_id', $user->id)->delete();
-
-        return $counts;
+    private function writeReceipt(ErasureSubject $subject, array $report, array $expiring): ErasureRequest
+    {
+        return DB::transaction(fn () => ErasureRequest::create([
+            'subject' => $subject->label,
+            'reason' => $this->option('reason'),
+            'deleted' => $report['deleted'],
+            'anonymized' => $report['anonymized'],
+            'expiring' => $expiring,
+        ]));
     }
 }

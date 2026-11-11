@@ -81,6 +81,7 @@ return [
                 'license_reviewed' => '2026-11-02',
                 'pinned' => true,                                                       // Chapter 30, Topic 7: ai:models:audit compares this digest with what Ollama reports for the tag
                 'digest' => env('AI_LOCAL_DIGEST'),                                     // sha256 of the manifest, from `ollama show`; empty = not recorded yet
+                'privacy' => ['redact' => false, 'trains_on_api_data' => false, 'retention_days' => 0, 'zdr' => true, 'region' => 'local', 'dpa_signed' => true, 'checked_on' => '2026-11-03', 'source' => 'Your own hardware: the data never leaves it.'],
             ],
         },
         'local-llama' => [
@@ -90,6 +91,7 @@ return [
             'model' => env('LLAMA_MODEL', 'ledgerly-support'),
             'timeout' => env('LLAMA_TIMEOUT', 120),
             'native' => 'llama-server',
+            'privacy' => ['redact' => false, 'trains_on_api_data' => false, 'retention_days' => 0, 'zdr' => true, 'region' => 'local', 'dpa_signed' => true, 'checked_on' => '2026-11-03', 'source' => 'Your own hardware: the data never leaves it.'],
             'capabilities' => ['tools', 'structured', 'seed', 'ctx_override', 'grammar', 'tokenize'],   // Figure 23-9 lists only the last two; a list here replaces the defaults, so the first four stay
             'license' => 'Llama 3.1 Community License',
             'license_reviewed' => '2026-11-06',
@@ -102,6 +104,7 @@ return [
             'model' => env('VLLM_SERVED_MODEL', 'ledgerly-support'),
             'timeout' => env('VLLM_TIMEOUT', 60),
             'native' => 'vllm',
+            'privacy' => ['redact' => false, 'trains_on_api_data' => false, 'retention_days' => 0, 'zdr' => true, 'region' => 'local', 'dpa_signed' => true, 'checked_on' => '2026-11-03', 'source' => 'Your own hardware: the data never leaves it.'],
             'capabilities' => ['tools', 'structured', 'seed', 'prefix_cache', 'lora'],   // Figure 24-8 lists the last three; the first three stay or tools and structured output would vanish
             'license' => 'Llama 3.1 Community License',
             'license_reviewed' => '2026-11-06',
@@ -114,6 +117,7 @@ return [
             'model' => env('TRITON_MODEL', 'chat'),
             'timeout' => env('TRITON_TIMEOUT', 60),
             'native' => 'triton',
+            'privacy' => ['redact' => false, 'trains_on_api_data' => false, 'retention_days' => 0, 'zdr' => true, 'region' => 'local', 'dpa_signed' => true, 'checked_on' => '2026-11-03', 'source' => 'Your own hardware: the data never leaves it.'],
             'capabilities' => ['structured', 'tools'],                                // Figure 25-8's list as printed; the driver sends no seed to this provider
             'license' => 'Llama 3.1 Community License',
             'license_reviewed' => '2026-11-06',
@@ -125,6 +129,7 @@ return [
             'model' => env('AI_EMBED_MODEL', 'nomic-embed-text'),
             'dimensions' => env('AI_EMBED_DIMENSIONS', 768),
             'prefixes' => ['query' => 'search_query: ', 'document' => 'search_document: '],   // nomic-embed-text wants them; a model that does not would have none
+            'privacy' => ['redact' => false, 'trains_on_api_data' => false, 'retention_days' => 0, 'zdr' => true, 'region' => 'local', 'dpa_signed' => true, 'checked_on' => '2026-11-03', 'source' => 'Your own hardware: the data never leaves it.'],
             'license' => 'Apache 2.0',
             'license_reviewed' => '2026-11-02',
         ],
@@ -135,6 +140,7 @@ return [
             'model' => env('AI_VISION_MODEL', 'llama3.2-vision:11b'),
             'native' => 'ollama',
             'capabilities' => ['tools', 'structured', 'seed', 'vision', 'ctx_override'],
+            'privacy' => ['redact' => false, 'trains_on_api_data' => false, 'retention_days' => 0, 'zdr' => true, 'region' => 'local', 'dpa_signed' => true, 'checked_on' => '2026-11-03', 'source' => 'Your own hardware: the data never leaves it.'],
             'license' => 'Llama 3.2 Community License',
             'license_reviewed' => '2026-11-02',
         ],
@@ -153,6 +159,17 @@ return [
             'pinned' => true,                                                              // a fixed, versioned model ID, never a "latest" alias (Chapter 30, Topic 7)
             'deprecates_on' => env('FRONTIER_DEPRECATES_ON'),                              // recorded the day the provider's notice arrives
             'replacement_candidate' => env('FRONTIER_CANDIDATE'),
+            // Chapter 34, Topic 2: the five questions, answered once, with the date they were checked and where. Redaction is on for every hosted role; the router refuses a feature the answers do not allow.
+            'privacy' => [
+                'redact' => true,
+                'trains_on_api_data' => false,
+                'retention_days' => env('FRONTIER_RETENTION_DAYS'),
+                'zdr' => (bool) env('FRONTIER_ZDR', false),
+                'region' => env('FRONTIER_REGION'),
+                'dpa_signed' => (bool) env('FRONTIER_DPA_SIGNED', false),
+                'checked_on' => env('FRONTIER_TERMS_CHECKED_ON'),
+                'source' => env('FRONTIER_TERMS_URL'),
+            ],
         ],
         // The middle tier: a 30B to 70B model on a bigger GPU, or a cheap hosted model. Unset until you name a model.
         // Chapter 21: on a 64 GB+ unified-memory machine, `ollama create ledgerly-support-70b -f ops/ollama/Modelfile.ledgerly-support-70b`, set LOCAL_70B_MODEL=ledgerly-support-70b, and `ai:profile --provider=mid` measures it.
@@ -169,25 +186,58 @@ return [
             'digest' => env('LOCAL_70B_DIGEST'),
             'deprecates_on' => env('LOCAL_70B_DEPRECATES_ON'),
             'replacement_candidate' => env('LOCAL_70B_CANDIDATE'),
+            'privacy' => [
+                'redact' => (bool) env('LOCAL_70B_REDACT', false),                       // your own GPU: off. Pointed at a hosted server: set LOCAL_70B_REDACT=true
+                'trains_on_api_data' => false,
+                'retention_days' => 0,
+                'zdr' => true,
+                'region' => env('LOCAL_70B_REGION', 'local'),
+                'dpa_signed' => (bool) env('LOCAL_70B_DPA_SIGNED', true),
+                'checked_on' => '2026-11-03',
+                'source' => 'Your own hardware, unless LOCAL_70B_URL points at a hosted server.',
+            ],
         ],
         'rerank' => [
             'driver' => 'sidecar',
             'base_url' => env('SIDECAR_URL', 'http://localhost:8008'),
             'model' => env('SIDECAR_RERANK_MODEL', 'BAAI/bge-reranker-base'),
+            'privacy' => ['redact' => false],                                              // our own sidecar, not a chat model
             'license' => 'MIT',
             'license_reviewed' => '2026-11-02',
         ],
-        'fake' => ['driver' => 'fake'],
+        'fake' => ['driver' => 'fake', 'privacy' => ['redact' => false]],
     ],
 
     // Which provider (and sampling profile) a feature uses by default. 'escalate_to' names where a hard case may go; it only happens when that provider is set up.
     'features' => [
         'ticket.classify' => ['provider' => 'local', 'profile' => 'deterministic'],
         'ticket.extract' => ['provider' => 'local', 'profile' => 'deterministic'],
-        'support.reply' => ['provider' => 'local', 'profile' => 'assistant', 'escalate_to' => 'frontier'],
+        'support.reply' => ['provider' => 'local', 'profile' => 'assistant', 'escalate_to' => 'frontier', 'allowed_providers' => ['local', 'local-70b', 'frontier'], 'requires' => ['dpa_signed']],
         'triage.draft' => ['provider' => 'local', 'profile' => 'grounded', 'escalate_to' => 'frontier'],
-        'invoice.extract' => ['provider' => 'vision', 'profile' => 'deterministic'],
+        'invoice.extract' => ['provider' => 'vision', 'profile' => 'deterministic', 'allowed_providers' => ['local', 'vision']],   // scanned documents never leave
         'conversation.summarize' => ['provider' => 'local', 'profile' => 'deterministic'],
+    ],
+
+    // Chapter 34: what may leave the app, what is found before it does, and how long the copies we cannot delete on request live.
+    'privacy' => [
+        'presidio_url' => env('PRESIDIO_URL'),                                   // the privacy profile's NER service; empty = names and addresses cannot be screened, so hosted calls go to `local`
+        'connect_timeout' => env('PRESIDIO_CONNECT_TIMEOUT', 1),
+        'timeout' => env('PRESIDIO_TIMEOUT', 5),
+        'cooldown_seconds' => env('PRESIDIO_COOLDOWN', 30),
+        'score_threshold' => (float) env('PRESIDIO_SCORE_THRESHOLD', 0.5),
+        'phone_region' => env('AI_PRIVACY_PHONE_REGION', 'US'),                  // libphonenumber's default region for numbers written without a country code
+        'own_domains' => array_filter(explode(',', (string) env('AI_PRIVACY_OWN_DOMAINS', 'ledgerly.test'))),   // addresses of ours are not a customer's
+        'allow_terms' => ['Ledgerly', 'Pulse', 'Horizon'],                       // product names the name detector must not take for people
+        'allow_patterns' => [],                                                  // more of the app's identifier formats, as regular expressions
+        'vault' => [
+            'ttl_days' => (int) env('AI_VAULT_TTL_DAYS', 7),                     // a vault lives as long as a conversation stays open for answers; it is rewritten with every new value
+            'connection' => env('AI_VAULT_REDIS_CONNECTION', 'default'),
+        ],
+        'expiry' => [                                                            // what user:forget cannot delete on request, and when it goes by itself
+            'logs_days' => (int) env('LOG_DAILY_DAYS', 14),
+            'traces_days' => (int) env('AI_TRACE_RETENTION_DAYS', 7),
+            'backups_days' => (int) env('BACKUP_RETENTION_DAYS', 35),
+        ],
     ],
 
     'debug' => [

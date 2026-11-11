@@ -54,6 +54,24 @@ final class ReviewQueue
         $this->save($this->all()->map(fn (array $row) => $row['id'] === $id ? array_merge($row, $changes) : $row)->all());
     }
 
+    // Chapter 34, Topic 8: a candidate waiting for review is a copy of a customer's question; it goes with the person.
+    public function forget(array $messageIds, array $modelCallIds): int
+    {
+        $rows = $this->all();
+
+        $kept = $rows
+            ->reject(fn (array $row) => in_array($row['message_id'] ?? null, $messageIds, true) || in_array($row['model_call_id'] ?? null, $modelCallIds, true))
+            ->values();
+
+        if ($kept->count() === $rows->count()) {
+            return 0;
+        }
+
+        $this->save($kept->all());
+
+        return $rows->count() - $kept->count();
+    }
+
     private function save(array $rows): void
     {
         File::ensureDirectoryExists(dirname($this->path));

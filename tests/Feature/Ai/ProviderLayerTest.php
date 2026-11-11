@@ -24,6 +24,7 @@ function haveFrontier(): void
         'ai.providers.frontier.base_url' => 'https://frontier.example.com/v1',
         'ai.providers.frontier.api_key' => 'sk-test-frontier-key',
         'ai.providers.frontier.model' => 'frontier-example',
+        'ai.providers.frontier.privacy.dpa_signed' => true,        // Chapter 34: support.reply requires a signed DPA before it may escalate to a hosted provider
     ]);
 }
 

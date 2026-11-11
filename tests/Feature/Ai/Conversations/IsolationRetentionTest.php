@@ -201,7 +201,7 @@ describe('user:forget', function () {
 
     it('counts and deletes nothing without --confirm', function () {
         $this->artisan('user:forget', ['user' => $this->user->id])
-            ->expectsOutputToContain('Would delete: 1 conversations, 4 messages, 1 memories, 2 tool_call rows with content.')
+            ->expectsOutputToContain('would delete  conversations 1 · messages 4 · memories 1 · tool_calls 1')
             ->assertFailed();
 
         expect(Conversation::count())->toBe(2);
@@ -209,7 +209,8 @@ describe('user:forget', function () {
 
     it('deletes the user\'s conversations, messages, memories and tool-call content, and keeps everyone else\'s', function () {
         $this->artisan('user:forget', ['user' => $this->user->id, '--confirm' => true])
-            ->expectsOutputToContain('Deleted: 1 conversations, 4 messages, 1 memories, 2 tool_call rows with content. Anonymized: 1 model_calls rows (kept counts). Logged to audit.')
+            ->expectsOutputToContain('deleted  conversations 1 · messages 4 · memories 1 · tool_calls 1')
+            ->expectsOutputToContain('anonymized  model_calls 1')
             ->assertSuccessful();
 
         expect(Conversation::where('user_id', $this->user->id)->count())->toBe(0)

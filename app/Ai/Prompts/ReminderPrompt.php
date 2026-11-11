@@ -2,12 +2,22 @@
 
 namespace App\Ai\Prompts;
 
+use App\Ai\Privacy\DeclaredFields;
 use App\Models\Invoice;
 use App\Support\Money;
 
 final class ReminderPrompt
 {
     public const VERSION = '2026-11-04.1';
+
+    // Chapter 34, Topic 3: the facts this prompt is built from, and why. A field with a reason identifies a person.
+    public const FIELDS = [
+        'invoice_number' => null,
+        'client' => 'The customer\'s own client: the reminder is addressed to them by name.',
+        'amount_due' => null,
+        'due_date' => null,
+        'days_overdue' => null,
+    ];
 
     public static function system(): string
     {
@@ -22,13 +32,13 @@ final class ReminderPrompt
 
     public static function messages(Invoice $invoice): array
     {
-        $facts = [
+        $facts = DeclaredFields::select([
             'invoice_number' => $invoice->number,
             'client' => $invoice->customer->name,
             'amount_due' => Money::format($invoice->balanceDue(), $invoice->currency),
             'due_date' => $invoice->due_at->toDateString(),
             'days_overdue' => $invoice->daysOverdue(),
-        ];
+        ], self::FIELDS);
 
         return [
             ['role' => 'system', 'content' => self::system()],

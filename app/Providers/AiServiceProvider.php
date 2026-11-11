@@ -4,6 +4,19 @@ namespace App\Providers;
 
 use App\Ai\Events\ToolCalled;
 use App\Ai\Listeners\RecordToolCall;
+use App\Ai\Privacy\AllowList;
+use App\Ai\Privacy\Detectors\CardNumber;
+use App\Ai\Privacy\Detectors\EmailAddress;
+use App\Ai\Privacy\Detectors\Iban;
+use App\Ai\Privacy\Detectors\PhoneNumber;
+use App\Ai\Privacy\Detectors\UsSocialSecurityNumber;
+use App\Ai\Privacy\Ner;
+use App\Ai\Privacy\NullNer;
+use App\Ai\Privacy\PersonalDataDetector;
+use App\Ai\Privacy\PresidioClient;
+use App\Ai\Privacy\RedisVaultStore;
+use App\Ai\Privacy\VaultFactory;
+use App\Ai\Privacy\VaultStore;
 use App\Ai\Sandbox\SandboxRunner;
 use App\Ai\Tools\AccountStatus\AccountStatus;
 use App\Ai\Tools\ChangeBillingEmail\ChangeBillingEmail;
@@ -34,6 +47,8 @@ class AiServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->registerPrivacy();
+
         $this->app->bind(SandboxRunner::class, fn () => SandboxRunner::fromConfig());
         $this->app->bind(ToolCredentials::class, fn () => ToolCredentials::fromConfig());
 
@@ -59,6 +74,23 @@ class AiServiceProvider extends ServiceProvider
 
             return $registry;
         });
+    }
+
+    private function registerPrivacy(): void
+    {
+        $this->app->bind(Ner::class, fn () => filled(config('ai.privacy.presidio_url'))
+            ? PresidioClient::fromConfig()
+            : new NullNer);
+
+        $this->app->bind(PersonalDataDetector::class, fn ($app) => new PersonalDataDetector(
+            detectors: [new CardNumber, new UsSocialSecurityNumber, new Iban, EmailAddress::fromConfig(), PhoneNumber::fromConfig()],
+            allowList: AllowList::fromConfig(),
+            ner: $app->make(Ner::class),
+        ));
+
+        $this->app->singleton(VaultStore::class, fn () => new RedisVaultStore((string) config('ai.privacy.vault.connection', 'default')));
+
+        $this->app->singleton(VaultFactory::class, fn ($app) => VaultFactory::fromConfig($app->make(VaultStore::class)));
     }
 
     public function boot(): void

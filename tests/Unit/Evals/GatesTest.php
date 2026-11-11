@@ -110,5 +110,5 @@ it('reads the behavior off what the reply did', function () {
 });
 
 it('scrubs emails and phone numbers from captured text', function () {
-    expect(Redactor::scrub('Mail maya@acme.example.com or call +1 (555) 010-4477 about INV-4471'))->toBe('Mail [email] or call [phone] about INV-4471');
+    expect(Redactor::scrub('Mail maya@acme.example.com or call +1 (415) 555-0142 about INV-4471'))->toBe('Mail [email] or call [phone] about INV-4471');
 });

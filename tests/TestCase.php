@@ -2,11 +2,15 @@
 
 namespace Tests;
 
+use App\Ai\Privacy\ArrayVaultStore;
+use App\Ai\Privacy\Ner;
+use App\Ai\Privacy\VaultStore;
 use App\Ai\Security\Untrusted;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
+use Tests\Support\FakeNer;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -25,5 +29,8 @@ abstract class TestCase extends BaseTestCase
         Untrusted::reset('b1f3ec6d');   // the wrapper's tag is random per request; a test needs the same bytes every time
 
         Http::preventStrayRequests();   // no test may reach a model server, the sidecar or the internet
+
+        $this->app->instance(Ner::class, new FakeNer);   // Chapter 34: no test needs Presidio, Redis for the vault, or the privacy profile
+        $this->app->instance(VaultStore::class, new ArrayVaultStore);
     }
 }

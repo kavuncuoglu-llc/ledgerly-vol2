@@ -8,6 +8,8 @@ use Illuminate\Support\Collection;
 
 final class MemoryBlock
 {
+    public const HEADER = 'What you know about this customer';
+
     public static function render(User $user): string
     {
         $facts = self::facts($user);
@@ -18,7 +20,7 @@ final class MemoryBlock
 
         $lines = $facts->map(fn (UserMemory $fact) => '- '.$fact->key.': '.preg_replace('/\s+/', ' ', trim($fact->value)));
 
-        return "What you know about this customer (they can edit this in Settings):\n".$lines->implode("\n");
+        return self::HEADER." (they can edit this in Settings):\n".$lines->implode("\n");
     }
 
     public static function touch(User $user): void

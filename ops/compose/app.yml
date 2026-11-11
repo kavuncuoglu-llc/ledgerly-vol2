@@ -34,6 +34,7 @@ x-app: &app
     VLLM_URL: http://vllm:8000/v1
     TRITON_URL: http://triton-proxy:9000/v1
     SIDECAR_URL: http://sidecar:8000
+    PRESIDIO_URL: http://presidio:8000                          # Chapter 34: the privacy profile; with it down a hosted call is rerouted to the local role
     OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318     # Chapter 31: from inside Compose the collector is a service name (the observability profile); tracing stays off until OTEL_PHP_AUTOLOAD_ENABLED=true
   networks:
     - default                  # Postgres and Redis (base.yml leaves them on the project's default network)

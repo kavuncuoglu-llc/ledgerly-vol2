@@ -10,6 +10,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "giggsey/libphonenumber-for-php": "9.0.42",
         "helgesverre/toon": "^3.3",
         "intervention/image-laravel": "^1.5",
         "laravel/framework": "^12.0",

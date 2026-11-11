@@ -107,6 +107,30 @@ final class GoldenSet
         return count($lines);
     }
 
+    // Chapter 34, Topic 8: erasure reaches the evaluation set. A production case remembers the model call it came from ("model_calls:230") and is removed with it.
+    public function forgetProduction(array $originCalls, array $caseIds = []): int
+    {
+        $removed = 0;
+
+        foreach (glob($this->directory.'/production/*.jsonl') ?: [] as $path) {
+            $cases = $this->read($path);
+
+            $kept = $cases
+                ->reject(fn (GoldenCase $case) => in_array($case->originCall, $originCalls, true) || in_array($case->id, $caseIds, true))
+                ->values();
+
+            if ($kept->count() === $cases->count()) {
+                continue;
+            }
+
+            $removed += $cases->count() - $kept->count();
+
+            $this->write($path, $kept);
+        }
+
+        return $removed;
+    }
+
     /** @return Collection<int, string> */
     private function files(): Collection
     {

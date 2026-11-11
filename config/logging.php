@@ -1,5 +1,6 @@
 <?php
 
+use App\Logging\ScrubLogs;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -50,7 +51,7 @@ return [
     |
     */
 
-    'channels' => [
+    'channels' => array_map(fn (array $channel) => isset($channel['driver']) ? $channel + ['tap' => [ScrubLogs::class]] : $channel, [     // Chapter 34, Topic 6: the scrubbing processor is tapped onto every channel
 
         'stack' => [
             'driver' => 'stack',
@@ -127,6 +128,6 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
-    ],
+    ]),
 
 ];

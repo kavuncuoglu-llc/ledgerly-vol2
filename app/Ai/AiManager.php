@@ -6,6 +6,7 @@ use App\Ai\Contracts\ChatModel;
 use App\Ai\Contracts\EmbeddingModel;
 use App\Ai\Contracts\Reranker;
 use App\Ai\Decorators\ProfileMergingModel;
+use App\Ai\Decorators\RedactingModel;
 use App\Ai\Decorators\RetryingEmbeddings;
 use App\Ai\Decorators\RetryingModel;
 use App\Ai\Decorators\TracingModel;
@@ -14,10 +15,13 @@ use App\Ai\Drivers\FakeDriver;
 use App\Ai\Drivers\OpenAiCompatibleDriver;
 use App\Ai\Exceptions\ProviderNotConfigured;
 use App\Ai\Health\ProviderHealth;
+use App\Ai\Privacy\PersonalDataDetector;
+use App\Ai\Privacy\VaultFactory;
 use App\Ai\Retrieval\SidecarReranker;
 use App\Ai\Sidecar\SidecarClient;
 use App\Ai\Testing\FakeAi;
 use Closure;
+use Illuminate\Support\Facades\Log;
 
 // Chapter 19, Topic 3: role names in config/ai.php resolve to decorated drivers, the way Cache::store('redis') and Storage::disk('s3') do. Features say which name; one file says what it is.
 final class AiManager
@@ -38,7 +42,7 @@ final class AiManager
 
     public function for(string $feature): ChatModel
     {
-        return $this->chat($this->failingOver($feature, $this->providerFor($feature)));
+        return $this->chat($this->failingOver($feature, $this->allowed($feature, $this->providerFor($feature))));
     }
 
     public function providerFor(string $feature): string
@@ -55,9 +59,45 @@ final class AiManager
             return null;
         }
 
+        if (! $this->mayReceive($feature, (string) $target)) {
+            return null;                                                           // Chapter 34, Topic 2: a provider the feature does not allow is never an escalation target
+        }
+
         return $this->configured($target)
             ? (string) $target
             : null;
+    }
+
+    // Chapter 34, Topic 2: may this feature's data go to this provider? The feature's list of allowed providers, and the answers recorded beside the provider that the feature requires (a signed DPA, for example).
+    public function mayReceive(string $feature, string $provider): bool
+    {
+        $settings = $this->featureSettings($feature);
+
+        $allowed = $settings['allowed_providers'] ?? null;
+
+        if (is_array($allowed) && ! in_array($provider, $allowed, true)) {
+            return false;
+        }
+
+        foreach ($settings['requires'] ?? [] as $answer) {
+            if (! ($this->resolved($provider)['privacy'][$answer] ?? false)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // A feature configured onto a provider it may not use goes to the local role instead: nothing leaves the machine because of a config slip.
+    private function allowed(string $feature, string $provider): string
+    {
+        if ($this->mayReceive($feature, $provider)) {
+            return $provider;
+        }
+
+        Log::warning('ai.provider_not_allowed', ['feature' => $feature, 'provider' => $provider, 'used' => 'local']);
+
+        return 'local';
     }
 
     // Chapter 25, Topic 7: when the server behind a role is down (its circuit is open) and AI_FALLBACK_LOCAL names a fallback for this feature, the work goes there. Otherwise the role is kept and the call fails at once with CircuitOpen.
@@ -215,13 +255,18 @@ final class AiManager
         return new OpenAiCompatibleDriver($config);
     }
 
-    // Cross-cutting, once, for every driver. Outermost first: one span, and usage logged once, however many attempts the retries took.
+    // Cross-cutting, once, for every driver. Outermost first: one span, redaction inside it and outside the usage log (Chapter 34), and usage logged once, however many attempts the retries took.
     private function decorate(string $name, ChatModel $driver): ChatModel
     {
         if ($this->faking) {
-            return new TracingModel(new ProfileMergingModel(new FakeDriver($name, $this->fake())));  // a fake logs nothing and never sleeps, but a test can still assert on the merged profile, and on its span (Chapter 31)
+            return new TracingModel($this->redacting($name, new ProfileMergingModel(new FakeDriver($name, $this->fake()))));  // a fake logs nothing and never sleeps, but a test can still assert on the merged profile, and on its span (Chapter 31)
         }
 
-        return new TracingModel(new UsageLoggingModel(new RetryingModel(new ProfileMergingModel($driver))));      // tracing outermost: its span is the current one when usage is logged (Chapter 31)
+        return new TracingModel($this->redacting($name, new UsageLoggingModel(new RetryingModel(new ProfileMergingModel($driver)))));      // tracing outermost: its span is the current one when usage is logged (Chapter 31)
+    }
+
+    private function redacting(string $name, ChatModel $inner): ChatModel
+    {
+        return new RedactingModel($inner, app(PersonalDataDetector::class), app(VaultFactory::class), $this->resolved($name) ?? []);
     }
 }

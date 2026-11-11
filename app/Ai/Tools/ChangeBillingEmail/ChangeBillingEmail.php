@@ -2,6 +2,7 @@
 
 namespace App\Ai\Tools\ChangeBillingEmail;
 
+use App\Ai\Privacy\AcceptsVaultReferences;
 use App\Ai\Tools\Tool;
 use App\Ai\Tools\ToolContext;
 use App\Ai\Tools\ToolDefaults;
@@ -13,7 +14,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 
-final class ChangeBillingEmail implements Tool
+// The customer wrote the new address in the chat; the model only saw "<EMAIL_1>". This tool may be given the real one, from that conversation's vault (Chapter 34, Topic 5).
+final class ChangeBillingEmail implements AcceptsVaultReferences, Tool
 {
     use ToolDefaults;
 
