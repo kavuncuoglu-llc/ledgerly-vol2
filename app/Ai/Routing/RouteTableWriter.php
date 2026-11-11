@@ -5,8 +5,11 @@ namespace App\Ai\Routing;
 // config/ai-routes.php, in the shape Chapter 44 reads: each category has a `default` route with a `start` and a `chain` (a `residency` route is added by hand).
 final class RouteTableWriter
 {
-    /** @param  array<string, array>  $routes  from RouteTableBuilder */
-    public function render(array $routes, array $meta): string
+    /**
+     * @param  array<string, array>  $routes  from RouteTableBuilder
+     * @param  array<string, array>  $residency  the hand-written residency routes of the table being replaced, by category (Chapter 44): measured pass rates never decide who may see a residency tenant's data, so they are carried over as they are
+     */
+    public function render(array $routes, array $meta, array $residency = []): string
     {
         $lines = ['<?php', '', '// Written by `php artisan eval:route-table`: the cheapest role that clears the scorecard\'s floor for each category, from golden-set pass rates.', '// Review it like any other diff. `rates` is the evidence: the pass rate of each role that was measured.', '', 'return ['];
 
@@ -17,6 +20,10 @@ final class RouteTableWriter
 
             $lines[] = '    '.var_export((string) $category, true).' => [';
             $lines[] = "        'default' => ".$this->export($default, 2).',';
+
+            if (isset($residency[$category])) {
+                $lines[] = "        'residency' => ".$this->export($residency[$category], 2).',';
+            }
             $lines[] = '    ],';
         }
 

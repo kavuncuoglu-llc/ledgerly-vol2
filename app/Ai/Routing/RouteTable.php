@@ -16,19 +16,24 @@ final class RouteTable
         return (bool) config('ai.cascade.enabled') && config('ai-routes', []) !== [];
     }
 
-    public function for(?Category $category, string $feature = 'support.reply'): ?RoutePlan
+    // Chapter 44, Topic 5: a tenant with a data residency gets the category's `residency` route (a role list of its own, usually shorter), and any role in it whose recorded region is not the tenant's is refused, whatever the table says (Chapter 34, Exercise 5).
+    public function for(?Category $category, string $feature = 'support.reply', ?string $residency = null): ?RoutePlan
     {
         $key = $this->key($category);
 
-        $row = config('ai-routes')[$key]['default'] ?? config('ai-routes')['default']['default'] ?? null;
+        $entry = config('ai-routes')[$key] ?? config('ai-routes')['default'] ?? null;
+
+        $row = $residency === null
+            ? ($entry['default'] ?? null)
+            : ($entry['residency'] ?? $entry['default'] ?? null);
 
         if ($row === null) {
             return null;
         }
 
-        $chain = $this->usable(array_map(fn (string $role) => Roles::provider($role), (array) ($row['chain'] ?? [])), $feature);
+        $chain = $this->usable(array_map(fn (string $role) => Roles::provider($role), (array) ($row['chain'] ?? [])), $feature, $residency);
 
-        if ($chain === []) {
+        if ($chain === [] && $residency === null) {
             return null;
         }
 
@@ -39,6 +44,7 @@ final class RouteTable
             checksRetrieval: in_array($key, (array) config('ai.cascade.checks_retrieval', ['howto', 'policy']), true),
             declineBelow: config('ai.cascade.decline_below'),
             skipCheapestBelow: config('ai.cascade.skip_cheapest_below'),
+            residency: $residency,
         );
     }
 
@@ -53,7 +59,7 @@ final class RouteTable
     }
 
     /** @return string[] only the providers that are set up and that the feature may send its data to, in order, once each */
-    private function usable(array $providers, string $feature): array
+    private function usable(array $providers, string $feature, ?string $residency = null): array
     {
         $usable = [];
 
@@ -70,9 +76,20 @@ final class RouteTable
                 continue;                                                          // nothing leaves the machine because a route names it
             }
 
+            if ($residency !== null && ! in_array($this->regionOf($provider), [$residency, 'local'], true)) {
+                continue;                                                          // Chapter 44: out of region is out of the chain. `local` is this machine's own hardware, which is where Chapter 34's exercise falls back to
+            }
+
             $usable[] = $provider;
         }
 
         return $usable;
+    }
+
+    private function regionOf(string $provider): ?string
+    {
+        $config = $this->ai->config($provider);
+
+        return $config['privacy']['region'] ?? $config['region'] ?? null;
     }
 }

@@ -67,8 +67,8 @@ it('adds a candidate with its provenance read from the dataset and the export re
 });
 
 it('numbers the versions of a name and keeps names apart', function () {
-    foreach (['billing', 'billing', 'support'] as $name) {
-        $this->artisan('registry:add', ['model' => 'm', '--dataset' => 'billing-v1', '--name' => $name, '--base' => 'b'])->assertExitCode(0);
+    foreach (['billing', 'billing', 'support'] as $i => $name) {
+        $this->artisan('registry:add', ['model' => "m{$i}", '--dataset' => 'billing-v1', '--name' => $name, '--base' => 'b'])->assertExitCode(0);
     }
 
     expect(ModelRegistryEntry::query()->where('name', 'billing')->pluck('version')->all())->toBe([1, 2])

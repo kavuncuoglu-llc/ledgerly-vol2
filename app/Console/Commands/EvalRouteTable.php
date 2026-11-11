@@ -92,7 +92,7 @@ class EvalRouteTable extends Command
         $out = $this->option('out') ?: ($this->option('write') ? 'config/ai-routes.php' : null);
 
         if ($out !== null) {
-            File::put($this->path($out), $writer->render($routes, ['written_on' => now()->toDateString(), 'golden_cases' => $this->option('from') ? null : $set->all()->count(), 'floor' => $floor, 'margin' => $margin, 'roles' => $roles, 'source' => $this->option('from') ? 'a pass-rate file' : 'a golden-set run']));
+            File::put($this->path($out), $writer->render($routes, ['written_on' => now()->toDateString(), 'golden_cases' => $this->option('from') ? null : $set->all()->count(), 'floor' => $floor, 'margin' => $margin, 'roles' => $roles, 'source' => $this->option('from') ? 'a pass-rate file' : 'a golden-set run'], $this->residencyRoutes()));
         }
 
         $this->line(sprintf('  %s %d routes%s', $out === null ? 'would write' : "wrote {$out}:", count($routes), $changed === [] ? ' · no change' : ' · changed: '.implode(', ', $changed)));
@@ -200,5 +200,15 @@ class EvalRouteTable extends Command
         return str_starts_with($path, '/')
             ? $path
             : base_path($path);
+    }
+
+    // Chapter 44: the residency routes in the table being replaced, kept as written.
+    private function residencyRoutes(): array
+    {
+        return collect(config('ai-routes', []))
+            ->reject(fn ($entry, $category) => $category === '_meta')
+            ->map(fn ($entry) => $entry['residency'] ?? null)
+            ->filter()
+            ->all();
     }
 }

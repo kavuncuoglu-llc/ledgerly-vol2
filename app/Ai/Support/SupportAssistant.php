@@ -19,6 +19,7 @@ use App\Ai\Conversations\SummarizeConversation;
 use App\Ai\Events\ModelCalled;
 use App\Ai\Exceptions\CircuitOpen;
 use App\Ai\Exceptions\ProviderUnavailable;
+use App\Ai\Experiments\Candidate;
 use App\Ai\Experiments\Experiment;
 use App\Ai\Health\ProviderHealth;
 use App\Ai\Memory\MemoryBlock;
@@ -158,7 +159,15 @@ final class SupportAssistant
 
         $ctx = new ToolContext($user, $conversation->id);
 
-        $plan = $this->cascadePlan($route);
+        $plan = $this->cascadePlan($route, $user);
+
+        if ($candidate?->replaces !== null && $plan !== null) {
+            $plan = $plan->substituting($candidate->replaces, $candidate->provider);            // Chapter 44: a canary customer's route names the candidate where it names the role
+        }
+
+        if ($plan?->handsToAPerson()) {
+            return $this->handToAPerson($conversation, $question, $reply);                    // Chapter 44: no role in the tenant's region is set up: a person, not a role somewhere else
+        }
 
         $bestScore = $this->bestScore($chunks);
 
@@ -172,7 +181,7 @@ final class SupportAssistant
 
         try {
             $outcome = $plan === null
-                ? new CascadeOutcome($run(null, 0, $stream), false, [])
+                ? new CascadeOutcome($run($this->canaryProvider($candidate), 0, $stream), false, [])
                 : $this->cascade->run($plan, $bestScore, $run, $stream, fn (int $step, array $failed) => $this->recordFailures($cascadeId, $step, $failed));
         } catch (ConnectionException|ProviderUnavailable|CircuitOpen $e) {
             if ($reply === null) {
@@ -254,13 +263,37 @@ final class SupportAssistant
         return new AttemptResult($result, $prompt, $blocked, $findings, $provider);
     }
 
-    private function cascadePlan(Route $route): ?RoutePlan
+    private function cascadePlan(Route $route, User $user): ?RoutePlan
     {
         if (! $this->routes->enabled()) {
             return null;
         }
 
-        return $this->routes->for($route->category);
+        return $this->routes->for($route->category, residency: $user->tenant?->data_residency);
+    }
+
+    // With no route table the feature's own role answers; a canary replaces it when the candidate is that role's.
+    private function canaryProvider(?Candidate $candidate): ?string
+    {
+        if ($candidate?->replaces === null) {
+            return null;
+        }
+
+        return $candidate->replaces === $this->ai->providerFor('support.reply')
+            ? $candidate->provider
+            : null;
+    }
+
+    // Chapter 44, Topic 5: the residency route had no usable role. The reply is the escape hatch, written without a model call.
+    private function handToAPerson(Conversation $conversation, string $question, ?Message $reply): ToolRunResult
+    {
+        $this->recordQuestion($conversation, $question, $reply);
+
+        $this->finish($conversation, $reply, ['role' => 'assistant', 'content' => SupportPrompt::escapeHatch()]);
+
+        $response = new ChatResponse('residency-person', 'router', SupportPrompt::escapeHatch(), [], FinishReason::Stop, new Usage(0, 0), []);
+
+        return new ToolRunResult(response: $response, messages: [], rounds: 0);
     }
 
     private function bestScore(array $chunks): float
@@ -389,10 +422,16 @@ final class SupportAssistant
             return [null, null];
         }
 
+        $candidate = Experiment::candidateFor('support.reply');
+
+        if ($candidate?->replaces !== null && $user->tenant?->data_residency !== null) {
+            return [null, null];                                                  // Chapter 44: a canary is for tenants without a data residency; theirs are served in region and by the production version
+        }
+
         $variant = Experiment::variant($user->customer, $settings['name']);
 
         return $variant === Experiment::TREATMENT
-            ? [$variant, Experiment::candidateFor('support.reply')]
+            ? [$variant, $candidate]
             : [$variant, null];
     }
 

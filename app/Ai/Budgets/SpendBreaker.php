@@ -2,6 +2,7 @@
 
 namespace App\Ai\Budgets;
 
+use App\Ai\Events\GuardrailBreached;
 use App\Models\AiLedgerEntry;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -178,6 +179,10 @@ final class SpendBreaker
         $team = $kind === 'feature'
             ? Teams::of($name)
             : 'finance';
+
+        if ($kind === 'feature') {
+            GuardrailBreached::dispatch($name, 'spend_breaker', $spent / 1_000_000, $baseline * (float) config('ai.budgets.breaker.ratio', 5) / 1_000_000);   // Chapter 44: a promotion this recent is the likely cause
+        }
 
         $this->notifier->team($team, "AI spend breaker open: {$scope}", sprintf(
             '%s spent $%s in the last %d minutes against a normal of $%s. It is on its cheapest rung for %d minutes. Top traces: %s',

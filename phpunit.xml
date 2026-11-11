@@ -26,6 +26,7 @@
         <env name="DB_CONNECTION" value="pgsql" force="true"/>
         <env name="DB_DATABASE" value="ledgerly_testing" force="true"/>
         <env name="LEDGERLY_AS_OF" value="2026-04-20" force="true"/>
+        <env name="REGISTRY_ALIASES_FILE" value="/nonexistent/registry-aliases.json" force="true"/>
         <env name="AI_PROVIDER" value="ollama" force="true"/>
         <env name="AI_BASE_URL" value="http://localhost:11434/v1" force="true"/>
         <env name="AI_API_KEY" value="ollama" force="true"/>

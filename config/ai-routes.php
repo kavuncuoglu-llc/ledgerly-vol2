@@ -35,9 +35,9 @@ return [
     ],
     'billing' => [
         'default' => [
-            'start' => 'local',
+            'start' => 'local-billing-ft',
             'chain' => [
-                'local',
+                'local-billing-ft',
                 'mid',
                 'frontier',
             ],
@@ -45,10 +45,20 @@ return [
             'cascade' => true,
             'rates' => [
                 'local' => 0.91,
+                'local-billing-ft' => 0.97,
                 'mid' => 0.96,
                 'frontier' => 0.98,
             ],
-            'why' => 'local passes 91% against a floor of 95%: start there and escalate on failed checks',
+            'why' => 'the billing fine-tune clears the floor where the base did not (91%): start there and escalate on failed checks. Chapter 44\'s figure; rerun eval:route-table with local-billing-ft measured to replace it',
+        ],
+        'residency' => [
+            'start' => 'local-billing-ft',
+            'chain' => [
+                'local-billing-ft',
+                'mid-in-region',
+            ],
+            'then' => 'person',
+            'why' => 'a residency tenant\'s question never leaves its region: the fine-tune, a larger model in the same region, then a person (hand-written; eval:route-table keeps it)',
         ],
     ],
     'howto' => [

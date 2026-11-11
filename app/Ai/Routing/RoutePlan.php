@@ -13,7 +13,20 @@ final readonly class RoutePlan
         public bool $checksRetrieval,
         public ?float $declineBelow,
         public ?float $skipCheapestBelow,
+        public ?string $residency = null,
     ) {}
+
+    // Chapter 44, Topic 7: a canary customer is served by the candidate where the route names the role it replaces. The rest of the chain is unchanged.
+    public function substituting(string $replaces, string $with): self
+    {
+        return new self($this->category, array_map(fn (string $role) => $role === $replaces ? $with : $role, $this->chain), $this->buffers, $this->checksRetrieval, $this->declineBelow, $this->skipCheapestBelow, $this->residency);
+    }
+
+    // A residency tenant whose route has no role in their region: the answer is a person, never a role somewhere else.
+    public function handsToAPerson(): bool
+    {
+        return $this->chain === [];
+    }
 
     public function chainWithoutCheapest(): array
     {

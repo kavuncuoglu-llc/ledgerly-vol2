@@ -15,6 +15,22 @@ class ModelRegistryEntry extends Model
 
     protected function casts(): array
     {
-        return ['artifacts' => 'array', 'evaluations' => 'array', 'history' => 'array'];
+        return [
+            'artifacts' => 'array',
+            'evaluations' => 'array',
+            'history' => 'array',
+            'tools' => 'array',
+            'signatures' => 'array',
+            'served_on' => 'array',
+            'promoted_at' => 'datetime',
+            'warm_until' => 'datetime',
+            'retired_at' => 'datetime',
+            'archived_at' => 'datetime',
+        ];
+    }
+
+    public function label(): string
+    {
+        return "{$this->name} v{$this->version}";
     }
 }

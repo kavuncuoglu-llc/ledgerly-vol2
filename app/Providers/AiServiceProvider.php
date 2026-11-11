@@ -8,6 +8,7 @@ use App\Ai\Budgets\Counters;
 use App\Ai\Budgets\RedisCounters;
 use App\Ai\Events\BudgetThresholdReached;
 use App\Ai\Events\EmergencyKillSwitchActivated;
+use App\Ai\Events\GuardrailBreached;
 use App\Ai\Events\ToolCalled;
 use App\Ai\FineTuning\FineTuneEnded;
 use App\Ai\FineTuning\FineTuneSucceeded;
@@ -15,6 +16,8 @@ use App\Ai\Listeners\AnnounceKillSwitch;
 use App\Ai\Listeners\NotifyBudgetThreshold;
 use App\Ai\Listeners\NotifyFineTuneFinished;
 use App\Ai\Listeners\RecordToolCall;
+use App\Ai\Listeners\RollBackOnGuardrailBreach;
+use App\Ai\Listeners\StopTrialOnGuardrailBreach;
 use App\Ai\Privacy\AllowList;
 use App\Ai\Privacy\Detectors\CardNumber;
 use App\Ai\Privacy\Detectors\EmailAddress;
@@ -28,6 +31,8 @@ use App\Ai\Privacy\PresidioClient;
 use App\Ai\Privacy\RedisVaultStore;
 use App\Ai\Privacy\VaultFactory;
 use App\Ai\Privacy\VaultStore;
+use App\Ai\Quantization\LadderBackend;
+use App\Ai\Quantization\OllamaLadderBackend;
 use App\Ai\Sandbox\SandboxRunner;
 use App\Ai\Tools\AccountStatus\AccountStatus;
 use App\Ai\Tools\CalculateProration\CalculateProration;
@@ -79,6 +84,8 @@ class AiServiceProvider extends ServiceProvider
             : RedisCounters::fromConfig());
 
         $this->app->bind(HubUploader::class, HuggingFaceHub::class);
+
+        $this->app->bind(LadderBackend::class, OllamaLadderBackend::class);
         $this->app->bind(SandboxRunner::class, fn () => SandboxRunner::fromConfig());
         $this->app->bind(ToolCredentials::class, fn () => ToolCredentials::fromConfig());
 
@@ -146,6 +153,8 @@ class AiServiceProvider extends ServiceProvider
 
         Event::listen(EmergencyKillSwitchActivated::class, AnnounceKillSwitch::class);
         Event::listen(BudgetThresholdReached::class, NotifyBudgetThreshold::class);
+        Event::listen(GuardrailBreached::class, StopTrialOnGuardrailBreach::class);
+        Event::listen(GuardrailBreached::class, RollBackOnGuardrailBreach::class);
         Event::listen(FineTuneSucceeded::class, NotifyFineTuneFinished::class);
         Event::listen(FineTuneEnded::class, NotifyFineTuneFinished::class);
 

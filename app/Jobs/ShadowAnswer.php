@@ -51,7 +51,7 @@ final class ShadowAnswer implements ShouldQueue
             system: $candidate->system,
         );
 
-        $answer = Ai::chat($candidate->provider)->chat(ChatRequest::make($messages, [
+        $answer = Ai::chat($candidate->provider)->chat(ChatRequest::make(SupportPrompt::boundTo($messages, $candidate->provider), [   // Chapter 44: a fine-tuned candidate is sent the short system message it was trained on
             'profile' => 'assistant',
             'max_tokens' => config('ai.budget.answer'),
             'prompt_version' => $candidate->version,

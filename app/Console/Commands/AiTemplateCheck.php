@@ -104,7 +104,7 @@ class AiTemplateCheck extends Command
             throw new InvalidArgumentException('--against is training: the only thing a server is compared with.');
         }
 
-        $model = (string) $this->argument('model');
+        $model = $this->modelName();
 
         return match ($this->option('server')) {
             'ollama' => new OllamaTemplateRenderer(OllamaNative::fromConfig(), $model),
@@ -112,5 +112,17 @@ class AiTemplateCheck extends Command
             'vllm' => new VllmTemplateRenderer((string) preg_replace('#/v1/?$#', '', (string) config('ai.providers.vllm.base_url')), $model, config('ai.providers.vllm.api_key')),
             default => throw new InvalidArgumentException('--server is ollama, llama or vllm.'),
         };
+    }
+
+    // Chapter 44, Figure 44-12 passes a role (`local-billing-ft`) where this command took a server's model name: a name that is a provider role stands for the model the role is serving now (the registry's production alias).
+    private function modelName(): string
+    {
+        $name = (string) $this->argument('model');
+
+        $role = config('ai.providers')[$name] ?? null;
+
+        return is_array($role) && filled($role['model'] ?? null)
+            ? (string) $role['model']
+            : $name;
     }
 }

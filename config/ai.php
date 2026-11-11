@@ -4,6 +4,31 @@ use App\Ai\Batch\JudgeNightlySource;
 use App\Ai\Batch\SynthesizeHelpCenterSource;
 use App\Ai\Prompts\FineTunedSupportPrompt;
 use App\Ai\Prompts\SupportPrompt;
+use App\Ai\Registry\Aliases;
+
+// Chapter 44, Topic 5: the self-served billing fine-tune. Its model name is the registry alias billing@production, resolved here when config is loaded (and frozen by config:cache), so a promotion or a rollback is a registry change and a config refresh.
+$billingFt = [
+    'driver' => 'openai-compatible',
+    'base_url' => env('BILLING_FT_URL'),
+    'api_key' => env('BILLING_FT_LOCAL_KEY', 'ollama'),
+    'model' => Aliases::resolve('billing@production', env('BILLING_FT_LOCAL_MODEL', 'ledgerly-billing-ft')),
+    'timeout' => env('BILLING_FT_TIMEOUT', 120),
+    'native' => 'ollama',
+    'license' => 'Llama 3.1 Community License',                                  // a fine-tune inherits its base's license (Appendix C.3)
+    'license_reviewed' => env('BILLING_FT_LICENSE_REVIEWED'),
+    'pinned' => true,
+    'digest' => env('BILLING_FT_LOCAL_DIGEST'),
+    'region' => env('BILLING_FT_REGION'),
+    'fine_tuned' => [
+        'registry' => 'billing@production',
+        'base' => env('BILLING_FT_LOCAL_BASE', 'meta-llama/Llama-3.1-8B-Instruct'),
+        'dataset' => env('BILLING_FT_LOCAL_DATASET', 'billing-v1'),
+        'dataset_hash' => env('BILLING_FT_LOCAL_DATASET_HASH'),
+        'run' => env('BILLING_FT_LOCAL_RUN'),
+        'prompt_version' => FineTunedSupportPrompt::VERSION,
+    ],
+    'privacy' => ['redact' => false, 'trains_on_api_data' => false, 'retention_days' => 0, 'zdr' => true, 'region' => env('BILLING_FT_REGION', 'local'), 'dpa_signed' => true, 'checked_on' => '2026-11-11', 'source' => 'Your own hardware, in the data\'s region: the data never leaves it.'],
+];
 
 return [
     'provider' => env('AI_PROVIDER', 'ollama'),
@@ -209,26 +234,8 @@ return [
         ],
         // Chapter 42, Topic 8: the billing fine-tune trained on your own hardware (Chapter 42) and served from it: `ledgerly-billing-ft`, the Q4_K_M model `export_to_ollama.py` made. Unset until BILLING_FT_URL names the server (the regional Ollama box), so no route can send
         // a question to a model that is not there. Pinned, with its provenance and the short system message it was trained on (bound to the role by SupportPrompt::boundTo). Chapter 44 resolves `model` from the registry alias billing@production instead of the environment.
-        'local-billing-ft' => [
-            'driver' => 'openai-compatible',
-            'base_url' => env('BILLING_FT_URL'),
-            'api_key' => env('BILLING_FT_LOCAL_KEY', 'ollama'),
-            'model' => env('BILLING_FT_LOCAL_MODEL', 'ledgerly-billing-ft'),
-            'timeout' => env('BILLING_FT_TIMEOUT', 120),
-            'native' => 'ollama',
-            'license' => 'Llama 3.1 Community License',                                  // a fine-tune inherits its base's license (Appendix C.3)
-            'license_reviewed' => env('BILLING_FT_LICENSE_REVIEWED'),
-            'pinned' => true,
-            'digest' => env('BILLING_FT_LOCAL_DIGEST'),
-            'fine_tuned' => [
-                'base' => env('BILLING_FT_LOCAL_BASE', 'meta-llama/Llama-3.1-8B-Instruct'),
-                'dataset' => env('BILLING_FT_LOCAL_DATASET', 'billing-v1'),
-                'dataset_hash' => env('BILLING_FT_LOCAL_DATASET_HASH'),
-                'run' => env('BILLING_FT_LOCAL_RUN'),
-                'prompt_version' => FineTunedSupportPrompt::VERSION,
-            ],
-            'privacy' => ['redact' => false, 'trains_on_api_data' => false, 'retention_days' => 0, 'zdr' => true, 'region' => env('BILLING_FT_REGION', 'local'), 'dpa_signed' => true, 'checked_on' => '2026-11-11', 'source' => 'Your own hardware, in the data\'s region: the data never leaves it.'],
-        ],
+        'local-billing-ft' => $billingFt,
+        ...Aliases::variants('local-billing-ft', 'billing', $billingFt),
         // The middle tier: a 30B to 70B model on a bigger GPU, or a cheap hosted model. Unset until you name a model.
         // Chapter 21: on a 64 GB+ unified-memory machine, `ollama create ledgerly-support-70b -f ops/ollama/Modelfile.ledgerly-support-70b`, set LOCAL_70B_MODEL=ledgerly-support-70b, and `ai:profile --provider=mid` measures it.
         'local-70b' => [
@@ -255,6 +262,23 @@ return [
                 'source' => 'Your own hardware, unless LOCAL_70B_URL points at a hosted server.',
             ],
         ],
+        // Chapter 44, Topic 5 (and Chapter 46, Topic 2, the distillation teacher): the larger open-weight model in the residency region, so a residency tenant's cascade escalates to it and never to a hosted role. Unset until MID_IN_REGION_URL names a server.
+        // `distillation_basis` is what dataset:distill checks before it sends a question to a teacher: the license, when it was reviewed and by whom (Chapter 46).
+        'mid-in-region' => [
+            'driver' => 'openai-compatible',
+            'base_url' => env('MID_IN_REGION_URL'),
+            'api_key' => env('MID_IN_REGION_KEY', 'ollama'),
+            'model' => env('MID_IN_REGION_MODEL'),
+            'native' => 'ollama',
+            'timeout' => env('MID_IN_REGION_TIMEOUT', 300),
+            'license' => env('MID_IN_REGION_LICENSE') ?: 'Llama 3.1 Community License',
+            'license_reviewed' => env('MID_IN_REGION_LICENSE_REVIEWED'),
+            'region' => env('MID_IN_REGION_REGION', env('BILLING_FT_REGION')),
+            'pinned' => true,
+            'digest' => env('MID_IN_REGION_DIGEST'),
+            'distillation_basis' => ['license' => env('MID_IN_REGION_LICENSE'), 'reviewed' => env('MID_IN_REGION_LICENSE_REVIEWED'), 'by' => env('MID_IN_REGION_LICENSE_REVIEWED_BY')],
+            'privacy' => ['redact' => false, 'trains_on_api_data' => false, 'retention_days' => 0, 'zdr' => true, 'region' => env('MID_IN_REGION_REGION', env('BILLING_FT_REGION', 'local')), 'dpa_signed' => true, 'checked_on' => '2026-11-11', 'source' => 'Your own hardware, in the data\'s region: the data never leaves it.'],
+        ],
         'rerank' => [
             'driver' => 'sidecar',
             'base_url' => env('SIDECAR_URL', 'http://localhost:8008'),
@@ -270,7 +294,7 @@ return [
     'features' => [
         'ticket.classify' => ['provider' => 'local', 'profile' => 'deterministic'],
         'ticket.extract' => ['provider' => 'local', 'profile' => 'deterministic'],
-        'support.reply' => ['provider' => 'local', 'profile' => 'assistant', 'escalate_to' => 'frontier', 'allowed_providers' => ['local', 'local-70b', 'frontier', 'frontier-billing-ft', 'local-billing-ft'], 'requires' => ['dpa_signed'], 'ladder' => ['cheaper_role', 'tighter_limits', 'cache_only', 'search']],
+        'support.reply' => ['provider' => 'local', 'profile' => 'assistant', 'escalate_to' => 'frontier', 'allowed_providers' => ['local', 'local-70b', 'frontier', 'frontier-billing-ft', 'local-billing-ft', 'local-billing-ft@canary', 'local-billing-ft@shadow', 'mid-in-region'], 'requires' => ['dpa_signed'], 'ladder' => ['cheaper_role', 'tighter_limits', 'cache_only', 'search']],
         'triage.draft' => ['provider' => 'local', 'profile' => 'grounded', 'escalate_to' => 'frontier', 'background' => true],          // Chapter 36: nobody is waiting on a draft: over budget it pauses instead of degrading
         'invoice.extract' => ['provider' => 'vision', 'profile' => 'deterministic', 'allowed_providers' => ['local', 'vision']],   // scanned documents never leave
         'conversation.summarize' => ['provider' => 'local', 'profile' => 'deterministic', 'background' => true],
@@ -723,6 +747,56 @@ return [
             'agreement_with_agent_label' => ['kind' => 'primary', 'target' => 0.92, 'floor' => 0.88],
             'cost_per_ticket_usd' => ['kind' => 'guardrail', 'target' => 0.0005, 'floor' => 0.002, 'direction' => 'down'],
         ],
+    ],
+
+    // Chapter 44: the model registry, the servers a registered version is put on, and what an artifact must prove before a server loads it (Topics 6 to 9).
+    'registry' => [
+        'roles' => ['billing' => 'local-billing-ft'],                           // registry name => the provider role that serves it
+        'features' => ['support.reply' => ['billing']],                         // which fine-tunes a feature's answers come from (the guardrail looks here)
+        'shadow_percent' => (int) env('REGISTRY_SHADOW_PERCENT', 10),
+        'warm_days' => (int) env('REGISTRY_WARM_DAYS', 7),                      // a previous version stays loaded this long, so rollback is instant
+        'rollback_window_days' => 7,                                            // a guardrail breach this soon after a promotion rolls it back
+        'base_role' => 'local',                                                 // the role the criteria compare a fine-tune with
+        'criteria' => [                                                         // docs/adr/fine-tune-local-billing.md, "Success criteria", as numbers; promotion refuses what is missing or below them
+            ['metric' => 'golden_pass_rate', 'min' => 0.96],
+            ['metric' => 'never_failures', 'max' => 0],
+            ['metric' => 'injection_model_success_rate', 'max_vs_base' => 0.0],
+            ['metric' => 'tripwire_all_largest_drop', 'max' => 2.0],
+            ['metric' => 'input_tokens_per_answer', 'max_ratio_vs_base' => 0.70],
+        ],
+        'guardrails' => ['min_answers' => (int) env('REGISTRY_GUARDRAIL_MIN_ANSWERS', 20), 'days' => 1],
+        'servers' => [                                                          // by name, as serve:fine-tune --ollama= and --vllm= take them
+            'local' => ['kind' => 'ollama', 'url' => env('OLLAMA_NATIVE_URL') ?: 'http://localhost:11434', 'host' => env('OLLAMA_NATIVE_HOST')],
+            'eu-billing-box' => ['kind' => 'ollama', 'url' => env('REGISTRY_OLLAMA_URL'), 'host' => env('REGISTRY_OLLAMA_HOST')],
+            'gpu-eu-1' => [
+                'kind' => 'vllm',
+                'url' => env('REGISTRY_VLLM_URL'),
+                'api_key' => env('VLLM_API_KEY'),
+                'base' => env('REGISTRY_VLLM_BASE', 'meta-llama/Llama-3.1-8B-Instruct'),
+                'base_revision' => env('BASE_REVISION'),
+                'adapters_path' => env('REGISTRY_VLLM_ADAPTERS_PATH') ?: '/models/adapters',
+                'max_lora_rank' => (int) env('REGISTRY_VLLM_MAX_LORA_RANK', 16),
+            ],
+        ],
+        'ollama_binary' => env('OLLAMA_BINARY', 'ollama'),
+        'num_ctx' => 8192,
+        'mirror' => env('REGISTRY_MIRROR') ?: storage_path('app/models/mirror'),   // approved bases, mirrored where production can read them (Hugging Face cache layout, or org/name@revision)
+        'hub' => env('HF_ENDPOINT', 'https://huggingface.co'),
+        'verify_base' => (bool) env('REGISTRY_VERIFY_BASE', true),
+        'archive' => env('REGISTRY_ARCHIVE') ?: storage_path('app/models-archive'),
+        'signing' => [
+            'driver' => env('REGISTRY_SIGNER', 'ed25519'),                      // ed25519 (libsodium) or cosign
+            'required' => (bool) env('REGISTRY_REQUIRE_SIGNATURES', true),      // an unsigned artifact fails registry:verify and is not loaded
+            'pipeline' => env('REGISTRY_SIGNING_PIPELINE', 'ledgerly-training'),
+            'keys' => ['ledgerly-training' => env('REGISTRY_SIGNING_PUBLIC_KEY')],
+            'private_key_file' => env('REGISTRY_SIGNING_KEY_FILE'),             // only the pipeline has this
+            'cosign' => ['binary' => env('COSIGN_BINARY', 'cosign'), 'key' => env('COSIGN_KEY'), 'password' => env('COSIGN_PASSWORD'), 'public_keys' => ['ledgerly-training' => env('COSIGN_PUBLIC_KEY')]],
+        ],
+    ],
+
+    // Chapter 44, Topic 7: where the app pages a team about a model it rolled back on its own.
+    'alerts' => [
+        'channel' => env('AI_ALERTS_CHANNEL', '#ai-quality'),
     ],
 
     // Chapter 31: where ai:sample --trace points the link. The app exports through OTEL_* variables (.env.example); this is only the Jaeger UI's address on your machine.

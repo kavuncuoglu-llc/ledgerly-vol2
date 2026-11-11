@@ -15,7 +15,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 
 // Chapter 30, Topic 1: a feature's metrics for a window, split by variant, each against the target and floor in config('ai.scorecards'). A metric the logs cannot supply yet is null and shows as a dash.
-final class Scorecard
+class Scorecard
 {
     public function __construct(private CurrentTenant $tenants) {}
 

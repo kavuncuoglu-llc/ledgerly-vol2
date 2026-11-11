@@ -104,7 +104,23 @@ def test_the_export_record_has_a_hash_for_the_adapter_and_the_gguf(tmp_path):
 def test_dry_run_prints_every_step_and_changes_nothing(tmp_path, capsys):
     adapter = make_adapter(tmp_path, "mlx")
 
-    assert ex.main([str(adapter), "--base", "b", "--name", "x", "--out", str(tmp_path / "m"), "--dry-run"]) == 0
+    assert (
+        ex.main(
+            [
+                str(adapter),
+                "--base",
+                "b",
+                "--name",
+                "x",
+                "--out",
+                str(tmp_path / "m"),
+                "--llama-cpp",
+                str(tmp_path / "none"),
+                "--dry-run",
+            ]
+        )
+        == 0
+    )
 
     out = capsys.readouterr().out
     assert "fuse:" in out and "quantize: llama-quantize" in out and not (tmp_path / "m").exists()
