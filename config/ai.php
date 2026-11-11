@@ -348,6 +348,32 @@ return [
         'closed_conversation_days' => 90,
     ],
 
+    // Chapter 33: the tool gate's budget, the restricted keys (one per external tool, empty = none) and the sandbox for generated code (off except on a worker host).
+    'tools' => [
+        'conversation_budget' => (int) env('AI_TOOL_CONVERSATION_BUDGET', 8),
+        'credentials' => [
+            'retry_payment' => ['key' => env('PAYMENTS_KEY_RETRY_PAYMENT'), 'label' => 'payments restricted key: retry', 'scopes' => ['charges:retry']],
+        ],
+        'documents' => [
+            'role_arn' => env('DOCUMENTS_ROLE_ARN'),
+            'bucket' => env('DOCUMENTS_BUCKET'),
+        ],
+    ],
+
+    'sandbox' => [
+        'enabled' => (bool) env('SANDBOX_ENABLED', false),
+        'docker' => env('SANDBOX_DOCKER', 'docker'),
+        'image' => env('SANDBOX_IMAGE', 'ledgerly-sandbox:vol2'),
+        'runtime' => env('SANDBOX_RUNTIME', ''),            // runsc for gVisor, where installed
+        'memory' => env('SANDBOX_MEMORY', '256m'),
+        'cpus' => env('SANDBOX_CPUS', '0.5'),
+        'pids' => (int) env('SANDBOX_PIDS', 64),
+        'tmpfs' => env('SANDBOX_TMPFS', '64m'),
+        'timeout' => (int) env('SANDBOX_TIMEOUT', 10),
+        'max_output_bytes' => 65536,
+        'directory' => env('SANDBOX_DIRECTORY', storage_path('sandbox')),
+    ],
+
     // Chapter 32: nothing here is a secret. The canary is a phrase planted in every system message so that an answer repeating it is caught; set your own in production. link_hosts are the only hosts an answer may link to or load an image from (the app's own host is always allowed).
     'security' => [
         'canary' => env('AI_PROMPT_CANARY', 'amber-heron-4471-lattice'),

@@ -5,6 +5,7 @@ namespace App\Ai\Tools\SearchHelpCenter;
 use App\Ai\Retrieval\RetrievalScope;
 use App\Ai\Retrieval\RetrievedChunk;
 use App\Ai\Retrieval\Retriever;
+use App\Ai\Tools\ReturnsSharedContent;
 use App\Ai\Tools\Tool;
 use App\Ai\Tools\ToolContext;
 use App\Ai\Tools\ToolDefaults;
@@ -12,13 +13,18 @@ use App\Ai\Tools\ToolKind;
 use App\Ai\Tools\ToolResult;
 use Illuminate\Support\Str;
 
-final class SearchHelpCenter implements Tool
+final class SearchHelpCenter implements ReturnsSharedContent, Tool
 {
     use ToolDefaults;
 
     private const PASSAGES = 3;
 
     public function __construct(private Retriever $retriever) {}
+
+    public static function exampleArgs(): array
+    {
+        return ['query' => 'late fee'];
+    }
 
     public function name(): string
     {

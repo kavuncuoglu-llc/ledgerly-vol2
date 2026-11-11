@@ -62,3 +62,4 @@ __pycache__/
 /storage/eval/
 /tests/golden/promptfoo.yaml
 /evals/node_modules/
+/storage/sandbox/

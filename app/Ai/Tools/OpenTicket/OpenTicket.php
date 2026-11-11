@@ -2,17 +2,25 @@
 
 namespace App\Ai\Tools\OpenTicket;
 
+use App\Ai\Tools\IdempotentByItself;
 use App\Ai\Tools\Tool;
 use App\Ai\Tools\ToolContext;
 use App\Ai\Tools\ToolDefaults;
 use App\Ai\Tools\ToolKind;
 use App\Ai\Tools\ToolResult;
 use App\Events\TicketReceived;
+use App\Models\Invoice;
 use App\Models\Ticket;
+use Illuminate\Support\Facades\DB;
 
-final class OpenTicket implements Tool
+final class OpenTicket implements IdempotentByItself, Tool
 {
     use ToolDefaults;
+
+    public static function exampleArgs(): array
+    {
+        return ['summary' => 'The PDF export button does nothing.', 'invoice_number' => null];
+    }
 
     public function name(): string
     {
@@ -44,7 +52,7 @@ final class OpenTicket implements Tool
         $ticket = Ticket::firstOrCreate(
             ['idempotency_key' => $this->idempotencyKey($ctx)],          // a retried round cannot open two
             [
-                'customer_id' => $ctx->user->customer_id,
+                'customer_id' => $ctx->customerId(),
                 'user_id' => $ctx->user->id,
                 'summary' => $args->summary,
                 'invoice_number' => $this->ownInvoiceNumber($args->invoice_number, $ctx),
@@ -53,7 +61,7 @@ final class OpenTicket implements Tool
         );
 
         if ($ticket->wasRecentlyCreated && $ctx->triageRunId === null) {
-            TicketReceived::dispatch($ticket);                                  // a ticket the triage itself opened is not triaged again
+            DB::afterCommit(fn () => TicketReceived::dispatch($ticket));        // a ticket the triage itself opened is not triaged again; and not before the row is committed
         }
 
         return ToolResult::ok(['ticket_number' => $ticket->number, 'created' => $ticket->wasRecentlyCreated]);
@@ -72,6 +80,6 @@ final class OpenTicket implements Tool
             return null;
         }
 
-        return $ctx->user->customer->invoices()->whereNumber($number)->value('number');   // scoped: another customer's number is dropped
+        return Invoice::query()->where('customer_id', $ctx->customerId())->whereNumber($number)->value('number');   // scoped: another customer's number is dropped
     }
 }

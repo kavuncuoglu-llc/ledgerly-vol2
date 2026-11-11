@@ -13,9 +13,17 @@ interface Tool
 
     public function kind(): ToolKind;
 
+    public function risk(): Risk;
+
+    public function approver(): Approver;
+
+    public function schemaName(): string;
+
     public function perConversationLimit(): int;
 
     public function describeIntent(array $args, ToolContext $ctx): string;
+
+    public function describe(array $args, ToolContext $ctx): string;
 
     public function handle(object $args, ToolContext $ctx): ToolResult;
 }

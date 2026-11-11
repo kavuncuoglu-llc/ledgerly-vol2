@@ -6,6 +6,7 @@ use App\Ai\Python\Streams;
 use App\Ai\Retrieval\RetrievedChunk;
 use App\Ai\Security\AnswerRenderer;
 use App\Ai\Streaming\ReplyStarter;
+use App\Ai\Tools\PendingAction;
 use App\Ai\Tools\Tool;
 use App\Ai\Tools\ToolRegistry;
 use App\Models\Conversation;
@@ -13,6 +14,7 @@ use App\Models\Customer;
 use App\Models\HelpChunk;
 use App\Models\Invoice;
 use App\Models\Message;
+use App\Models\PendingToolCall;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Tenancy\CurrentTenant;
@@ -62,6 +64,12 @@ function runAnswerQuestion(string $question, User $as): Message
 function render_answer(Message $message): string
 {
     return app(AnswerRenderer::class)->render((string) $message->content);
+}
+
+// Chapter 33, Topic 6: the confirmation token belongs to the approver's page; a test plays the approver and asks for it the way the page does.
+function approvalToken(PendingToolCall $pending): string
+{
+    return PendingAction::tokenFor($pending->fresh());
 }
 
 function fakeStreams(): FakeStreams

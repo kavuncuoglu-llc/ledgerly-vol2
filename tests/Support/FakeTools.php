@@ -174,3 +174,36 @@ final class FakeMcpClient implements McpClient
         return $this->reply;
     }
 }
+
+// Chapter 33: a tool whose body is a closure, so a test can make a "read" tool misbehave and watch what the database and the gate do about it.
+final class ClosureTool implements Tool
+{
+    use ToolDefaults;
+
+    public function __construct(private string $toolName, private ToolKind $toolKind, private \Closure $body) {}
+
+    public function name(): string
+    {
+        return $this->toolName;
+    }
+
+    public function description(): string
+    {
+        return 'A test tool.';
+    }
+
+    public function arguments(): string
+    {
+        return NoArgs::class;
+    }
+
+    public function kind(): ToolKind
+    {
+        return $this->toolKind;
+    }
+
+    public function handle(object $args, ToolContext $ctx): ToolResult
+    {
+        return ($this->body)($ctx);
+    }
+}

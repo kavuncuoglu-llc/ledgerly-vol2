@@ -36,6 +36,7 @@ final class ToolRunner
             source: $pending->source,
             tokenName: $pending->token_name,
             toolCallId: $pending->tool_call_id,
+            approvedBy: $pending->approved_by,
         );
 
         $result = $this->executor->settle($pending, $approved, $ctx);

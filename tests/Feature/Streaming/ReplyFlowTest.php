@@ -349,6 +349,6 @@ describe('the sweep', function () {
 
         expect($pending->fresh()->status)->toBe('expired');
 
-        $this->actingAs($this->user)->postJson(route('support.approve', $pending))->assertStatus(409);
+        $this->actingAs($this->user)->postJson(route('support.approve', $pending), ['token' => approvalToken($pending)])->assertStatus(410);
     });
 });

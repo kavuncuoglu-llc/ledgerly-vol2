@@ -10,12 +10,17 @@ use App\Ai\Tools\ToolKind;
 use App\Ai\Tools\ToolResult;
 use App\Models\Invoice;
 use Carbon\CarbonImmutable;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 final class LookupInvoice implements Tool
 {
     use ToolDefaults;
+
+    public static function exampleArgs(): array
+    {
+        return ['invoice_number' => 'INV-4471', 'month' => null];
+    }
 
     public function name(): string
     {
@@ -39,7 +44,7 @@ final class LookupInvoice implements Tool
 
     public function handle(object $args, ToolContext $ctx): ToolResult
     {
-        $query = $ctx->user->customer->invoices();              // scoped: the model never supplies the customer
+        $query = Invoice::query()->forTools()->where('customer_id', $ctx->customerId());              // scoped: the model never supplies the customer
 
         $matches = $args->invoice_number
             ? $query->whereNumber($args->invoice_number)->get()
@@ -102,7 +107,7 @@ final class LookupInvoice implements Tool
             ->all();
     }
 
-    private function issuedIn(HasMany $query, string $month): Collection
+    private function issuedIn(Builder $query, string $month): Collection
     {
         $first = CarbonImmutable::createFromFormat('!Y-m', $month);
 

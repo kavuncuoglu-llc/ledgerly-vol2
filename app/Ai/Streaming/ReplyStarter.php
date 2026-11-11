@@ -4,6 +4,7 @@ namespace App\Ai\Streaming;
 
 use App\Ai\Conversations\ConversationStore;
 use App\Ai\Prompts\SupportPrompt;
+use App\Ai\Tools\PendingAction;
 use App\Jobs\AnswerQuestion;
 use App\Jobs\ResumeAgentRun;
 use App\Models\Conversation;
@@ -35,12 +36,7 @@ final class ReplyStarter
             ->where('user_id', $user->id)                                           // the approver must own the conversation the request came from
             ->findOrFail($pending->conversation_id);
 
-        $claimed = PendingToolCall::query()
-            ->whereKey($pending->id)
-            ->where('status', 'pending')
-            ->update(['status' => $approved ? 'approved' : 'declined']);            // one decision, once, even if the button is pressed twice
-
-        abort_unless($claimed === 1, 409, 'This request has already been answered.');
+        abort_unless(PendingAction::claim($pending, $user, $approved), 409, 'This request has already been answered.');     // one decision, once, even if the button is pressed twice
 
         $reply = $this->store->placeholder($conversation, 'Continue after your decision: '.$pending->summary);
 

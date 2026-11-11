@@ -6,7 +6,6 @@ use App\Ai\Events\ToolCalled;
 use App\Ai\Tracing\Tracing;
 use App\Models\PendingToolCall;
 use Closure;
-use Illuminate\Support\Facades\Validator;
 use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanKind;
 use OpenTelemetry\API\Trace\StatusCode;
@@ -23,38 +22,7 @@ final class ToolExecutor
 
     private function executeUntraced(Tool $tool, array $args, ToolContext $ctx, bool $approved): ToolResult
     {
-        $started = hrtime(true);
-
-        [$validated, $errors] = $this->validate($tool, $args);   // Chapter 10: enforced output still gets validated
-
-        if ($errors !== []) {
-            return $this->audit($tool, $args, ToolResult::error('invalid arguments', $errors), $ctx, 'invalid', $started);
-        }
-
-        $decision = $this->gate->check($tool, $args, $ctx);                    // Topic 5
-
-        if ($decision->requiresApproval && ! $approved) {
-            return $this->requestApproval($tool, $args, $ctx, $decision, $started);
-        }
-
-        if (! $decision->allowed && ! $decision->requiresApproval) {
-            return $this->audit($tool, $args, ToolResult::denied($decision->reason), $ctx, 'denied', $started);
-        }
-
-        return $this->handle($tool, $validated, $args, $ctx, $approved ? 'approved' : 'allowed', $started);
-    }
-
-    private function validate(Tool $tool, array $args): array
-    {
-        if ($tool instanceof RawSchemaTool) {
-            return [$args, RawSchemaValidator::errors($tool->inputSchema(), $args)];
-        }
-
-        $validator = Validator::make($args, ($tool->arguments())::rules());
-
-        return $validator->fails()
-            ? [[], $validator->errors()->toArray()]
-            : [$validator->validated(), []];
+        return $this->gate->dispatch($tool, $args, $ctx, $approved);                  // Chapter 33: schema, policy, budget, execution by risk, scan, audit: one path
     }
 
     public function execute(array $call, ToolContext $ctx, ?ToolRegistry $registry = null): ToolResult
@@ -89,41 +57,6 @@ final class ToolExecutor
         return is_array($decoded)
             ? $decoded
             : null;
-    }
-
-    private function handle(Tool $tool, array $validated, array $args, ToolContext $ctx, string $decision, int|float $started): ToolResult
-    {
-        try {
-            $class = $tool->arguments();
-
-            $result = $tool->handle($class::fromArray($validated), $ctx);
-
-            $ctx->noteCall($tool->name());
-        } catch (Throwable $e) {
-            report($e);
-
-            $result = ToolResult::error('tool failed', ['message' => 'The lookup could not be completed.']);   // never leak internals
-        }
-
-        return $this->audit($tool, $args, $result, $ctx, $decision, $started);
-    }
-
-    private function requestApproval(Tool $tool, array $args, ToolContext $ctx, GateDecision $decision, int|float $started): ToolResult
-    {
-        $pending = PendingToolCall::create([
-            'user_id' => $ctx->user->id,
-            'conversation_id' => $ctx->conversationId,
-            'tool' => $tool->name(),
-            'tool_call_id' => $ctx->toolCallId ?? '',
-            'arguments' => $args,
-            'summary' => $decision->summary,
-            'source' => $ctx->source,
-            'token_name' => $ctx->tokenName,
-        ]);
-
-        $result = ToolResult::pendingApproval($pending, route('support.approvals.show', $pending));
-
-        return $this->audit($tool, $args, $result, $ctx, 'pending_approval', $started);
     }
 
     public function settle(PendingToolCall $pending, bool $approved, ToolContext $ctx): ToolResult

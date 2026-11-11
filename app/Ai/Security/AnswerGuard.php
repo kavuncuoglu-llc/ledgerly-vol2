@@ -14,7 +14,7 @@ final class AnswerGuard
         private AnswerRenderer $renderer,
     ) {}
 
-    public function inspect(string $answer, ChatRequest $request, User $user): GuardVerdict
+    public function inspect(string $answer, ChatRequest $request, User $user, string $sharedText = ''): GuardVerdict
     {
         $reason = $this->extraction->check($answer, $request);
 
@@ -24,7 +24,10 @@ final class AnswerGuard
 
         $foreign = $user->customer_id === null
             ? []
-            : $this->identifiers->foreignInvoiceNumbers($answer, (int) $user->customer_id);
+            : array_values(array_diff(
+                $this->identifiers->foreignInvoiceNumbers($answer, (int) $user->customer_id),
+                $this->identifiers->foreignInvoiceNumbers($sharedText, (int) $user->customer_id),      // an example number in a shared help article is the article's, not a leak
+            ));
 
         if ($foreign !== []) {
             return new GuardVerdict(text: $answer, blockedBy: 'other_tenant_identifier', foreignIdentifiers: $foreign);

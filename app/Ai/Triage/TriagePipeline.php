@@ -11,6 +11,7 @@ use App\Ai\Schemas\TicketData;
 use App\Ai\Structured\StructuredClient;
 use App\Ai\Support\Route;
 use App\Ai\Support\Router;
+use App\Ai\Tools\Risk;
 use App\Ai\Tools\ToolContext;
 use App\Ai\Tools\ToolRegistry;
 use App\Models\AgentRun;
@@ -131,7 +132,7 @@ final class TriagePipeline
             return [[], null];
         }
 
-        $agent = new InvestigateAgent($route->category, $this->tools->only($route->tools ?? []), config('ai.agents.triage'));
+        $agent = new InvestigateAgent($route->category, $this->tools->only($this->investigationTools($route)), config('ai.agents.triage'));
 
         $result = $this->agents->run(                                                       // the ONE agentic step, bounded
             $agent,
@@ -176,6 +177,15 @@ final class TriagePipeline
             'amount_mentioned' => $fields->amount_mentioned,
             'date_mentioned' => $fields->date_mentioned,
         ], fn ($value) => $value !== null);
+    }
+
+    // The privileged triage step reads and may open one ticket. Money and account changes are for a customer in the chat and an agent in the queue, never for a background run.
+    private function investigationTools(Route $route): array
+    {
+        return collect($route->tools ?? [])
+            ->filter(fn (string $name) => $this->tools->get($name)?->risk() === Risk::Read || $name === 'open_ticket')
+            ->values()
+            ->all();
     }
 
     private function patterned(?string $number): ?string

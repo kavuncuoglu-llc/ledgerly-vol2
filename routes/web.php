@@ -3,6 +3,7 @@
 use App\Http\Controllers\AnswerFeedbackController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\BillingEmailConfirmationController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MemoryController;
 use App\Http\Controllers\OpsMetricsController;
 use App\Http\Controllers\ReplyController;
+use App\Http\Controllers\StaffApprovalController;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\TicketController;
 use Illuminate\Support\Facades\Route;
@@ -42,8 +44,15 @@ Route::get('replies/{reply}', [ReplyController::class, 'show'])->middleware('aut
 Route::post('replies/{reply}/feedback', [AnswerFeedbackController::class, 'store'])->middleware('auth')->name('replies.feedback');
 
 Route::get('support/approvals/{pending}', [ApprovalController::class, 'show'])->middleware('auth:web,sanctum')->name('support.approvals.show');
+Route::get('billing-email/confirm/{customer}', BillingEmailConfirmationController::class)->middleware('signed')->name('billing-email.confirm');
 Route::post('support/approve/{pending}', [ApprovalController::class, 'approve'])->middleware(['auth', 'throttle:ai'])->name('support.approve');
 Route::post('support/decline/{pending}', [ApprovalController::class, 'decline'])->middleware(['auth', 'throttle:ai'])->name('support.decline');
+
+Route::middleware(['auth', 'can:viewPulse'])->prefix('staff')->name('staff.')->group(function () {
+    Route::get('approvals', [StaffApprovalController::class, 'index'])->name('approvals.index');
+    Route::post('approvals/{pending}/approve', [StaffApprovalController::class, 'approve'])->name('approvals.approve');
+    Route::post('approvals/{pending}/decline', [StaffApprovalController::class, 'decline'])->name('approvals.decline');
+});
 
 Route::post('support/conversations/{conversation}/close', [ConversationController::class, 'close'])->middleware('auth')->name('support.conversations.close');
 

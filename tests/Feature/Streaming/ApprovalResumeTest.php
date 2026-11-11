@@ -61,7 +61,7 @@ it('pauses the reply for approval, ends the job and tells the page what is being
 it('queues the resumed run on the ai queue and returns at once', function () {
     Queue::fake();
 
-    $this->postJson(route('support.approve', $this->pending))
+    $this->postJson(route('support.approve', $this->pending), ['token' => approvalToken($this->pending)])
         ->assertStatus(202)
         ->assertJsonPath('status', 'resuming')
         ->assertJsonPath('channel', fn (string $channel) => str_starts_with($channel, 'reply.'));
@@ -74,7 +74,7 @@ it('queues the resumed run on the ai queue and returns at once', function () {
 
 it('runs the tool in the job, streams the rest into a new reply and writes the real result over the waiting note', function () {
     $reply = Message::query()->findOrFail(
-        $this->postJson(route('support.approve', $this->pending))->assertStatus(202)->json('reply_id'),
+        $this->postJson(route('support.approve', $this->pending), ['token' => approvalToken($this->pending)])->assertStatus(202)->json('reply_id'),
     );
 
     expect($reply->fresh()->status)->toBe('completed')
@@ -102,11 +102,11 @@ it('records a refusal and lets the model say so', function () {
 });
 
 it('answers a second press of the button with a 409 and runs nothing twice', function () {
-    $this->postJson(route('support.approve', $this->pending))->assertStatus(202);
+    $this->postJson(route('support.approve', $this->pending), ['token' => approvalToken($this->pending)])->assertStatus(202);
 
-    $this->postJson(route('support.approve', $this->pending))->assertStatus(409);
+    $this->postJson(route('support.approve', $this->pending), ['token' => approvalToken($this->pending)])->assertStatus(410);
 
-    $this->postJson(route('support.decline', $this->pending))->assertStatus(409);
+    $this->postJson(route('support.decline', $this->pending))->assertStatus(410);
 
     expect(RefundTool::$runs)->toBe(1);
 });
@@ -118,7 +118,7 @@ it('refuses everyone but the person the assistant asked', function () {
     [$stranger] = customerWithInvoice('INV-9001');
 
     foreach ([$colleague, $stranger] as $other) {
-        $this->actingAs($other)->postJson(route('support.approve', $this->pending))->assertForbidden();
+        $this->actingAs($other)->postJson(route('support.approve', $this->pending), ['token' => approvalToken($this->pending)])->assertForbidden();
     }
 
     Queue::assertNothingPushed();

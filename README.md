@@ -34,6 +34,7 @@ Each chapter of this volume is a tag, `ch26` through `ch51`, taken at the end of
 | `ch30` | Evaluation as an ongoing practice: thumbs and reason chips (`answer_feedback`), `ComputeOnlineSignals`, `eval:sample` with the Python judge (`training/evals/`, RAGAS and DeepEval), `Experiment` with shadow runs and A/B tests (`ai:experiment`), `eval:scorecard`, `eval:tripwire` and `ai:models:audit`. |
 | `ch31` | Observability: the `observability` Compose profile (OpenTelemetry collector that deletes content attributes, Jaeger on `127.0.0.1:16686`), `TracingModel` and tool spans, trace context through queues and Redis streams, `trace_id`/`span_id` on `model_calls` and `tool_calls`, Laravel Pulse cards (`/pulse`), `ai:sample --trace` and `ai:drift`. |
 | `ch32` | Direct and indirect prompt injection: `Untrusted::wrap` (random-token tags) around every customer-written turn, retrieved passage and tool-result text; the untrusted-content convention and a canary in the system message; quarantined ticket extraction (the privileged triage agent never sees the ticket body); `ExtractionGuard`, `AnswerGuard` and `AnswerRenderer` (blocked answers, links and images to unlisted hosts stripped); the fooled-model Pest suite (`--group=security`), injection fixtures in `tests/Fixtures/injection/` and `php artisan eval:injection`. |
+| `ch33` | Tool guardrails: `ToolGate::dispatch` (schema, policy, budget, execution by declared risk, result scan, audit), the `ledgerly_tool_read` and `ledgerly_tool_write` Postgres roles with column grants, `pending_tool_actions` with single-use confirmation tokens, the new tools `check_payment_status`, `resend_invoices`, `retry_payment`, `change_billing_email` and `issue_credit`, the support agents' approval queue (`/staff/approvals`), per-tool restricted keys and scoped STS credentials, and the `ledgerly-sandbox` image with `sandbox:run`. |
 
 ## Set up `vol2-start`
 
@@ -149,6 +150,19 @@ php artisan eval:injection --carrier=invoice_line_item --report=mlflow     # one
 ```
 
 `eval:injection` plants each payload in its carrier inside a database transaction (an invoice line item, a payment reference, a tenant-private help passage, a ticket body, or the customer's own message), asks the assistant (or runs triage for a ticket), reads what happened and rolls the plant back. It needs a seeded database (`php artisan migrate --seed`), `help:ingest` and a model; with `llama3.1:8b` expect a minute or two per fixture. Model-level success will not be zero. System-level success must be: the command prints which fixture broke through and exits 1. Set your own `AI_PROMPT_CANARY` in `.env` (the one in `.env.example` is public) and list the hosts an answer may link to in `AI_LINK_HOSTS`; a link or image to any other host is cut out of the stored answer. A blocked answer is stored with `status = blocked` and `messages.guard` names the rule that stopped it, never the text.
+
+### From `ch33`: the tool gate, approvals and the sandbox
+
+```bash
+php artisan migrate                                              # roles + column grants, pending_tool_actions, payment_retries, invoice_credits, customers.billing_email_pending
+vendor/bin/pest --group=tools                                     # every stage of the gate, every misuse of a confirmation, the grants themselves
+docker build -t ledgerly-sandbox:vol2 ops/sandbox                  # the image for code a model wrote (Volume 3 uses it)
+SANDBOX_ENABLED=true php artisan sandbox:run my_script.py --file=invoice.json   # runs /in/script.py with no network; the script writes /out/result.json
+```
+
+Every tool call goes through `App\Ai\Tools\ToolGate::dispatch`. Reads run in a read-only transaction after `SET LOCAL ROLE ledgerly_tool_read`; low-risk writes run under `ledgerly_tool_write`; a high-risk write only writes a pending action, and the customer (or, for credits, a support agent at `/staff/approvals`) approves it on a page that holds the token. The migration that creates the roles needs a database user allowed to `CREATE ROLE` (the Compose user is); roles are shared by every database on the server, the grants are per database. Your application must not connect as a superuser in production, or `SET LOCAL ROLE` is the only thing standing between a tool and the whole database; the tests run as one, so they prove the role, not the connection. Tools now select explicit columns (`Invoice::forTools()`): a tool that reads `invoices.notes` fails with `permission denied`, on purpose. Unknown arguments are refused, not ignored. `AI_TOOL_CONVERSATION_BUDGET` (default 8) caps the tool calls in one conversation.
+
+The sandbox runs on a worker host with Docker, never the app host: `SANDBOX_ENABLED` is off by default. Add `SANDBOX_RUNTIME=runsc` where gVisor is installed. `PAYMENTS_KEY_RETRY_PAYMENT` is where a restricted key for `retry_payment` goes (the payment processor is fictional here); `DOCUMENTS_ROLE_ARN` and `DOCUMENTS_BUCKET` are for the short-lived credentials Volume 3's document tools mint.
 
 ## The app as Volume 1 left it
 

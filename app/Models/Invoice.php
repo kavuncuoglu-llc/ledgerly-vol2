@@ -67,6 +67,12 @@ class Invoice extends Model
         return $this->hasMany(Payment::class)->orderBy('paid_at');
     }
 
+    // Chapter 33, Topic 5: the columns the read role may select (database/sql/tool_roles.sql). Notes are not among them.
+    public function scopeForTools(Builder $query): Builder
+    {
+        return $query->select(['id', 'customer_id', 'number', 'status', 'currency', 'subtotal', 'tax', 'total', 'issued_at', 'due_at', 'paid_at', 'late_fee_cents', 'created_at', 'updated_at', 'deleted_at']);
+    }
+
     public function scopeWhereNumber(Builder $query, string $number): Builder
     {
         $digits = preg_replace('/^[#\s]*(?:INV-?)?/i', '', trim($number));

@@ -90,7 +90,7 @@ describe('the server', function () {
     it('lists the registry\'s native tools with their schemas and risk hints', function () {
         $tools = collect(mcp($this->token, 'tools/list')->assertOk()->json('result.tools'))->keyBy('name');
 
-        expect($tools->keys()->all())->toBe(['lookup_invoice', 'open_ticket', 'account_status', 'list_invoices', 'search_help_center'])
+        expect($tools->keys()->all())->toBe(['lookup_invoice', 'open_ticket', 'account_status', 'list_invoices', 'check_payment_status', 'resend_invoices', 'retry_payment', 'change_billing_email', 'issue_credit', 'search_help_center'])
             ->and($tools['lookup_invoice']['inputSchema']['required'])->toBe(['invoice_number', 'month'])
             ->and($tools['lookup_invoice']['inputSchema']['additionalProperties'])->toBeFalse()
             ->and($tools['lookup_invoice']['annotations']['readOnlyHint'])->toBeTrue()
@@ -178,7 +178,7 @@ describe('calling tools', function () {
         $pending = PendingToolCall::sole();
 
         $this->actingAs($this->maya)
-            ->postJson(route('support.approve', $pending))
+            ->postJson(route('support.approve', $pending), ['token' => approvalToken($pending)])
             ->assertOk()
             ->assertJson(['status' => 'approved', 'answer' => 'Done.']);
 

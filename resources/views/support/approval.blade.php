@@ -5,7 +5,7 @@
 @section('content')
     <h1>The assistant wants to act</h1>
 
-    <p class="muted">Nothing runs until you say yes (Chapter 11, Topic 5).</p>
+    <p class="muted">Nothing runs until you say yes. This card was written by Ledgerly's code from the checked arguments, not by the assistant (Chapter 33, Topic 6).</p>
 
     <div class="answer">
         <p><strong>{{ $pending->summary }}</strong></p>
@@ -21,6 +21,7 @@
     @if ($pending->isPending())
         <form method="POST" action="{{ route('support.approve', $pending) }}" class="ask-form">
             @csrf
+            <input type="hidden" name="token" value="{{ $token }}">
             <button type="submit">Approve</button>
         </form>
 

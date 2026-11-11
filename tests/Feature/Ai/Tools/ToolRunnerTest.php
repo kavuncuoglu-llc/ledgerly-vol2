@@ -59,7 +59,7 @@ describe('the loop', function () {
 
         $lookup = collect($tools)->firstWhere('function.name', 'lookup_invoice');
 
-        expect(collect($tools)->pluck('function.name')->all())->toBe(['account_status', 'list_invoices', 'lookup_invoice', 'open_ticket'])   // sorted by name: a stable prefix for the prompt cache
+        expect(collect($tools)->pluck('function.name')->all())->toBe(['account_status', 'change_billing_email', 'check_payment_status', 'issue_credit', 'list_invoices', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment'])   // sorted by name: a stable prefix for the prompt cache
             ->and($lookup['type'])->toBe('function')
             ->and($lookup['function']['parameters']['required'])->toBe(['invoice_number', 'month'])
             ->and($lookup['function']['parameters']['additionalProperties'])->toBeFalse()
@@ -282,7 +282,7 @@ describe('arguments are validated', function () {
         runTools($user);
 
         expect(json_decode(toolMessages(sentChatBodies()[1])[0]['content'], true)['error'])->toBe('unknown tool')
-            ->and(collect(sentChatBodies()[0]['tools'])->pluck('function.name')->all())->toBe(['account_status', 'list_invoices', 'lookup_invoice', 'open_ticket']);
+            ->and(collect(sentChatBodies()[0]['tools'])->pluck('function.name')->all())->toBe(['account_status', 'change_billing_email', 'check_payment_status', 'issue_credit', 'list_invoices', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment']);
     });
 });
 
@@ -301,7 +301,7 @@ describe('scoping', function () {
         expect(json_decode(toolMessages(sentChatBodies()[1])[0]['content'], true))->toBe(['ok' => true, 'found' => false]);
     });
 
-    it('ignores a customer_id the model invents', function () {
+    it('rejects a customer_id the model invents instead of ignoring it (Chapter 33: unknown fields are refused)', function () {
         [$acme, , $acmeCustomer] = customerWithInvoice('INV-4471');
         [$other, , $otherCustomer] = customerWithInvoice('INV-9001');
 
@@ -312,7 +312,11 @@ describe('scoping', function () {
 
         runTools($other);
 
-        expect(json_decode(toolMessages(sentChatBodies()[1])[0]['content'], true)['found'])->toBeFalse();
+        $content = json_decode(toolMessages(sentChatBodies()[1])[0]['content'], true);
+
+        expect($content['ok'])->toBeFalse()
+            ->and($content['error'])->toBe('invalid arguments')
+            ->and(json_encode($content))->toContain('customer_id');
     });
 
     it('does not put another customer\'s invoice number on a ticket', function () {
@@ -574,5 +578,5 @@ it('keeps the registry free of tools it was not given', function () {
     expect(app(ToolRegistry::class)->get('lookup_invoice'))->not->toBeNull()
         ->and(app(ToolRegistry::class)->get('list_invoices'))->not->toBeNull()
         ->and(app(ToolRegistry::class)->get('search_help_center'))->toBeNull()
-        ->and(app(ToolRegistry::class)->native()->keys()->all())->toBe(['lookup_invoice', 'open_ticket', 'account_status', 'list_invoices', 'search_help_center']);
+        ->and(app(ToolRegistry::class)->native()->keys()->all())->toBe(['lookup_invoice', 'open_ticket', 'account_status', 'list_invoices', 'check_payment_status', 'resend_invoices', 'retry_payment', 'change_billing_email', 'issue_credit', 'search_help_center']);
 });

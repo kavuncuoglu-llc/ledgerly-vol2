@@ -314,11 +314,11 @@ final class SupportAssistant
     // Chapter 32, Topics 4 and 7: the last thing between the model and the customer. A blocked answer is replaced by a fixed message and stored as blocked; a link or image to a host nobody listed is cut out of what is stored and shown.
     private function guarded(ToolRunResult $result, AssembledPrompt $prompt, User $user): array
     {
-        if ($result->response === null || $result->pendingApprovals !== [] || $result->response->toolCalls !== []) {
+        if ($result->response === null || $result->pendingApprovals !== []) {
             return [$result, false, []];
         }
 
-        $verdict = $this->guard->inspect((string) $result->response->content, ChatRequest::make($prompt->messages, [], 'support.reply'), $user);
+        $verdict = $this->guard->inspect($result->answer(), ChatRequest::make($prompt->messages, [], 'support.reply'), $user, $this->sharedText($prompt));
 
         if ($verdict->blocked()) {
             Log::warning('An answer was blocked before it was shown', ['rule' => $verdict->blockedBy, 'user_id' => $user->id]);      // the rule, never the text
@@ -327,6 +327,14 @@ final class SupportAssistant
         }
 
         return [$result->withContent($verdict->text), false, $verdict->findings()];
+    }
+
+    private function sharedText(AssembledPrompt $prompt): string
+    {
+        return collect($prompt->labelMap)
+            ->filter(fn ($chunk) => $chunk->isShared())
+            ->map(fn ($chunk) => $chunk->body())
+            ->implode("\n");
     }
 
     private function recordCitationErrors(Conversation $conversation, int $errors): void

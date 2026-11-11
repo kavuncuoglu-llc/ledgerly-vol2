@@ -7,10 +7,17 @@ use App\Ai\Tools\ToolContext;
 use App\Ai\Tools\ToolDefaults;
 use App\Ai\Tools\ToolKind;
 use App\Ai\Tools\ToolResult;
+use App\Models\Customer;
+use App\Models\User;
 
 final class AccountStatus implements Tool
 {
     use ToolDefaults;
+
+    public static function exampleArgs(): array
+    {
+        return [];
+    }
 
     public function name(): string
     {
@@ -34,13 +41,13 @@ final class AccountStatus implements Tool
 
     public function handle(object $args, ToolContext $ctx): ToolResult
     {
-        $customer = $ctx->user->customer;                      // the model never supplies the account
+        $customer = Customer::query()->select(['id', 'plan', 'status', 'seats'])->findOrFail($ctx->customerId());                      // the model never supplies the account
 
         return ToolResult::ok([
             'plan' => $customer->plan,
             'status' => $customer->status,
             'seats' => $customer->seats,
-            'team_members' => $customer->users()->count(),
+            'team_members' => User::query()->where('customer_id', $customer->id)->count(),
         ]);
     }
 }

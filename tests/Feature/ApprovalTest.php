@@ -42,14 +42,14 @@ it('lets a token holder poll the status as JSON', function () {
 
     $this->getJson(route('support.approvals.show', $this->pending), ['Authorization' => "Bearer {$token}"])
         ->assertOk()
-        ->assertExactJson(['id' => $this->pending->id, 'tool' => 'issue_refund', 'summary' => 'Refund $21.60 late fee on invoice #4471', 'status' => 'pending']);
+        ->assertJson(['id' => $this->pending->id, 'tool' => 'issue_refund', 'summary' => 'Refund $21.60 late fee on invoice #4471', 'status' => 'pending', 'token' => approvalToken($this->pending)]);
 });
 
 it('runs the tool and returns the resumed answer on approve', function () {
     fakeChatSequence(chatBody('I refunded $21.60.'));
 
     $this->actingAs($this->user)
-        ->postJson(route('support.approve', $this->pending))
+        ->postJson(route('support.approve', $this->pending), ['token' => approvalToken($this->pending)])
         ->assertOk()
         ->assertExactJson(['status' => 'approved', 'answer' => 'I refunded $21.60.', 'truncated' => false]);
 
@@ -61,7 +61,7 @@ it('redirects back to the page with the answer when a form posts', function () {
     fakeChatSequence(chatBody('I refunded $21.60.'));
 
     $this->actingAs($this->user)
-        ->post(route('support.approve', $this->pending))
+        ->post(route('support.approve', $this->pending), ['token' => approvalToken($this->pending)])
         ->assertRedirect(route('support.approvals.show', $this->pending))
         ->assertSessionHas('answer', 'I refunded $21.60.');
 });
@@ -80,9 +80,9 @@ it('does not run the tool on decline and says so to the model', function () {
 it('answers a request only once', function () {
     fakeChatSequence(chatBody('I refunded $21.60.'));
 
-    $this->actingAs($this->user)->postJson(route('support.approve', $this->pending))->assertOk();
+    $this->actingAs($this->user)->postJson(route('support.approve', $this->pending), ['token' => approvalToken($this->pending)])->assertOk();
 
-    $this->actingAs($this->user)->postJson(route('support.approve', $this->pending))->assertStatus(409);
+    $this->actingAs($this->user)->postJson(route('support.approve', $this->pending), ['token' => approvalToken($this->pending)])->assertStatus(410);
 
     expect(RefundTool::$runs)->toBe(1);
 });
@@ -91,7 +91,7 @@ it('keeps another user out of the request', function () {
     $stranger = User::factory()->owner()->create();
 
     $this->actingAs($stranger)->get(route('support.approvals.show', $this->pending))->assertForbidden();
-    $this->actingAs($stranger)->postJson(route('support.approve', $this->pending))->assertForbidden();
+    $this->actingAs($stranger)->postJson(route('support.approve', $this->pending), ['token' => approvalToken($this->pending)])->assertForbidden();
     $this->actingAs($stranger)->postJson(route('support.decline', $this->pending))->assertForbidden();
 
     expect(RefundTool::$runs)->toBe(0)
@@ -99,7 +99,7 @@ it('keeps another user out of the request', function () {
 });
 
 it('turns away a guest', function () {
-    $this->postJson(route('support.approve', $this->pending))->assertUnauthorized();
+    $this->postJson(route('support.approve', $this->pending), ['token' => approvalToken($this->pending)])->assertUnauthorized();
     $this->getJson(route('support.approvals.show', $this->pending))->assertUnauthorized();
 });
 

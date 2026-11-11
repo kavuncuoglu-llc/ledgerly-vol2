@@ -69,6 +69,12 @@ final class ToolRegistry
         return $copy;
     }
 
+    /** @return Collection<string, Tool> every tool this application owns that declares this risk */
+    public function ofRisk(Risk $risk): Collection
+    {
+        return $this->native()->filter(fn (Tool $tool) => $tool->risk() === $risk);
+    }
+
     /** @return Collection<string, Tool> the tools this application owns, which MCP clients also get */
     public function native(): Collection
     {

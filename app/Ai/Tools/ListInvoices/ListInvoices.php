@@ -9,6 +9,7 @@ use App\Ai\Tools\ToolContext;
 use App\Ai\Tools\ToolDefaults;
 use App\Ai\Tools\ToolKind;
 use App\Ai\Tools\ToolResult;
+use App\Models\Invoice;
 use App\Support\Ledgerly;
 
 final class ListInvoices implements Tool
@@ -18,6 +19,11 @@ final class ListInvoices implements Tool
     private const FETCH_LIMIT = 200;
 
     public function __construct(private DataEncoder $encoder) {}
+
+    public static function exampleArgs(): array
+    {
+        return ['status' => null, 'months' => 3];
+    }
 
     public function name(): string
     {
@@ -41,7 +47,8 @@ final class ListInvoices implements Tool
 
     public function handle(object $args, ToolContext $ctx): ToolResult
     {
-        $rows = $ctx->user->customer->invoices()
+        $rows = Invoice::query()->forTools()
+            ->where('customer_id', $ctx->customerId())
             ->when($args->status, fn ($q) => $q->where('status', $args->status))
             ->where('issued_at', '>=', Ledgerly::today()->subMonths($args->months ?? 6))
             ->latest('issued_at')
