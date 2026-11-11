@@ -18,12 +18,18 @@ class Message extends Model
             'seq' => 'integer',
             'tokens' => 'integer',
             'tool_calls' => 'array',
+            'retrieved' => 'array',
         ];
     }
 
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class);
+    }
+
+    public function retrievedLabels(): array
+    {
+        return collect($this->retrieved ?? [])->pluck('eval_label')->all();
     }
 
     public function isCompacted(): bool

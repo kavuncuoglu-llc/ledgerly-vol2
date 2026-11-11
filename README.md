@@ -28,6 +28,7 @@ Each chapter of this volume is a tag, `ch26` through `ch51`, taken at the end of
 | `ch26` | `training/`: a `uv` project (Python 3.12, `pyproject.toml`, `uv.lock`, extras `cuda`, `rocm` and `mlx`) with `hello_model.py`, `tokens.py`, `embed_compare.py` and `token_lengths.py`, and `ops/compose/ollama.localhost.yml`. |
 | `ch27` | Python beside PHP: JSON Schema contracts in `contracts/` validated by PHP and by generated Pydantic models, the embedding worker (`py-worker`) and `py:listen` over Redis streams, the shadow table `help_chunk_vectors`, `ai:reembed`, `ai:compare-vectors`, `ai:promote-vectors`, `retrieval:eval --vectors=shadow`, `dataset:validate`, the first CI (`.github/workflows/ci.yml`: PHP, Python and contracts jobs). |
 | `ch28` | The Python AI stack, mapped: the `mlflow` Compose profile (`ops/compose/mlflow.yml`, `127.0.0.1:5050`), `help:export --jsonl`, `training/scripts/dataset_stats.py`, and the decision record `docs/adr/python-libraries.md`. |
+| `ch29` | Tests for a system whose output varies: failure-path tests with `Ai::fake()`, prompt snapshots and `prompts.lock`, the golden set in `tests/golden/`, `POST /eval/answer` (only with `AI_EVAL_ENABLED=true`), promptfoo gates in `evals/`, `eval:gates`, `eval:check`, `eval:synthesize`, `eval:capture` and friends, and `.github/workflows/ai-evals.yml`. |
 
 ## Set up `vol2-start`
 
@@ -83,6 +84,24 @@ open http://localhost:5050                                  # the run, its param
 ```
 
 MLflow's server has no login: the file publishes it on `127.0.0.1` only (`MLFLOW_PORT`, default 5050), and it must stay there or behind a private network. Run data lives in the `mlflow-db` and `mlflow-artifacts` volumes. The training scripts read `MLFLOW_TRACKING_URI` (`http://localhost:5050` in `.env.example`). The image is pinned in `MLFLOW_IMAGE`. `docs/adr/python-libraries.md` records which Python libraries the app adopts, defers or leaves alone, and why.
+
+### From `ch29`: golden set, gates and the evaluation endpoint
+
+The Pest suite never calls a model. The gates do: they send the golden questions through the whole pipeline (retrieval, routing, tools, citation checking) against your local model, at temperature 0 with a seed.
+
+```bash
+# in .env: AI_EVAL_ENABLED=true, EVAL_TOKEN=<any long random string>, AI_MODEL=llama3.1:8b (or the model you built), BROADCAST_CONNECTION=null
+php artisan migrate --seed && php artisan help:ingest
+php artisan eval:gates --set=golden --sample=smoke          # in PHP: the 25-case smoke subset (all, human, synthetic, or a number)
+php artisan serve --port=8000 &                              # the endpoint promptfoo calls: POST /eval/answer
+php artisan eval:export-promptfoo --subset=smoke             # writes tests/golden/promptfoo.yaml (git-ignored)
+EVAL_TOKEN=... npx promptfoo@0.125.1 eval -c evals/promptfooconfig.yaml -o results.json --no-cache
+php artisan eval:check results.json --quality=0.95 --never=0
+php artisan eval:synthesize --generator=late-invoices --count=40 --writer=local   # --writer=frontier needs FRONTIER_* in .env
+php artisan prompts:lock                                    # after you bump a prompt's VERSION and review the snapshot
+```
+
+`/eval/answer` exists only when `AI_EVAL_ENABLED=true`, wants `EVAL_TOKEN` as a bearer token and answers only as the seeded fixture customers (`acme` is Acme Studios). Keep the flag off anywhere real customers are. `promptfoo` is a Node tool; the repository itself has no Node dependency, and `npx` fetches the pinned version. A CPU model takes 20 to 30 seconds per answer, so the smoke subset takes ten minutes or so. `eval:report --to=mlflow` logs a run to the tracker from Chapter 28. The workflow `.github/workflows/ai-evals.yml` runs the smoke subset on every push to `main` and the full set with the judge nightly; the judge needs `FRONTIER_MODEL` and `FRONTIER_KEY` as repository variables and secrets and is skipped without them.
 
 ## The app as Volume 1 left it
 

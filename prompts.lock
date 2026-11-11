@@ -1,0 +1,35 @@
+{
+    "DraftReplyPrompt": {
+        "2026-11-03.1": "ae6cef429122c3263e8c09e49c80d70c8a47b5df175fd367bcdba094e7b69c02"
+    },
+    "ExtractMemoriesPrompt": {
+        "2026-11-01.1": "ba82284a88e0de1862e6298128409955ab6dfd4fea229b98b5570e3f6dc7e7aa"
+    },
+    "InvestigatePrompt": {
+        "2026-11-03.1": "24745f361e2c96619cd08ca09597b620adec38f19ffb93fc9a7dfb9270b2f765"
+    },
+    "InvoicePrompt": {
+        "2026-11-01.1": "b6a7d07578a7e48fc8a76d08900b8c23ca5e1b53bd6e1e115729b8f950fe77c4"
+    },
+    "JudgePrompt": {
+        "2026-11-05.1": "4a3fd38aa105b46b0f1832f847ff7ca363efd3d37dca588e9e519fdafdee36be"
+    },
+    "ReminderPrompt": {
+        "2026-11-04.1": "4702da7752e4e4b07204825620c774c1a4d71b2d3e68b77f05e41336d88bba08"
+    },
+    "RewritePrompt": {
+        "2026-11-02.1": "dd27a5b1d38a0a85d7e371d7aafc925ac4bb038ffd549a24e4ce5bd8e2e2d1c0"
+    },
+    "SummarizePrompt": {
+        "2026-11-01.1": "2d426b6f46b6cf6e2e7fa5470508fa7539c749224e91383f7e46a4cdbb9c9f7f"
+    },
+    "SupportPrompt": {
+        "2026-11-01.6": "fffc970010da5138d888007be5fd957eb9109d4b2127e918227aec5fc691cefd"
+    },
+    "TicketClassifyPrompt": {
+        "2026-11-01.1": "1eb208aaf2154ee84eac9ccea8495aa40baa541f1fc5942c0eb6c4012e688127"
+    },
+    "TicketExtractPrompt": {
+        "2026-11-01.1": "1f0aae38e8e4663e087a0a0c7db7386ad8b3bf7bec0567d783d4892072931fff"
+    }
+}

@@ -50,6 +50,14 @@ window.followReply = function (replyId, handlers) {
             return;
         }
 
+        if (message.status === 'truncated') {
+            finish();
+
+            handlers.onFailed(message.content);
+
+            return;
+        }
+
         if (message.status === 'paused') {
             finish();
 

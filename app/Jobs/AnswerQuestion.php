@@ -127,7 +127,14 @@ final class AnswerQuestion implements ShouldBeUnique, ShouldQueue
             return;
         }
 
+        if ($reply->status === 'truncated') {
+            $stream->channel()->failed();                                          // the page re-reads the stored reply, which says it was cut off
+
+            return;
+        }
+
         $stream->channel()->completed($this->sources($reply), $result->citations === null || ! $result->citations->hasErrors());
+
     }
 
     private function sources(Message $reply): array

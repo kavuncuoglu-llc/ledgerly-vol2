@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'mlflow' => [
+        'tracking_uri' => env('MLFLOW_TRACKING_URI', 'http://localhost:5050'),   // Chapter 28's tracker; the evaluation reports and scorecards log here (Chapters 29 and 30)
+    ],
+
 ];

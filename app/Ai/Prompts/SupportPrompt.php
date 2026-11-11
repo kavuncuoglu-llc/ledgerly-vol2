@@ -51,6 +51,11 @@ final class SupportPrompt
         return 'Our assistant is briefly unavailable. You can search the help center in the meantime, or open a ticket and a person will reply.';
     }
 
+    public static function truncatedMessage(): string
+    {
+        return 'That answer was cut off before it was finished, so I have not shown it. Please ask again, or open a ticket and a person will reply.';
+    }
+
     public static function declineMessage(): string
     {
         return 'That is outside what I can help with here. I can answer questions about using Ledgerly, your invoices and your account.';

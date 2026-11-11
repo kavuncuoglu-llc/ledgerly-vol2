@@ -197,7 +197,7 @@ describe('the fake driver passes the same suite', function () {
         Ai::fake()
             ->for('conformance.test')
             ->respondWith('A late fee is an extra charge.')
-            ->respondWith('A late fee is', finish: FinishReason::Length)
+            ->respondWith('A late fee is', finishReason: FinishReason::Length)
             ->respondWithToolCall('lookup_invoice', ['invoice_number' => '4471', 'month' => null]);
 
         $request = new ChatRequest(messages: [['role' => 'user', 'content' => 'hi']], feature: 'conformance.test');

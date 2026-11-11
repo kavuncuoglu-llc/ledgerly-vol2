@@ -1,0 +1,24 @@
+description: Ledgerly support assistant, heuristic gates
+prompts:
+  - "{{question}}"
+providers:
+  - id: http
+    label: ledgerly-eval-answer
+    config:
+      url: "{{ env.EVAL_BASE_URL | default('http://127.0.0.1:8000') }}/eval/answer"
+      method: POST
+      headers:
+        Authorization: "Bearer {{ env.EVAL_TOKEN }}"
+        Content-Type: application/json
+      body:
+        question: "{{question}}"
+        customer: "{{customer}}"
+      transformResponse: json
+tests: file://../tests/golden/promptfoo.yaml
+evaluateOptions:
+  maxConcurrency: 1
+  cache: false
+defaultTest:
+  assert:
+    - type: javascript
+      value: file://assertions/gates.js

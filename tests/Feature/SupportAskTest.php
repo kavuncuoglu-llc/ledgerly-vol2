@@ -116,8 +116,11 @@ it('records the finish reason when the reply was cut off by the token limit', fu
         ->postJson('support/ask', ['question' => 'What is a late fee?'])
         ->assertStatus(202);
 
+    $reply = Message::query()->where('role', 'assistant')->sole();
+
     expect(ModelCall::sole()->finish_reason)->toBe('length')
-        ->and(Message::query()->where('role', 'assistant')->sole()->content)->toBe('A late fee is');
+        ->and($reply->status)->toBe('truncated')                                    // Chapter 29: flagged, and never shown as if it were complete
+        ->and($reply->content)->toBe(SupportPrompt::truncatedMessage());
 });
 
 it('turns away a guest', function () {

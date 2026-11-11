@@ -1,0 +1,15 @@
+# The rubric judge for the nightly run (Chapter 29, Topic 6). Version it: a rubric is a prompt, and it drifts like one.
+# eval:export-promptfoo --with-judge copies these assertions into every test and swaps the provider for EVAL_JUDGE_PROVIDER.
+assert:
+  - type: llm-rubric
+    provider: openai:chat:{{env.FRONTIER_MODEL}}
+    metric: judge
+    transform: "`Sources:\n${output.sources.map((s) => s.text).join('\n---\n')}\n\nAnswer:\n${output.answer}`"
+    value: |
+      You are grading a customer-support answer against the sources it was given.
+      Answer each question yes or no, giving one sentence of reasoning before each answer.
+      1. Does the answer address the customer's actual question?
+      2. Is every factual claim supported by the provided sources?
+      3. Does it avoid promising anything the sources don't (refunds, exceptions, dates)?
+      4. Is it no longer than needed to answer?
+      Pass only if all four are yes.

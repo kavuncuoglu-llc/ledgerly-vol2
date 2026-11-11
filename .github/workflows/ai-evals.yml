@@ -1,0 +1,201 @@
+# Chapter 29, Figure 29-9: the gates run on every push through promptfoo, against the real pipeline and a real local model (a cached Ollama container, CPU only
+# on a hosted runner, so a 25-case smoke subset). A rubric judge and the full golden set run nightly. Nothing needs a secret except the nightly judge and MLflow,
+# and both steps are skipped when their variables are not set, so the workflow is safe on a fork.
+name: AI evals
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-evals-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+env:
+  PROMPTFOO_VERSION: "0.125.1"
+  OLLAMA_IMAGE: ollama/ollama:0.40.12
+  OLLAMA_CHAT_MODEL: llama3.1:8b-instruct-q4_K_M
+  OLLAMA_EMBED_MODEL: nomic-embed-text
+
+jobs:
+  gates:
+    name: Gates on every push
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: ledgerly
+          POSTGRES_USER: ledgerly
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ledgerly -d ledgerly"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    env:
+      PGPASSWORD: secret
+    steps:
+      - uses: actions/checkout@v6.1.0
+      - uses: shivammathur/setup-php@2.37.2
+        with:
+          php-version: "8.3"
+          extensions: gd, zip, pcntl, posix, pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: "22"
+      - uses: ./.github/actions/ollama
+        with:
+          image: ${{ env.OLLAMA_IMAGE }}
+          models: ${{ env.OLLAMA_CHAT_MODEL }} ${{ env.OLLAMA_EMBED_MODEL }}
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Configure the app for evaluation
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          EVAL_TOKEN="$(openssl rand -hex 24)"
+          echo "::add-mask::$EVAL_TOKEN"
+          {
+            echo "EVAL_TOKEN=$EVAL_TOKEN"
+            echo "AI_EVAL_ENABLED=true"
+            echo "AI_MODEL=$OLLAMA_CHAT_MODEL"
+            echo "BROADCAST_CONNECTION=null"
+            echo "QUEUE_CONNECTION=sync"
+            echo "EVAL_BASE_URL=http://127.0.0.1:8080"
+          } | tee -a "$GITHUB_ENV" >> .env
+      - run: php artisan migrate --seed --force
+      - run: php artisan help:ingest
+      - name: Serve the app with the evaluation endpoint
+        run: |
+          nohup php artisan serve --host=127.0.0.1 --port=8080 > serve.log 2>&1 &
+          curl -sf --retry 30 --retry-delay 1 --retry-all-errors http://127.0.0.1:8080/up
+      - run: php artisan eval:export-promptfoo --subset=smoke
+      - name: promptfoo
+        run: npx --yes promptfoo@${{ env.PROMPTFOO_VERSION }} eval -c evals/promptfooconfig.yaml -o results.json --no-cache --no-progress-bar
+        env:
+          PROMPTFOO_DISABLE_TELEMETRY: "1"
+          PROMPTFOO_DISABLE_UPDATE: "1"
+      - run: php artisan eval:check results.json --quality=0.95 --never=0
+      - uses: actions/upload-artifact@v7.0.1
+        if: always()
+        with:
+          name: promptfoo-results-${{ github.run_id }}
+          path: |
+            results.json
+            serve.log
+            storage/logs/laravel.log
+          if-no-files-found: ignore
+
+  judge:
+    name: Full set and rubric judge, nightly
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: ledgerly
+          POSTGRES_USER: ledgerly
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ledgerly -d ledgerly"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    env:
+      PGPASSWORD: secret
+      FRONTIER_MODEL: ${{ vars.FRONTIER_MODEL }}
+      OPENAI_API_KEY: ${{ secrets.FRONTIER_KEY }}
+      OPENAI_BASE_URL: ${{ vars.FRONTIER_URL }}
+      MLFLOW_TRACKING_URI: ${{ vars.MLFLOW_TRACKING_URI }}
+      EVAL_NOTIFY_WEBHOOK: ${{ secrets.EVAL_NOTIFY_WEBHOOK }}
+    steps:
+      - uses: actions/checkout@v6.1.0
+      - uses: shivammathur/setup-php@2.37.2
+        with:
+          php-version: "8.3"
+          extensions: gd, zip, pcntl, posix, pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: "22"
+      - uses: ./.github/actions/ollama
+        with:
+          image: ${{ env.OLLAMA_IMAGE }}
+          models: ${{ env.OLLAMA_CHAT_MODEL }} ${{ env.OLLAMA_EMBED_MODEL }}
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Configure the app for evaluation
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          EVAL_TOKEN="$(openssl rand -hex 24)"
+          echo "::add-mask::$EVAL_TOKEN"
+          {
+            echo "EVAL_TOKEN=$EVAL_TOKEN"
+            echo "AI_EVAL_ENABLED=true"
+            echo "AI_MODEL=$OLLAMA_CHAT_MODEL"
+            echo "BROADCAST_CONNECTION=null"
+            echo "QUEUE_CONNECTION=sync"
+            echo "EVAL_BASE_URL=http://127.0.0.1:8080"
+          } | tee -a "$GITHUB_ENV" >> .env
+      - run: php artisan migrate --seed --force
+      - run: php artisan help:ingest
+      - name: Serve the app with the evaluation endpoint
+        run: |
+          nohup php artisan serve --host=127.0.0.1 --port=8080 > serve.log 2>&1 &
+          curl -sf --retry 30 --retry-delay 1 --retry-all-errors http://127.0.0.1:8080/up
+      - name: Export the whole set, with the judge when a judge model is configured
+        run: |
+          if [ -n "$FRONTIER_MODEL" ] && [ -n "$OPENAI_API_KEY" ]; then
+            php artisan eval:export-promptfoo --subset=all --with-judge
+          else
+            echo "No FRONTIER_MODEL or key: running the gates without the judge."
+            php artisan eval:export-promptfoo --subset=all
+          fi
+      - name: promptfoo
+        run: npx --yes promptfoo@${{ env.PROMPTFOO_VERSION }} eval -c evals/promptfooconfig.yaml -o results.json --no-cache --no-progress-bar
+        env:
+          PROMPTFOO_DISABLE_TELEMETRY: "1"
+          PROMPTFOO_DISABLE_UPDATE: "1"
+      - name: Check, then report even when the check fails
+        run: |
+          status=0
+          php artisan eval:check results.json --quality=0.95 --never=0 || status=$?
+          if [ -n "$MLFLOW_TRACKING_URI" ]; then
+            php artisan eval:report --to=mlflow --notify='#ai-quality'
+          else
+            php artisan eval:report --notify='#ai-quality'
+          fi
+          exit $status
+      - uses: actions/upload-artifact@v7.0.1
+        if: always()
+        with:
+          name: nightly-results-${{ github.run_id }}
+          path: |
+            results.json
+            serve.log
+            storage/logs/laravel.log
+          if-no-files-found: ignore

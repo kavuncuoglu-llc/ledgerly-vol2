@@ -118,7 +118,7 @@ final class SupportAssistant
         $this->recordQuestion($conversation, $question, $reply);
 
         $options = [
-            'profile' => 'assistant',
+            'profile' => config('ai.eval.enabled') ? config('ai.eval.profile', 'assistant') : 'assistant',    // Chapter 29: the gates run at temperature 0 with a seed
             'max_tokens' => config('ai.budget.answer'),
             'prompt_version' => SupportPrompt::VERSION,
             'conversation_id' => $conversation->id,
@@ -143,6 +143,8 @@ final class SupportAssistant
         $result = $this->verify($result, $prompt, $sent, $ctx, $options, $conversation);
 
         $reply = $this->remember($conversation, $result, sent: $sent, reply: $reply);
+
+        $reply->update(['retrieved' => $this->retrievedOf($prompt)]);               // Chapter 29: what the model was shown, so a gate or a shadow run can look at the same sources
 
         if ($result->citations !== null && $result->citations->cited !== [] && ! $result->citations->hasErrors()) {
             $this->store->recordSources($reply, $result->citations->cited);
@@ -412,11 +414,43 @@ final class SupportAssistant
             'role' => 'assistant',
             'content' => $this->finalText($result),
             'model_call_id' => $this->lastModelCallId($conversation),
-        ], $result->pendingApprovals !== [] ? 'paused' : 'completed');
+        ], $this->statusOf($result));
+    }
+
+    // Chapter 29: a reply that ran out of tokens is stored as truncated and never shown as if it were finished.
+    private function statusOf(ToolRunResult $result): string
+    {
+        if ($result->pendingApprovals !== []) {
+            return 'paused';
+        }
+
+        return $this->cutOff($result)
+            ? 'truncated'
+            : 'completed';
+    }
+
+    private function cutOff(ToolRunResult $result): bool
+    {
+        return $result->response?->finishReason === FinishReason::Length;           // the token limit, not an agent budget that ended with a real final answer
+    }
+
+    private function retrievedOf(AssembledPrompt $prompt): array
+    {
+        $retrieved = [];
+
+        foreach ($prompt->labelMap as $label => $chunk) {
+            $retrieved[] = ['label' => $label, 'eval_label' => $chunk->evalLabel(), 'id' => $chunk->id, 'chunk_key' => $chunk->chunkKey];
+        }
+
+        return $retrieved;
     }
 
     private function finalText(ToolRunResult $result): string
     {
+        if ($this->cutOff($result) && $result->pendingApprovals === []) {
+            return SupportPrompt::truncatedMessage();
+        }
+
         if ($result->response !== null && $result->response->toolCalls === []) {
             return (string) $result->response->content;
         }

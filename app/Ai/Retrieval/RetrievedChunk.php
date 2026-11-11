@@ -55,6 +55,21 @@ final readonly class RetrievedChunk
         return $this->slug().MarkdownChunker::SEPARATOR.$this->section();
     }
 
+    public function evalLabel(): string
+    {
+        return self::evalLabelFor($this->source, $this->heading);
+    }
+
+    // The form golden cases use for expected_chunks (Chapter 29): help:billing/late-fees#how-the-fee-is-calculated
+    public static function evalLabelFor(string $source, string $heading): string
+    {
+        $article = Str::of($source)->after('help/')->beforeLast('.md')->toString();
+
+        $section = Str::afterLast($heading, MarkdownChunker::SEPARATOR);
+
+        return 'help:'.$article.'#'.Str::slug($section);
+    }
+
     public function url(): string
     {
         return '/help/'.$this->article().'#'.Str::slug($this->section());

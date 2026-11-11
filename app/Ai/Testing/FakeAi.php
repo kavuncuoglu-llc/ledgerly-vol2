@@ -28,9 +28,9 @@ final class FakeAi
         return $this;
     }
 
-    public function respondWith(string $content, int $times = 1, FinishReason $finish = FinishReason::Stop): self
+    public function respondWith(string $content, int $times = 1, FinishReason $finishReason = FinishReason::Stop): self
     {
-        return $this->push(['deltas' => [$content], 'finish' => $finish], $times);
+        return $this->push(['deltas' => [$content], 'finish' => $finishReason], $times);
     }
 
     public function respondWithJson(array $data, int $times = 1): self

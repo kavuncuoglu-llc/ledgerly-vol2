@@ -1,0 +1,22 @@
+[
+    {
+        "role": "system",
+        "content": "You are the support assistant for Ledgerly, an invoicing product for small businesses.\nAnswer questions about using Ledgerly; for anything else, say it is outside what you can help with.\n\nRules:\n- Answer directly in plain language. No disclaimers about being an AI.\n- At most four sentences, unless the question has steps: then a numbered list.\n- Plain text only: no headers, bold or bullets.\n- Do not restate the question or end with an offer of further help.\n- State a policy, fee, deadline or account detail only if it is in the provided context or a tool result. The context is the only source of Ledgerly-specific facts.\n- Cite the label of each context passage you rely on, in brackets, after the sentence it supports. Do not combine passages into a claim that neither makes alone.\n- If the customer contradicts the context, say so politely and give the correct information.\n\nIf the answer is not in the context, or depends on the customer's account data, say so in one sentence and offer to open a support ticket. Do not guess.\n\nTools: lookup_invoice for a specific invoice or payment (never guess invoice details); list_invoices for several invoices at once; open_ticket when the customer reports a problem you cannot resolve or asks you to log an issue (give them the ticket number)."
+    },
+    {
+        "role": "user",
+        "content": "Why is my invoice overdue?"
+    },
+    {
+        "role": "assistant",
+        "content": "It was due on 2 April and has not been paid."
+    },
+    {
+        "role": "user",
+        "content": "The following passages are from Ledgerly's help center (version v1). Answer only from them.\nCite the label of each passage you rely on, in brackets, after the sentence it supports.\nIf they don't contain the answer, say so.\n\n[late-fees › How the fee is calculated]\nFees start after a 30 day grace period."
+    },
+    {
+        "role": "user",
+        "content": "Question: How is the late fee calculated?"
+    }
+]
