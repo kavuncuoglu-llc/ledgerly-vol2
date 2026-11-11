@@ -4,6 +4,8 @@ The companion app for *Large Language Models for Laravel Developers, Volume 2 of
 
 This repository is public and free. You do not need an account, a claim code or proof of purchase to clone it.
 
+The book: [Running, Training, and Securing Large Language Models](https://kavuncuoglu.com/books/llm/running-training-and-securing-large-language-models) (Volume 2 of 3). It continues the app that [The Foundations of Large Language Models](https://kavuncuoglu.com/books/llm/foundations-of-large-language-models) (Volume 1) builds; `vol2-start` below is that app, so you can start here without Volume 1's repository.
+
 ## Get the code
 
 ```bash
