@@ -47,6 +47,8 @@ jobs:
           extensions: gd, zip, pcntl, posix, pdo_pgsql
           tools: composer:v2
           coverage: none
+      - name: Install Poppler (the PDF renderer falls back to pdftoppm when Imagick is blocked from reading PDFs)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: cp .env.example .env && php artisan key:generate
       - name: Create the test database
