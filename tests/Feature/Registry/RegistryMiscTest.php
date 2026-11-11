@@ -82,3 +82,36 @@ it('raises a guardrail breach for the feature when the spend breaker opens on it
 
     Event::assertDispatched(GuardrailBreached::class, fn (GuardrailBreached $event) => $event->feature === 'support.reply' && $event->metric === 'spend_breaker' && $event->value === 8.0);
 });
+
+// Chapter 45, Build: the model in training/tiny/ is for understanding; registry:add refuses anything that comes from that directory.
+it('refuses an export record, an artifact or a name that comes from training/tiny', function () {
+    FineTuningWorld::dataset();
+
+    $tiny = base_path('training/tiny/ckpt-test-'.bin2hex(random_bytes(3)));
+
+    File::ensureDirectoryExists($tiny);
+
+    File::put($tiny.'/export.json', json_encode(['name' => 'ledgerly-tiny', 'base' => 'none', 'artifacts' => ['gguf' => 'sha256:aa'], 'files' => ['gguf' => 'tiny.gguf']]));
+
+    $this->artisan('registry:add', ['model' => 'tiny', '--dataset' => 'billing-v1', '--no-check' => true, '--export' => $tiny.'/export.json'])
+        ->expectsOutputToContain('is in training/tiny/')
+        ->assertExitCode(1);
+
+    $elsewhere = RegistryWorld::$directory.'/export.json';
+
+    File::put($elsewhere, json_encode(['name' => 'tiny-gpt-v1', 'base' => 'none', 'artifacts' => []]));
+
+    $this->artisan('registry:add', ['model' => 'tiny', '--dataset' => 'billing-v1', '--no-check' => true, '--export' => $elsewhere])
+        ->expectsOutputToContain('names the Chapter 45 tiny GPT')
+        ->assertExitCode(1);
+
+    File::put($elsewhere, json_encode(['name' => 'fine', 'base' => 'b', 'artifacts' => ['adapter' => 'sha256:aa'], 'files' => ['adapter' => $tiny.'/adapter.safetensors']]));
+
+    $this->artisan('registry:add', ['model' => 'tiny', '--dataset' => 'billing-v1', '--no-check' => true, '--export' => $elsewhere])
+        ->expectsOutputToContain('is in training/tiny/')
+        ->assertExitCode(1);
+
+    File::deleteDirectory($tiny);
+
+    expect(ModelRegistryEntry::query()->count())->toBe(0);
+});

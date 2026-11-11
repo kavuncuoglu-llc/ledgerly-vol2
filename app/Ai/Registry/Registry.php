@@ -24,6 +24,8 @@ final class Registry
     {
         $export = $this->export($options['export'] ?? null);
 
+        $this->refuseTinyModel($export, $options);
+
         $dataset = Dataset::named($options['dataset']);
 
         if (! $dataset->exists('train.jsonl')) {
@@ -370,6 +372,30 @@ final class Registry
     private function closeExperiment(string $name): void
     {
         ExperimentSetting::query()->where('name', "registry-{$name}")->update(['mode' => 'off', 'percent' => 0]);
+    }
+
+    // Chapter 45, Build: the 14M-parameter model in training/tiny/ is for understanding. It is never exported, registered or served, so nothing that comes from that directory (an export record there, an artifact file in it, a model named for it) becomes a version.
+    private function refuseTinyModel(array $export, array $options): void
+    {
+        $tiny = (string) realpath(base_path('training/tiny'));
+
+        $paths = array_filter([$export['_dir'] ?? null, ...array_values((array) ($export['files'] ?? [])), ...array_values((array) ($export['_files'] ?? [])), $options['export'] ?? null, $options['rows'] ?? null]);
+
+        foreach ($paths as $path) {
+            $absolute = str_starts_with((string) $path, '/')
+                ? (string) $path
+                : (string) ($export['_dir'] ?? base_path()).'/'.$path;
+
+            $real = realpath($absolute) ?: $absolute;
+
+            if ($tiny !== '' && str_starts_with($real, $tiny)) {
+                throw new InvalidArgumentException("{$path} is in training/tiny/: the from-scratch model of Chapter 45 is for understanding, and registry:add refuses anything that comes from there.");
+            }
+        }
+
+        if (str_contains((string) ($export['name'] ?? ''), 'tiny-gpt')) {
+            throw new InvalidArgumentException('The export record names the Chapter 45 tiny GPT (tiny-gpt): it is never registered.');
+        }
     }
 
     private function export(?string $path): array
