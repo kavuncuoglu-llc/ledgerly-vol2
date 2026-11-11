@@ -1,0 +1,135 @@
+{
+  "base": "configs/axolotl/billing-qlora.yml",
+  "runs": [
+    {
+      "name": "lr0.0001_r8_ep1",
+      "params": {
+        "learning_rate": 0.0001,
+        "lora_r": 8,
+        "num_epochs": 1
+      },
+      "seed": 42,
+      "center_repeat": false
+    },
+    {
+      "name": "lr0.0001_r8_ep2",
+      "params": {
+        "learning_rate": 0.0001,
+        "lora_r": 8,
+        "num_epochs": 2
+      },
+      "seed": 42,
+      "center_repeat": false
+    },
+    {
+      "name": "lr0.0001_r16_ep1",
+      "params": {
+        "learning_rate": 0.0001,
+        "lora_r": 16,
+        "num_epochs": 1
+      },
+      "seed": 42,
+      "center_repeat": false
+    },
+    {
+      "name": "lr0.0001_r16_ep2",
+      "params": {
+        "learning_rate": 0.0001,
+        "lora_r": 16,
+        "num_epochs": 2
+      },
+      "seed": 42,
+      "center_repeat": false
+    },
+    {
+      "name": "lr0.0002_r8_ep1",
+      "params": {
+        "learning_rate": 0.0002,
+        "lora_r": 8,
+        "num_epochs": 1
+      },
+      "seed": 42,
+      "center_repeat": false
+    },
+    {
+      "name": "lr0.0002_r8_ep2",
+      "params": {
+        "learning_rate": 0.0002,
+        "lora_r": 8,
+        "num_epochs": 2
+      },
+      "seed": 42,
+      "center_repeat": false
+    },
+    {
+      "name": "lr0.0002_r16_ep1",
+      "params": {
+        "learning_rate": 0.0002,
+        "lora_r": 16,
+        "num_epochs": 1
+      },
+      "seed": 42,
+      "center_repeat": false
+    },
+    {
+      "name": "lr0.0002_r16_ep2",
+      "params": {
+        "learning_rate": 0.0002,
+        "lora_r": 16,
+        "num_epochs": 2
+      },
+      "seed": 42,
+      "center_repeat": false
+    },
+    {
+      "name": "lr0.0004_r8_ep1",
+      "params": {
+        "learning_rate": 0.0004,
+        "lora_r": 8,
+        "num_epochs": 1
+      },
+      "seed": 42,
+      "center_repeat": false
+    },
+    {
+      "name": "lr0.0004_r8_ep2",
+      "params": {
+        "learning_rate": 0.0004,
+        "lora_r": 8,
+        "num_epochs": 2
+      },
+      "seed": 42,
+      "center_repeat": false
+    },
+    {
+      "name": "lr0.0004_r16_ep1",
+      "params": {
+        "learning_rate": 0.0004,
+        "lora_r": 16,
+        "num_epochs": 1
+      },
+      "seed": 42,
+      "center_repeat": false
+    },
+    {
+      "name": "lr0.0004_r16_ep2",
+      "params": {
+        "learning_rate": 0.0004,
+        "lora_r": 16,
+        "num_epochs": 2
+      },
+      "seed": 42,
+      "center_repeat": false
+    },
+    {
+      "name": "lr0.0002_r16_ep2_seed7",
+      "params": {
+        "learning_rate": 0.0002,
+        "lora_r": 16,
+        "num_epochs": 2
+      },
+      "seed": 7,
+      "center_repeat": true
+    }
+  ]
+}

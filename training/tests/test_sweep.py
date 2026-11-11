@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 import yaml
@@ -88,3 +89,24 @@ def test_the_configs_and_a_manifest_are_written(tmp_path):
     assert yaml.safe_load(first)["seed"] == 42
     manifest = json.loads((out / "sweep.json").read_text())
     assert len(manifest["runs"]) == 13 and sum(run["center_repeat"] for run in manifest["runs"]) == 1
+
+
+def test_the_committed_sweep_is_what_the_generator_makes_from_the_base_config(tmp_path):
+    root = Path(__file__).resolve().parents[1] / "configs" / "axolotl"
+    args = [
+        "--grid",
+        "learning_rate=1e-4,2e-4,4e-4",
+        "lora_r=8,16",
+        "num_epochs=1,2",
+        "--seed",
+        "42",
+        "--repeat-center",
+        "2",
+    ]
+
+    assert sweep.main(["configs/axolotl/billing-qlora.yml", *args, "--out", str(tmp_path)]) == 0
+
+    committed = sorted(path.name for path in (root / "sweep-billing").glob("*"))
+    assert committed == sorted(path.name for path in tmp_path.glob("*")) and len(committed) == 14
+    for name in committed:
+        assert (root / "sweep-billing" / name).read_text() == (tmp_path / name).read_text()
