@@ -47,3 +47,14 @@ __pycache__/
 /ops/triton/models/*/1/*.onnx
 /ops/triton/engines/
 /ops/triton/hf/
+
+/training/.venv/
+/training/.pytest_cache/
+/training/.ruff_cache/
+/training/data/*.jsonl
+/training/data/*.parquet
+/training/data/*.arrow
+/training/runs/
+/training/mlruns/
+.pytest_cache/
+.ruff_cache/

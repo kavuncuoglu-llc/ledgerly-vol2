@@ -25,6 +25,7 @@ Each chapter of this volume is a tag, `ch26` through `ch51`, taken at the end of
 | Tag | What it contains |
 | --- | --- |
 | `vol2-start` | Volume 1's finished app, ready to run: the support assistant, the help center, four local model servers, `ai:doctor`, Horizon and Reverb. |
+| `ch26` | `training/`: a `uv` project (Python 3.12, `pyproject.toml`, `uv.lock`, extras `cuda`, `rocm` and `mlx`) with `hello_model.py`, `tokens.py`, `embed_compare.py` and `token_lengths.py`, and `ops/compose/ollama.localhost.yml`. |
 
 ## Set up `vol2-start`
 
@@ -36,6 +37,25 @@ Each chapter of this volume is a tag, `ch26` through `ch51`, taken at the end of
 You need PHP 8.3 or later with the `gd`, `zip`, `pcntl`, `posix` and `pdo_pgsql` extensions, Composer, Docker and Git. Host ports, all on `127.0.0.1`: app 8000, Reverb 8080, Postgres 5432, Redis 6379, Ollama 11434, llama-server 8081, vLLM 8001, Triton 9000, Grafana 3000; every one has a variable in `.env` (`DB_PORT`, `REVERB_PORT`, `LLAMA_PORT`, ...) if it is taken on your machine. The tests need no model server: `vendor/bin/pest`.
 
 If a host port is already taken on your machine, set its variable in `.env` before you start the containers: Compose and Laravel read the same values.
+
+## The Python side: `training/`
+
+From `ch26` the repository has a second project beside the Laravel app: `training/`, managed by [`uv`](https://docs.astral.sh/uv/) (built with 0.11; any recent version reads the lockfile). Python 3.12 is pinned in `training/.python-version`, and every dependency is pinned in the committed `training/uv.lock`.
+
+```bash
+cd training
+uv python install 3.12
+uv sync                      # CPU, or Apple Silicon (MPS)
+uv sync --extra cuda         # NVIDIA: PyTorch's CUDA 12.8 build
+uv sync --extra rocm         # AMD on Linux: PyTorch's ROCm 7.0 build
+uv sync --extra mlx          # Apple Silicon: mlx and mlx-lm (Chapter 42)
+uv run pytest                # the Python tests; none of them downloads a model
+uv run python scripts/hello_model.py
+```
+
+The first run of a script downloads its model from the Hugging Face Hub into `~/.cache/huggingface` (set `HF_HOME` to move it). Nothing the tests do needs the network. Model revisions in the scripts are commit hashes, so they do not change under you. `training/data/*.jsonl` and the other exported datasets are git-ignored.
+
+`embed_compare.py` calls Ollama on `http://localhost:11434` (`OLLAMA_URL`, without `/v1`, overrides it). On Linux with Ollama inside Compose, publish its port first: `docker compose -f ops/compose/base.yml -f ops/compose/ollama.yml -f ops/compose/ollama.localhost.yml --profile ollama up -d`.
 
 ## The app as Volume 1 left it
 

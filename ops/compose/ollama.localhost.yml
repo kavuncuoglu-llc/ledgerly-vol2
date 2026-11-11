@@ -1,0 +1,10 @@
+# Development-only override (Chapter 26). Publishes Compose's Ollama on 127.0.0.1:11434 so scripts on the host (training/scripts/embed_compare.py) can reach it.
+#   docker compose -f ops/compose/base.yml -f ops/compose/ollama.yml -f ops/compose/ollama.localhost.yml --profile ollama up -d
+# ollama.yml already publishes that port on 127.0.0.1 and nowhere else, so this file repeats the binding rather than changing it: with the book's
+# port-less ollama.yml it is what opens the port, and Compose merges two identical bindings into one. Never replace 127.0.0.1 with 0.0.0.0:
+# Ollama has no authentication. On a Mac, native Ollama is already on localhost:11434 and this file is not needed.
+
+services:
+  ollama:
+    ports:
+      - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"

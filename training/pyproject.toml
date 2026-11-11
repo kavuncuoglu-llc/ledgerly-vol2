@@ -1,0 +1,68 @@
+[project]
+name = "ledgerly-training"
+version = "0.1.0"
+description = "Ledgerly's Python side: scripts, workers and (from Chapter 29) evaluations and training runs"
+requires-python = ">=3.11"
+dependencies = [
+    "transformers",
+    "datasets",
+    "sentence-transformers",
+    "tiktoken",
+    "numpy",
+    "requests",
+]
+
+[project.optional-dependencies]
+cuda = ["torch>=2.10,<2.11"]
+rocm = [
+    "torch>=2.10,<2.11",
+    "triton-rocm==3.6.0; sys_platform == 'linux'",
+]
+mlx = [
+    "mlx; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "mlx-lm; sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[tool.uv]
+package = false
+constraint-dependencies = ["torch>=2.10,<2.11"]
+exclude-newer = "2026-10-28T00:00:00Z"
+conflicts = [
+    [{ extra = "cuda" }, { extra = "rocm" }],
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cuda", extra = "cuda", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-rocm", extra = "rocm", marker = "sys_platform == 'linux'" },
+]
+triton-rocm = [
+    { index = "pytorch-rocm", extra = "rocm" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-rocm"
+url = "https://download.pytorch.org/whl/rocm7.0"
+explicit = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
