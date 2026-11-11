@@ -22,9 +22,9 @@ final class UsageLoggingModel extends ModelDecorator
 
         $response = $this->inner->chat($request);
 
-        $this->record($request, $response->model, $response->usage->toArray(), $response->finishReason->value, $this->since($started), OllamaNativeShape::timeToFirstTokenMs($response->raw), $response->usage->cachedTokens, $response->usage->promptTokens);
+        $callId = $this->record($request, $response->model, $response->usage->toArray(), $response->finishReason->value, $this->since($started), OllamaNativeShape::timeToFirstTokenMs($response->raw), $response->usage->cachedTokens, $response->usage->promptTokens);
 
-        return $response;
+        return $response->withCallId($callId);
     }
 
     public function stream(ChatRequest $request): Generator
@@ -53,9 +53,9 @@ final class UsageLoggingModel extends ModelDecorator
 
         $response = $stream->getReturn();
 
-        $this->record($request, $response->model, $response->usage->toArray(), $response->finishReason->value, $this->since($started), $firstDeltaMs, $response->usage->cachedTokens, $response->usage->promptTokens);
+        $callId = $this->record($request, $response->model, $response->usage->toArray(), $response->finishReason->value, $this->since($started), $firstDeltaMs, $response->usage->cachedTokens, $response->usage->promptTokens);
 
-        return $response;
+        return $response->withCallId($callId);
     }
 
     // The engine's /completion answers with a string, so there is no usage block to read: count both sides with the app's counter (exact when it is the llama-server one).
@@ -88,9 +88,9 @@ final class UsageLoggingModel extends ModelDecorator
             : '';
     }
 
-    private function record(ChatRequest $request, string $model, array $usage, string $finish, int $latencyMs, ?int $firstDeltaMs, ?int $reportedCached, int $promptTokens): void
+    private function record(ChatRequest $request, string $model, array $usage, string $finish, int $latencyMs, ?int $firstDeltaMs, ?int $reportedCached, int $promptTokens): ?int
     {
-        ModelCalled::dispatch(
+        $event = new ModelCalled(
             $request->feature,
             $this->inner->name(),
             $model,
@@ -105,7 +105,12 @@ final class UsageLoggingModel extends ModelDecorator
             $request->meta['context_breakdown'] ?? null,
             $request->meta['semantic_cache_hit'] ?? null,
             $this->recordable($request),
+            $request->meta['variant'] ?? null,
         );
+
+        event($event);
+
+        return $event->modelCallId;
     }
 
     // Off by default. When on, ai:compare --from-calls can replay real requests against other providers; they hold customer text, so they expire (conversations:retain) and are forgotten with the user.

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ledgerly.test/contracts/eval-sample.v1.json",
+  "title": "EvalSample",
+  "type": "object",
+  "required": ["schema", "task_id", "request_id", "judge", "items"],
+  "additionalProperties": false,
+  "properties": {
+    "schema":     { "const": "eval-sample.v1" },
+    "task_id":    { "type": "string", "format": "uuid" },
+    "request_id": { "type": ["string", "null"] },
+    "judge":      { "type": "string", "minLength": 1 },
+    "items": {
+      "type": "array", "minItems": 1, "maxItems": 500,
+      "items": {
+        "type": "object", "required": ["id", "question", "answer", "contexts", "reference"], "additionalProperties": false,
+        "properties": {
+          "id":        { "type": "string", "pattern": "^(message|shadow):[0-9]+$" },
+          "question":  { "type": "string", "minLength": 1 },
+          "answer":    { "type": "string", "minLength": 1 },
+          "contexts":  { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "reference": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

@@ -6,9 +6,18 @@ from pydantic import ValidationError
 
 from contracts.embed_batch_v1 import EmbedBatch
 from contracts.embed_result_v1 import EmbedResult
+from contracts.eval_conversations_v1 import EvalConversations
+from contracts.eval_sample_v1 import EvalSample
+from contracts.eval_scores_v1 import EvalScores
 
 FIXTURES = Path(__file__).resolve().parents[2] / "contracts" / "fixtures"
-MODELS = {"embed-batch.v1": EmbedBatch, "embed-result.v1": EmbedResult}
+MODELS = {
+    "embed-batch.v1": EmbedBatch,
+    "embed-result.v1": EmbedResult,
+    "eval-sample.v1": EvalSample,
+    "eval-conversations.v1": EvalConversations,
+    "eval-scores.v1": EvalScores,
+}
 
 
 def fixtures(prefix: str) -> list:

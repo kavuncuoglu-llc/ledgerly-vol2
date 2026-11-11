@@ -14,20 +14,20 @@ final readonly class ChatRequest
         public ?array $responseFormat = null,
         public array $cacheBreakpointsAfter = [],     // message indices; drivers that support it mark them
         public ?string $profile = null,               // a name from config('ai.profiles'); null = the feature's profile, else assistant
-        public array $meta = [],                      // for the usage log only, never sent: conversation_id, prompt_version, repaired, context_breakdown, semantic_cache_hit
+        public array $meta = [],                      // for the usage log only, never sent: conversation_id, prompt_version, repaired, context_breakdown, semantic_cache_hit, variant
     ) {}
 
     // The option bag every call site has used since Chapter 8, sorted into the typed slots.
     public static function make(array $messages, array $options = [], string $feature = 'unknown'): self
     {
-        $meta = array_intersect_key($options, array_flip(['conversation_id', 'prompt_version', 'repaired', 'context_breakdown', 'semantic_cache_hit']));
+        $meta = array_intersect_key($options, array_flip(['conversation_id', 'prompt_version', 'repaired', 'context_breakdown', 'semantic_cache_hit', 'variant']));
 
         $profile = $options['profile'] ?? null;
         $model = $options['model'] ?? null;
         $tools = $options['tools'] ?? [];
         $format = $options['response_format'] ?? null;
 
-        unset($options['profile'], $options['model'], $options['tools'], $options['response_format'], $options['conversation_id'], $options['prompt_version'], $options['repaired'], $options['context_breakdown'], $options['semantic_cache_hit']);
+        unset($options['profile'], $options['model'], $options['tools'], $options['response_format'], $options['conversation_id'], $options['prompt_version'], $options['repaired'], $options['context_breakdown'], $options['semantic_cache_hit'], $options['variant']);
 
         return new self($messages, $feature, $model, $options, $tools, $format, [], $profile, $meta);
     }

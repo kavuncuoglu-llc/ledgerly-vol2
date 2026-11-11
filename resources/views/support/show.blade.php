@@ -85,22 +85,34 @@
             node.append(line);
         };
 
+        const reasons = [['wrong_answer', 'Wrong answer'], ['did_not_answer', 'Did not answer my question'], ['wanted_person', 'I wanted a person']];
+
         const showFeedback = (node, replyId) => {
             const row = element('p', 'feedback');
 
-            ['up', 'down'].forEach((value) => {
-                const button = element('button', 'link-button', value === 'up' ? 'Helpful' : 'Not helpful');
+            const rate = async (rating, reason = null) => {
+                await post(`/replies/${replyId}/feedback`, { rating, reason });
 
-                button.type = 'button';
+                row.textContent = 'Thanks for the feedback.';
+            };
 
-                button.addEventListener('click', async () => {
-                    await post(`/replies/${replyId}/feedback`, { value });
+            const button = (label, onClick) => {
+                const control = element('button', 'link-button', label);
 
-                    row.textContent = 'Thanks for the feedback.';
-                });
+                control.type = 'button';
 
-                row.append(button, ' ');
-            });
+                control.addEventListener('click', onClick);
+
+                return control;
+            };
+
+            const askWhy = () => {
+                row.replaceChildren('What went wrong? ');
+
+                reasons.forEach(([reason, label]) => row.append(button(label, () => rate('down', reason)), ' '));
+            };
+
+            row.append(button('Helpful', () => rate('up')), ' ', button('Not helpful', askWhy));
 
             node.append(row);
         };

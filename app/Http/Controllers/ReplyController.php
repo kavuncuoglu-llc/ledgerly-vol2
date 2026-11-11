@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\FeedbackRequest;
 use App\Models\Message;
 use App\Models\MessageSource;
 use App\Models\PendingToolCall;
@@ -29,17 +28,6 @@ class ReplyController extends Controller
                 ->map(fn (MessageSource $source) => ['label' => $source->label, 'url' => $source->url])
                 ->all(),
         ]);
-    }
-
-    public function feedback(FeedbackRequest $request, Message $reply): JsonResponse
-    {
-        abort_unless($reply->question !== null, 404);
-
-        abort_unless($reply->conversation->user_id === $request->user()->id, 404);
-
-        $reply->update(['feedback' => $request->validated('value')]);
-
-        return response()->json(['feedback' => $reply->feedback]);
     }
 
     private function pendingApproval(Request $request, Message $reply): ?array

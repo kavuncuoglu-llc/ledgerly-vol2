@@ -14,6 +14,11 @@ dependencies = [
     "pydantic>=2.14.1",
     "einops>=0.8.2",
     "mlflow>=3.17.2",
+    "ragas>=0.4.3",
+    "deepeval>=4.3.2",
+    "langchain-community<0.4",
+    "lm-eval[ifeval]>=0.4.13",
+    "accelerate>=1.15.0",
 ]
 
 [project.optional-dependencies]

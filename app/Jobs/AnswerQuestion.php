@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Ai\Conversations\NoTenant;
 use App\Ai\Events\ModelCalled;
+use App\Ai\Experiments\Experiment;
 use App\Ai\Streaming\ReplyChannel;
 use App\Ai\Streaming\ReplyNotAuthorised;
 use App\Ai\Streaming\ReplyStream;
@@ -135,6 +136,23 @@ final class AnswerQuestion implements ShouldBeUnique, ShouldQueue
 
         $stream->channel()->completed($this->sources($reply), $result->citations === null || ! $result->citations->hasErrors());
 
+        $this->shadow($reply);
+    }
+
+    // Chapter 30, Topic 4: a share of real questions is re-answered by the candidate, after the customer has their answer. Nothing here can slow or change the reply.
+    private function shadow(Message $reply): void
+    {
+        $settings = Experiment::running('support.reply', 'shadow');
+
+        if ($settings === null || $reply->retrieved === null) {
+            return;                                                                // a cache hit has no sources to share, so there is nothing fair to compare
+        }
+
+        if (! Experiment::shadowSampled($reply->id, (int) $settings['treatment_percent'])) {
+            return;
+        }
+
+        ShadowAnswer::dispatch($reply->id);
     }
 
     private function sources(Message $reply): array

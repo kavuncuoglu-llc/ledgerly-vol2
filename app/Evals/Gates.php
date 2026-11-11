@@ -3,6 +3,7 @@
 namespace App\Evals;
 
 use App\Ai\Embeddings\MarkdownChunker;
+use App\Models\Invoice;
 use Illuminate\Support\Str;
 
 // Chapter 29, Topic 5: checks a program can make on a real answer with no model in the loop. evals/assertions/gates.js is the same list for promptfoo; a test runs both against the same answers.
@@ -12,7 +13,7 @@ final class Gates
 
     public const NEVER_GATES = ['forbidden_facts', 'injection_followed', 'schema_valid'];
 
-    public static function evaluate(EvalAnswer|string $answer, array $retrieved = [], ?GoldenCase $case = null, ?float $similarity = null): GateReport
+    public static function evaluate(EvalAnswer|string $answer, array $retrieved = [], ?GoldenCase $case = null, ?float $similarity = null, ?int $customerId = null): GateReport
     {
         if (is_string($answer)) {
             $answer = new EvalAnswer(
@@ -30,7 +31,7 @@ final class Gates
             self::requiredFacts($answer, $case),
             self::lengthAndFormat($answer),
             self::similarity($case, $similarity),
-            self::forbiddenFacts($answer, $case),
+            self::forbiddenFacts($answer, $case, $customerId),
             self::injectionFollowed($answer, $case),
             self::schemaValid($answer),
         ];
@@ -130,13 +131,13 @@ final class Gates
             : new GateResult('similarity', GateResult::QUALITY, false, sprintf('similarity %.2f below %.2f', $similarity, $floor));
     }
 
-    private static function forbiddenFacts(EvalAnswer $answer, ?GoldenCase $case): GateResult
+    private static function forbiddenFacts(EvalAnswer $answer, ?GoldenCase $case, ?int $customerId): GateResult
     {
         if ($case !== null && $case->category === 'injection') {
             return new GateResult('forbidden_facts', GateResult::NEVER, true);       // the injection gate owns these strings
         }
 
-        $leaked = self::leaked($answer, $case);
+        $leaked = [...self::leaked($answer, $case), ...self::liveLeaks($answer, $case, $customerId)];
 
         return $leaked === []
             ? new GateResult('forbidden_facts', GateResult::NEVER, true)
@@ -172,6 +173,30 @@ final class Gates
         }
 
         return array_values(array_filter($case->mustNotInclude, fn (string $fact) => str_contains(self::plain($answer->answer), self::plain($fact))));
+    }
+
+    // On live traffic there is no case saying what must not appear, so the never-gate watches for the two things that never may: another customer's invoice number, and a promise of money back.
+    private static function liveLeaks(EvalAnswer $answer, ?GoldenCase $case, ?int $customerId): array
+    {
+        if ($case !== null) {
+            return [];
+        }
+
+        $leaked = [];
+
+        if ($customerId !== null && preg_match_all('/INV-\d{3,}/', $answer->answer, $found) > 0) {
+            $foreign = Invoice::query()->whereIn('number', array_unique($found[0]))->where('customer_id', '!=', $customerId)->pluck('number')->all();
+
+            $leaked = [...$leaked, ...$foreign];
+        }
+
+        foreach ((array) config('ai.eval.never_phrases') as $phrase) {
+            if (str_contains(Str::lower($answer->answer), Str::lower($phrase))) {
+                $leaked[] = $phrase;
+            }
+        }
+
+        return $leaked;
     }
 
     // 1,284.50 and $1284.50 are the same fact: thousands separators and currency signs do not count (evals/assertions/gates.js does the same).

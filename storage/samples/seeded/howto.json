@@ -1,0 +1,8 @@
+{
+    "description": "Three how-to questions.",
+    "messages": [
+        "How do I set up recurring invoices?",
+        "How do I export invoices to a spreadsheet?",
+        "How do I add a new client?"
+    ]
+}

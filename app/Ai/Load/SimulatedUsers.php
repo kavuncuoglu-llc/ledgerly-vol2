@@ -26,20 +26,26 @@ final class SimulatedUsers
 
     /**
      * @param  list<User>  $users
-     * @param  list<string>  $messages
+     * @param  list<string>|list<list<string>>  $messages  one script for everybody, or several that the users take in turn (Chapter 30's seeded conversations)
      */
     public function run(array $users, array $messages, int $timeoutSeconds, ?Closure $progress = null): SimulationReport
     {
         $started = hrtime(true);
 
+        $scripts = is_array($messages[0] ?? null)
+            ? $messages
+            : [$messages];
+
         $state = [];
 
         foreach ($users as $index => $user) {
-            $state[$index] = ['user' => $user, 'conversation' => $this->start($user), 'turn' => 0, 'reply' => null];
+            $state[$index] = ['user' => $user, 'conversation' => $this->start($user), 'turn' => 0, 'reply' => null, 'messages' => $scripts[$index % count($scripts)]];
         }
 
-        while ($this->unfinished($state, count($messages))) {
-            $this->advance($state, $messages, $progress);
+        $turns = max(array_map('count', $scripts));
+
+        while ($this->unfinished($state)) {
+            $this->advance($state, $progress);
 
             if ($this->elapsed($started) > $timeoutSeconds) {
                 break;
@@ -48,7 +54,7 @@ final class SimulatedUsers
             Sleep::for(250)->milliseconds();
         }
 
-        return $this->report($state, count($messages), $this->elapsed($started));
+        return $this->report($state, $turns, $this->elapsed($started));
     }
 
     private function start(User $user): Conversation
@@ -56,14 +62,14 @@ final class SimulatedUsers
         return $this->tenants->run($user->tenant_id, fn () => $this->store->start($user, SupportPrompt::VERSION));
     }
 
-    private function advance(array &$state, array $messages, ?Closure $progress): void
+    private function advance(array &$state, ?Closure $progress): void
     {
         foreach ($state as $index => $entry) {
             if ($entry['reply'] !== null && ! $this->settled($entry['reply'])) {
                 continue;
             }
 
-            if ($entry['turn'] >= count($messages)) {
+            if ($entry['turn'] >= count($entry['messages'])) {
                 continue;
             }
 
@@ -72,7 +78,7 @@ final class SimulatedUsers
             $state[$index]['turn']++;
 
             try {
-                $reply = $this->tenants->run($user->tenant_id, fn () => $this->starter->start($user, $messages[$entry['turn']], $entry['conversation']));
+                $reply = $this->tenants->run($user->tenant_id, fn () => $this->starter->start($user, $entry['messages'][$entry['turn']], $entry['conversation']));
             } catch (Throwable) {
                 $state[$index]['reply'] = null;                                        // a sync queue throws the job's failure at the dispatch; the reply is already marked failed
 
@@ -87,10 +93,10 @@ final class SimulatedUsers
         }
     }
 
-    private function unfinished(array $state, int $turns): bool
+    private function unfinished(array $state): bool
     {
         foreach ($state as $entry) {
-            if ($entry['turn'] < $turns) {
+            if ($entry['turn'] < count($entry['messages'])) {
                 return true;
             }
 
@@ -129,7 +135,7 @@ final class SimulatedUsers
             seconds: $seconds,
             answered: $replies->where('status', 'completed')->count(),
             failed: $replies->whereIn('status', ['failed', 'truncated'])->count(),
-            unfinished: count($state) * $turns - $replies->whereIn('status', ['completed', 'failed', 'paused', 'truncated'])->count(),
+            unfinished: array_sum(array_map(fn (array $entry) => count($entry['messages']), $state)) - $replies->whereIn('status', ['completed', 'failed', 'paused', 'truncated'])->count(),
             ttftMs: $calls->whereNotNull('ttft_ms')->pluck('ttft_ms')->map(fn ($ms) => (int) $ms)->sort()->values()->all(),
             completionTokens: (int) $calls->sum('completion_tokens'),
         );

@@ -48,6 +48,51 @@ final class PythonTasks
         return $taskId;
     }
 
+    // Chapter 30, Topic 3: a sample of answers (question, answer, the sources it was given) for the RAGAS judge. $items follow eval-sample.v1.
+    public static function evalSample(array $items, string $judge): string
+    {
+        return self::queue('eval-sample.v1', 'eval-sample', (string) config('ai.python.streams.eval_sample'), $judge, $items);
+    }
+
+    // Chapter 30, Topic 3: finished conversations for DeepEval's conversational metrics. $items follow eval-conversations.v1.
+    public static function evalConversations(array $items, string $judge): string
+    {
+        return self::queue('eval-conversations.v1', 'eval-conversations', (string) config('ai.python.streams.eval_sample'), $judge, $items);
+    }
+
+    private static function queue(string $schema, string $kind, string $stream, string $judge, array $items): string
+    {
+        $taskId = (string) Str::uuid();
+
+        $payload = [
+            'schema' => $schema,
+            'task_id' => $taskId,
+            'request_id' => Context::get('request_id'),
+            'judge' => $judge,
+            'items' => $items,
+        ];
+
+        Contract::assertValid($schema, $payload);
+
+        DB::transaction(function () use ($taskId, $payload, $kind, $stream, $judge) {
+            PythonTask::query()->create([
+                'task_id' => $taskId,
+                'kind' => $kind,
+                'stream' => $stream,
+                'model' => $judge,
+                'status' => PythonTask::QUEUED,
+                'item_count' => count($payload['items']),
+                'request_id' => $payload['request_id'],
+                'queued_at' => now(),
+                'deadline_at' => now()->addSeconds((int) config('ai.python.task_timeout_seconds')),
+            ]);
+
+            app(Streams::class)->add($stream, ['task' => json_encode($payload, JSON_THROW_ON_ERROR)]);
+        });
+
+        return $taskId;
+    }
+
     private static function items(array $chunkIds): array
     {
         return HelpChunk::query()

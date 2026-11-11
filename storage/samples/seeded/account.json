@@ -1,0 +1,8 @@
+{
+    "description": "Three account and security questions.",
+    "messages": [
+        "How do I turn on two-factor authentication?",
+        "How long am I locked out after too many wrong passwords?",
+        "How do I see which devices are signed in to my account?"
+    ]
+}

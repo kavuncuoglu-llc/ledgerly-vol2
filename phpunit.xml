@@ -58,6 +58,11 @@
         <env name="AI_RECORD_REQUESTS" value="false" force="true"/>
         <env name="AI_EVAL_ENABLED" value="false" force="true"/>
         <env name="EVAL_TOKEN" value="" force="true"/>
+        <env name="AI_LOCAL_DIGEST" value="" force="true"/>
+        <env name="FRONTIER_DEPRECATES_ON" value="" force="true"/>
+        <env name="FRONTIER_CANDIDATE" value="" force="true"/>
+        <env name="JUDGE_MODEL" value="llama3.1:8b" force="true"/>
+        <env name="JUDGE_BASE_URL" value="http://localhost:11434/v1" force="true"/>
         <env name="AI_KEEP_ALIVE" value="" force="true"/>
         <env name="AI_LOCAL_PROVIDER" value="ollama" force="true"/>
         <env name="LLAMA_URL" value="http://llama.test:8080/v1" force="true"/>

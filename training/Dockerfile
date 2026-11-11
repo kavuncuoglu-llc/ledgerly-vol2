@@ -24,6 +24,7 @@ RUN uv sync --locked --no-dev ${UV_SYNC_ARGS}
 
 COPY contracts ./contracts
 COPY workers ./workers
+COPY evals ./evals
 COPY scripts ./scripts
 
 RUN mkdir -p /home/worker/.cache/huggingface && chown -R worker:worker /home/worker /app

@@ -29,6 +29,7 @@ Each chapter of this volume is a tag, `ch26` through `ch51`, taken at the end of
 | `ch27` | Python beside PHP: JSON Schema contracts in `contracts/` validated by PHP and by generated Pydantic models, the embedding worker (`py-worker`) and `py:listen` over Redis streams, the shadow table `help_chunk_vectors`, `ai:reembed`, `ai:compare-vectors`, `ai:promote-vectors`, `retrieval:eval --vectors=shadow`, `dataset:validate`, the first CI (`.github/workflows/ci.yml`: PHP, Python and contracts jobs). |
 | `ch28` | The Python AI stack, mapped: the `mlflow` Compose profile (`ops/compose/mlflow.yml`, `127.0.0.1:5050`), `help:export --jsonl`, `training/scripts/dataset_stats.py`, and the decision record `docs/adr/python-libraries.md`. |
 | `ch29` | Tests for a system whose output varies: failure-path tests with `Ai::fake()`, prompt snapshots and `prompts.lock`, the golden set in `tests/golden/`, `POST /eval/answer` (only with `AI_EVAL_ENABLED=true`), promptfoo gates in `evals/`, `eval:gates`, `eval:check`, `eval:synthesize`, `eval:capture` and friends, and `.github/workflows/ai-evals.yml`. |
+| `ch30` | Evaluation as an ongoing practice: thumbs and reason chips (`answer_feedback`), `ComputeOnlineSignals`, `eval:sample` with the Python judge (`training/evals/`, RAGAS and DeepEval), `Experiment` with shadow runs and A/B tests (`ai:experiment`), `eval:scorecard`, `eval:tripwire` and `ai:models:audit`. |
 
 ## Set up `vol2-start`
 
@@ -102,6 +103,24 @@ php artisan prompts:lock                                    # after you bump a p
 ```
 
 `/eval/answer` exists only when `AI_EVAL_ENABLED=true`, wants `EVAL_TOKEN` as a bearer token and answers only as the seeded fixture customers (`acme` is Acme Studios). Keep the flag off anywhere real customers are. `promptfoo` is a Node tool; the repository itself has no Node dependency, and `npx` fetches the pinned version. A CPU model takes 20 to 30 seconds per answer, so the smoke subset takes ten minutes or so. `eval:report --to=mlflow` logs a run to the tracker from Chapter 28. The workflow `.github/workflows/ai-evals.yml` runs the smoke subset on every push to `main` and the full set with the judge nightly; the judge needs `FRONTIER_MODEL` and `FRONTIER_KEY` as repository variables and secrets and is skipped without them.
+
+### From `ch30`: feedback, signals, a judge, shadow runs and a scorecard
+
+```bash
+php artisan migrate                                                       # answer_feedback, answer_signals, online_judgments, experiments, shadow_answers
+php artisan conversation:replay storage/samples/seeded --users=6 --feedback-rate=0.3     # simulated customers, three short scripts, a share of them click a thumb
+php artisan ai:experiment support-prompt-v5 --mode=shadow --percent=10 --candidate=storage/samples/worse-prompt.php    # a candidate answers 10% of requests, unseen
+php artisan eval:signals --date=$(date +%F)                               # re-asks, follow-up tickets, escalations and resolution (the nightly job does yesterday)
+php artisan eval:sample --rate=1 --since=1d                               # answers and finished conversations to the Python judge
+(cd training && uv run python -m workers.eval_worker)                     # scores them with RAGAS and DeepEval; set JUDGE_* in .env first
+php artisan py:listen --once                                              # applies the scores
+php artisan eval:scorecard support.reply --days=1 --by=variant
+php artisan ai:models:audit
+cd training && uv run lm_eval --model hf --model_args pretrained=Qwen/Qwen2.5-0.5B-Instruct --tasks arc_easy,hellaswag,ifeval,gsm8k --limit 20 --device mps --output_path runs/lm-eval/base
+php artisan eval:tripwire runs/lm-eval/base runs/lm-eval/support-v1 --max-drop=2.0
+```
+
+`worse-prompt.php` is a candidate that is worse on purpose; `candidate-prompt.php` is the one to A/B test (`--mode=ab --percent=50`: a customer's variant is a hash of the experiment and the customer, so it never flips). The judge in `.env` (`JUDGE_BASE_URL`, `JUDGE_MODEL`) defaults to your local Ollama, which is fine for checking the wiring and wrong for judging: use a different model family for real scores. Scorecard targets and floors are in `config/ai.php` (`ai.scorecards`), deprecation dates and digests under `ai.providers`. The simulated users are one owner per seeded tenant, so `--users` stops at 40. `lm_eval` on a small model takes a while for the two generation tasks (`ifeval`, `gsm8k`); use `--limit`.
 
 ## The app as Volume 1 left it
 

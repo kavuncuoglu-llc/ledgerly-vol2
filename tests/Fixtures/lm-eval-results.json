@@ -1,0 +1,36 @@
+{
+ "results": {
+  "arc_easy": {
+   "name": "arc_easy",
+   "alias": "arc_easy",
+   "sample_len": 40,
+   "acc,none": 0.65,
+   "acc_stderr,none": 0.07637626158259733,
+   "acc_norm,none": 0.6,
+   "acc_norm_stderr,none": 0.07844645405527362
+  },
+  "hellaswag": {
+   "name": "hellaswag",
+   "alias": "hellaswag",
+   "sample_len": 40,
+   "acc,none": 0.4,
+   "acc_stderr,none": 0.07844645405527362,
+   "acc_norm,none": 0.425,
+   "acc_norm_stderr,none": 0.07915823166939519
+  }
+ },
+ "n-samples": {
+  "arc_easy": {
+   "original": 2376,
+   "effective": 40
+  },
+  "hellaswag": {
+   "original": 10042,
+   "effective": 40
+  }
+ },
+ "config": {
+  "model": "hf",
+  "limit": 40.0
+ }
+}

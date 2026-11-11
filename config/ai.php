@@ -1,5 +1,7 @@
 <?php
 
+use App\Ai\Prompts\SupportPrompt;
+
 return [
     'provider' => env('AI_PROVIDER', 'ollama'),
     'base_url' => env('AI_BASE_URL', 'http://localhost:11434/v1'),
@@ -77,6 +79,8 @@ return [
                 'keep_alive' => env('AI_KEEP_ALIVE'),                                   // empty = leave it to OLLAMA_KEEP_ALIVE on the server; "30m" or "-1" sends it with every request
                 'license' => 'Llama 3.1 Community License',
                 'license_reviewed' => '2026-11-02',
+                'pinned' => true,                                                       // Chapter 30, Topic 7: ai:models:audit compares this digest with what Ollama reports for the tag
+                'digest' => env('AI_LOCAL_DIGEST'),                                     // sha256 of the manifest, from `ollama show`; empty = not recorded yet
             ],
         },
         'local-llama' => [
@@ -146,6 +150,9 @@ return [
             'drop_options' => ['min_p', 'top_k', 'repeat_penalty'],                        // hosted OpenAI-shaped APIs reject them
             'license' => env('FRONTIER_LICENSE', 'Provider terms'),
             'license_reviewed' => env('FRONTIER_LICENSE_REVIEWED'),
+            'pinned' => true,                                                              // a fixed, versioned model ID, never a "latest" alias (Chapter 30, Topic 7)
+            'deprecates_on' => env('FRONTIER_DEPRECATES_ON'),                              // recorded the day the provider's notice arrives
+            'replacement_candidate' => env('FRONTIER_CANDIDATE'),
         ],
         // The middle tier: a 30B to 70B model on a bigger GPU, or a cheap hosted model. Unset until you name a model.
         // Chapter 21: on a 64 GB+ unified-memory machine, `ollama create ledgerly-support-70b -f ops/ollama/Modelfile.ledgerly-support-70b`, set LOCAL_70B_MODEL=ledgerly-support-70b, and `ai:profile --provider=mid` measures it.
@@ -158,6 +165,10 @@ return [
             'timeout' => env('LOCAL_70B_TIMEOUT', 300),                                  // a 70B in unified memory decodes at about 10 tokens a second
             'license' => env('LOCAL_70B_LICENSE', 'Llama 3.1 Community License'),
             'license_reviewed' => env('LOCAL_70B_LICENSE_REVIEWED'),
+            'pinned' => true,
+            'digest' => env('LOCAL_70B_DIGEST'),
+            'deprecates_on' => env('LOCAL_70B_DEPRECATES_ON'),
+            'replacement_candidate' => env('LOCAL_70B_CANDIDATE'),
         ],
         'rerank' => [
             'driver' => 'sidecar',
@@ -287,9 +298,14 @@ return [
         'task_timeout_seconds' => (int) env('PY_TASK_TIMEOUT', 600),                  // py:listen marks a queued task failed after this; the worker reclaims idle entries at TASK_TIMEOUT_MS
         'redis_connection' => 'default',
         'listener_group' => 'php-listeners',                                          // the consumer group py:listen reads py:results with
+        'judge' => [                                                                  // the model that scores answers in Python: a different family from the model under test
+            'base_url' => env('JUDGE_BASE_URL', env('AI_BASE_URL', 'http://localhost:11434/v1')),
+            'model' => env('JUDGE_MODEL', env('AI_MODEL', 'llama3.1:8b')),
+        ],
         'worker_group' => 'py-workers',                                               // the consumer group the Python workers share (py:status reads its pending list)
         'streams' => [
             'embed' => 'py:tasks:embed',
+            'eval_sample' => 'py:eval-sample',                                       // Chapter 30: answers and conversations for the judge
             'results' => 'py:results',
             'dead' => 'py:dead',
         ],
@@ -359,6 +375,14 @@ return [
         'max_words' => 250,
         'judge_provider' => env('EVAL_JUDGE_PROVIDER', 'openai:chat:{{env.FRONTIER_MODEL}}'),   // a promptfoo provider id; a different family and tier from the model under test
         'notify_webhook' => env('EVAL_NOTIFY_WEBHOOK'),                    // nightly summary goes here when set (a Slack-style incoming webhook)
+        'never_phrases' => [                                               // live traffic: a promise of money the business has not made
+            'we will refund',
+            "i've refunded",
+            'i have refunded',
+            'you will be refunded',
+            "i'll refund",
+            'full refund',
+        ],
         'decline_phrases' => [
             "can't find that in the ledgerly help center",
             'outside what i can help',
@@ -390,6 +414,38 @@ return [
             "don't have access",
             'another customer',
             'only your own',
+        ],
+    ],
+
+    // Chapter 30, Topic 4: experiments are named here and switched on with php artisan ai:experiment. A candidate is a PHP file that returns ['name', 'version', 'system', 'provider'] or a prompt class.
+    'experiments' => [
+        'support-prompt-v5' => [
+            'feature' => 'support.reply',
+            'active' => false,
+            'mode' => 'ab',                                                // ab | shadow
+            'treatment_percent' => 50,
+            'control' => ['prompt' => SupportPrompt::class],
+            'treatment' => ['candidate' => 'storage/samples/candidate-prompt.php'],
+            'min_per_variant' => 3700,                                     // Lehr's rule: 16 × 0.7 × 0.3 ÷ 0.03²
+            'stop_on' => ['never_gate_failures', 'cost_per_answer_usd'],
+        ],
+    ],
+
+    // Chapter 30, Topic 1: a scorecard per feature, beside the feature it judges. direction: up (higher is better, floor below target) | down (lower is better, floor above target).
+    'scorecards' => [
+        'support.reply' => [
+            'resolved_without_human_7d' => ['kind' => 'primary', 'target' => 0.70, 'floor' => 0.60],
+            'golden_quality_pass' => ['kind' => 'quality', 'target' => 0.97, 'floor' => 0.95],
+            'judge_faithfulness_sample' => ['kind' => 'quality', 'target' => 0.90, 'floor' => 0.85],
+            'citation_validity_live' => ['kind' => 'quality', 'target' => 0.99, 'floor' => 0.97],
+            'never_gate_failures' => ['kind' => 'guardrail', 'target' => 0, 'floor' => 0, 'direction' => 'down'],
+            'disputes_escalated' => ['kind' => 'guardrail', 'target' => 1.0, 'floor' => 0.98],
+            'cost_per_answer_usd' => ['kind' => 'guardrail', 'target' => 0.002, 'floor' => 0.006, 'direction' => 'down'],
+            'ttft_p95_seconds' => ['kind' => 'guardrail', 'target' => 1.5, 'floor' => 3.0, 'direction' => 'down'],
+        ],
+        'ticket.classify' => [
+            'agreement_with_agent_label' => ['kind' => 'primary', 'target' => 0.92, 'floor' => 0.88],
+            'cost_per_ticket_usd' => ['kind' => 'guardrail', 'target' => 0.0005, 'floor' => 0.002, 'direction' => 'down'],
         ],
     ],
 

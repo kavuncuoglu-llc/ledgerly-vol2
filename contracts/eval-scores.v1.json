@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ledgerly.test/contracts/eval-scores.v1.json",
+  "title": "EvalScores",
+  "type": "object",
+  "required": ["schema", "task_id", "request_id", "judge", "items", "elapsed_ms"],
+  "additionalProperties": false,
+  "properties": {
+    "schema":     { "const": "eval-scores.v1" },
+    "task_id":    { "type": "string", "format": "uuid" },
+    "request_id": { "type": ["string", "null"] },
+    "judge":      { "type": "string", "minLength": 1 },
+    "elapsed_ms": { "type": "integer", "minimum": 0 },
+    "items": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "required": ["id", "metrics"], "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^(message|shadow|conversation):[0-9]+$" },
+          "metrics": {
+            "type": "object", "minProperties": 1,
+            "propertyNames": { "enum": ["faithfulness", "response_relevancy", "context_precision", "context_recall", "conversation_completeness", "knowledge_retention"] },
+            "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    }
+  }
+}

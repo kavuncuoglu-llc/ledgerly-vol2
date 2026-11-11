@@ -3,6 +3,7 @@
 namespace App\Ai\Retrieval;
 
 use App\Ai\Embeddings\MarkdownChunker;
+use App\Models\HelpChunk;
 use Illuminate\Support\Str;
 
 final readonly class RetrievedChunk
@@ -23,6 +24,25 @@ final readonly class RetrievedChunk
         public ?array $plans = null,
         public ?string $matched = null,
     ) {}
+
+    public static function fromModel(HelpChunk $chunk): self
+    {
+        return new self(
+            id: $chunk->id,
+            source: $chunk->source,
+            title: (string) $chunk->title,
+            headingPath: (string) $chunk->heading_path,
+            heading: $chunk->heading,
+            content: $chunk->content,
+            helpVersion: (string) $chunk->help_version,
+            similarity: 1.0,
+            keywordRank: null,
+            score: 1.0,
+            chunkKey: (string) $chunk->chunk_key,
+            tenantId: $chunk->tenant_id,
+            plans: null,
+        );
+    }
 
     public function isShared(): bool
     {

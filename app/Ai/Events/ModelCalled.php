@@ -23,5 +23,8 @@ final class ModelCalled
         public readonly ?array $contextBreakdown = null,      // ['system' => 440, 'history' => 1620, ...] from ContextAssembler
         public readonly ?bool $semanticCacheHit = null,
         public readonly ?array $request = null,               // Chapter 20: the normalised request, only when ai.debug.record_requests is on
+        public readonly ?string $variant = null,              // Chapter 30: the experiment variant that wrote this call
     ) {}
+
+    public ?int $modelCallId = null;                          // set by RecordModelCall, so the decorator that dispatched the event can hand the id on (Chapters 30 and 31)
 }

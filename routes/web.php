@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AnswerFeedbackController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ConversationController;
@@ -38,7 +39,7 @@ Route::view('support/chat', 'support.chat')->middleware('auth')->name('support.c
 Route::post('support/ask', [SupportController::class, 'ask'])->middleware(['auth', 'throttle:ai'])->name('support.ask');
 
 Route::get('replies/{reply}', [ReplyController::class, 'show'])->middleware('auth')->name('replies.show');
-Route::post('replies/{reply}/feedback', [ReplyController::class, 'feedback'])->middleware('auth')->name('replies.feedback');
+Route::post('replies/{reply}/feedback', [AnswerFeedbackController::class, 'store'])->middleware('auth')->name('replies.feedback');
 
 Route::get('support/approvals/{pending}', [ApprovalController::class, 'show'])->middleware('auth:web,sanctum')->name('support.approvals.show');
 Route::post('support/approve/{pending}', [ApprovalController::class, 'approve'])->middleware(['auth', 'throttle:ai'])->name('support.approve');

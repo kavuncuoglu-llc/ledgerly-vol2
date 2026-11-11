@@ -16,6 +16,7 @@ use App\Tenancy\CurrentTenant;
 use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use Tests\Support\FakeStreams;
 use Tests\TestCase;
@@ -391,4 +392,12 @@ function chunkRow(array $overrides = []): HelpChunk
         'chunk_key' => sha1('chunk'.$counter),
         'embedding' => fakeEmbeddingVector($content),
     ], $overrides));
+}
+
+// The exit code and everything a command printed, for output that is a table or whose lines come in an order the test should not depend on.
+function artisanOutput(string $command, array $parameters = []): array
+{
+    $code = Artisan::call($command, $parameters);
+
+    return [$code, Artisan::output()];
 }

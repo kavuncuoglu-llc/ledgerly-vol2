@@ -15,7 +15,7 @@ final class RecordModelCall
         $promptTokens = $e->usage['prompt_tokens'] ?? 0;
         $completionTokens = $e->usage['completion_tokens'] ?? 0;
 
-        ModelCall::create([
+        $row = ModelCall::create([
             'feature' => $e->feature,
             'provider' => $e->provider,
             'model' => $e->model,
@@ -32,7 +32,10 @@ final class RecordModelCall
             'context_breakdown' => $e->contextBreakdown,
             'semantic_cache_hit' => $e->semanticCacheHit,
             'request' => $e->request,
+            'variant' => $e->variant,
         ]);
+
+        $e->modelCallId = $row->id;
 
         if ($e->finishReason === 'length') {
             Log::warning('Completion truncated', ['feature' => $e->feature, 'usage' => $e->usage]);

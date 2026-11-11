@@ -61,15 +61,15 @@ final class SupportPrompt
         return 'That is outside what I can help with here. I can answer questions about using Ledgerly, your invoices and your account.';
     }
 
-    public static function messages(string $question, array $contextChunks = [], array $history = [], ?User $user = null, ?string $summary = null): array
+    public static function messages(string $question, array $contextChunks = [], array $history = [], ?User $user = null, ?string $summary = null, ?string $system = null): array
     {
-        return self::assemble($question, $contextChunks, $history, $user, $summary)->messages;
+        return self::assemble($question, $contextChunks, $history, $user, $summary, $system)->messages;
     }
 
-    public static function assemble(string $question, array $contextChunks = [], array $history = [], ?User $user = null, ?string $summary = null): AssembledPrompt
+    public static function assemble(string $question, array $contextChunks = [], array $history = [], ?User $user = null, ?string $summary = null, ?string $system = null): AssembledPrompt
     {
         return app(ContextAssembler::class)
-            ->system(self::base(), $user ? MemoryBlock::render($user) : '')    // slot 1, fixed
+            ->system($system ?? self::base(), $user ? MemoryBlock::render($user) : '')    // slot 1, fixed; a candidate under test brings its own text (Chapter 30)
             ->summary($summary)                                                  // slot 2, if any
             ->history($history)                                                  // slot 3, windowed
             ->context($contextChunks)                                            // slot 4, per turn

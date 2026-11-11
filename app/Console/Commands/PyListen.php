@@ -6,6 +6,7 @@ use App\Ai\Python\Contract;
 use App\Ai\Python\ContractViolation;
 use App\Ai\Python\Streams;
 use App\Jobs\ApplyEmbeddings;
+use App\Jobs\ApplyEvalScores;
 use App\Models\PythonTask;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -68,8 +69,16 @@ class PyListen extends Command
             return;
         }
 
+        $schema = $result['schema'] ?? '';
+
+        if (! in_array($schema, ['embed-result.v1', 'eval-scores.v1'], true)) {
+            $this->failTask(is_array($result) ? (string) ($result['task_id'] ?? '') : '', "unknown result schema '{$schema}'");
+
+            return;
+        }
+
         try {
-            Contract::assertValid('embed-result.v1', $result);
+            Contract::assertValid($schema, $result);
         } catch (ContractViolation $e) {
             $this->failTask($result['task_id'] ?? '', $e->getMessage());
 
@@ -88,7 +97,13 @@ class PyListen extends Command
             return;                                                    // a duplicate delivery (Topic 7): already applied
         }
 
-        ApplyEmbeddings::dispatch($result);
+        if ($schema === 'eval-scores.v1') {
+            ApplyEvalScores::dispatch($result);
+        }
+
+        if ($schema === 'embed-result.v1') {
+            ApplyEmbeddings::dispatch($result);
+        }
 
         $this->line("result {$result['task_id']} dispatched ({$task->item_count} items)");
     }

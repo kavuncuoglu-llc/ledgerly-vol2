@@ -3,12 +3,14 @@
 use App\Ai\Python\Contract;
 use App\Ai\Python\ContractViolation;
 
+const CONTRACT_SCHEMAS = ['embed-batch.v1', 'embed-result.v1', 'eval-sample.v1', 'eval-conversations.v1', 'eval-scores.v1'];
+
 function contractFixtures(string $schema, string $prefix): array
 {
     return glob(dirname(__DIR__, 4)."/contracts/fixtures/{$schema}/{$prefix}-*.json");
 }
 
-foreach (['embed-batch.v1', 'embed-result.v1'] as $schema) {
+foreach (CONTRACT_SCHEMAS as $schema) {
     foreach (contractFixtures($schema, 'valid') as $path) {
         it("accepts {$schema}/".basename($path), function () use ($schema, $path) {
             Contract::assertValid($schema, json_decode(file_get_contents($path), true));
@@ -26,7 +28,7 @@ foreach (['embed-batch.v1', 'embed-result.v1'] as $schema) {
 }
 
 it('has both kinds of fixture for each contract', function () {
-    foreach (['embed-batch.v1', 'embed-result.v1'] as $schema) {
+    foreach (CONTRACT_SCHEMAS as $schema) {
         expect(contractFixtures($schema, 'valid'))->not->toBeEmpty()
             ->and(contractFixtures($schema, 'invalid'))->not->toBeEmpty();
     }
@@ -56,7 +58,7 @@ it('carries the violation, with the schema it broke', function () {
 });
 
 it('puts the schema name in every contract file, and keeps the $id the PHP validator registers', function () {
-    foreach (['embed-batch.v1', 'embed-result.v1'] as $schema) {
+    foreach (CONTRACT_SCHEMAS as $schema) {
         $document = json_decode(file_get_contents(base_path("contracts/{$schema}.json")), true);
 
         expect($document['properties']['schema'])->toBe(['const' => $schema])

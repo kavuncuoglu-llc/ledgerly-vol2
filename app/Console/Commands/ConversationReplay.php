@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Ai\Conversations\ConversationStore;
+use App\Ai\Load\FeedbackSimulator;
 use App\Ai\Load\SimulatedUsers;
 use App\Ai\Prompts\SupportPrompt;
 use App\Ai\Support\SupportAssistant;
@@ -17,7 +18,7 @@ use Illuminate\Support\Facades\File;
 
 class ConversationReplay extends Command
 {
-    protected $signature = 'conversation:replay {path=storage/samples/long-conversation.json : The script of customer messages} {--user=12 : The user id who asks (12 is the owner of Acme Studios)} {--every=1 : Print every Nth turn} {--users=1 : Simulated users asking at once through the queue (Chapter 24); more than one needs Horizon running}  {--timeout=1800 : Seconds to wait for the simulated users before giving up}';
+    protected $signature = 'conversation:replay {path=storage/samples/long-conversation.json : The script of customer messages} {--user=12 : The user id who asks (12 is the owner of Acme Studios)} {--every=1 : Print every Nth turn} {--users=1 : Simulated users asking at once through the queue (Chapter 24); more than one needs Horizon running}  {--timeout=1800 : Seconds to wait for the simulated users before giving up} {--feedback-rate=0 : Share of the simulated users\' answers that get a thumbs click (Chapter 30); a directory of scripts is shared out among the users}';
 
     protected $description = 'Replay a scripted conversation through the support assistant and show the prompt size and summary state per turn';
 
@@ -31,6 +32,10 @@ class ConversationReplay extends Command
             $this->error("No script at {$this->argument('path')}.");
 
             return self::FAILURE;
+        }
+
+        if (File::isDirectory($path)) {
+            return $this->simulateScripts($simulation, $path);
         }
 
         $script = json_decode(File::get($path), true);
@@ -62,6 +67,50 @@ class ConversationReplay extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    // Chapter 30, Build: a directory of short scripts (storage/samples/seeded), shared out among the simulated users, with a share of them clicking a thumb afterwards.
+    private function simulateScripts(SimulatedUsers $simulation, string $directory): int
+    {
+        $scripts = collect(File::files($directory))
+            ->filter(fn ($file) => $file->getExtension() === 'json')
+            ->sortBy(fn ($file) => $file->getFilename())
+            ->map(fn ($file) => json_decode(File::get($file->getPathname()), true)['messages'] ?? [])
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($scripts === []) {
+            $this->error("No scripts with a \"messages\" list in {$this->argument('path')}.");
+
+            return self::FAILURE;
+        }
+
+        $users = User::query()->whereNotNull('tenant_id')->where('role', 'owner')->orderBy('id')->limit(max(1, (int) $this->option('users')))->get()->all();
+
+        if (count($users) < (int) $this->option('users')) {
+            $this->warn(sprintf('Only %d users can be simulated (one owner per tenant, and %d tenants have one).', count($users), count($users)));
+        }
+
+        $started = now()->subSecond();
+
+        $this->line(sprintf('%d users × up to %d turns, %d scripts, through the %s queue ...', count($users), max(array_map('count', $scripts)), count($scripts), config('queue.default')));
+
+        $report = $simulation->run($users, $scripts, (int) $this->option('timeout'));
+
+        $this->line($report->line());
+
+        $rate = (float) $this->option('feedback-rate');
+
+        if ($rate > 0) {
+            $clicks = app(FeedbackSimulator::class)->run($users, $started, $rate);
+
+            $this->line(sprintf('feedback: %d of %d answers rated (%.1f%%) · thumbs-down %d', $clicks['rated'], $clicks['replies'], $clicks['replies'] > 0 ? $clicks['rated'] / $clicks['replies'] * 100 : 0, $clicks['down']));
+        }
+
+        return $report->failed + $report->unfinished > 0
+            ? self::FAILURE
+            : self::SUCCESS;
     }
 
     // Chapter 24, Topic 8: N people at once, each through the real queue. Their TTFT comes from model_calls, so it is the number a customer would have seen.

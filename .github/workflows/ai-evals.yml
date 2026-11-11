@@ -49,14 +49,14 @@ jobs:
     env:
       PGPASSWORD: secret
     steps:
-      - uses: actions/checkout@v6.1.0
-      - uses: shivammathur/setup-php@2.37.2
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: "8.3"
           extensions: gd, zip, pcntl, posix, pdo_pgsql
           tools: composer:v2
           coverage: none
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
       - uses: ./.github/actions/ollama
@@ -91,7 +91,7 @@ jobs:
           PROMPTFOO_DISABLE_TELEMETRY: "1"
           PROMPTFOO_DISABLE_UPDATE: "1"
       - run: php artisan eval:check results.json --quality=0.95 --never=0
-      - uses: actions/upload-artifact@v7.0.1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: promptfoo-results-${{ github.run_id }}
@@ -127,19 +127,17 @@ jobs:
     env:
       PGPASSWORD: secret
       FRONTIER_MODEL: ${{ vars.FRONTIER_MODEL }}
-      OPENAI_API_KEY: ${{ secrets.FRONTIER_KEY }}
       OPENAI_BASE_URL: ${{ vars.FRONTIER_URL }}
       MLFLOW_TRACKING_URI: ${{ vars.MLFLOW_TRACKING_URI }}
-      EVAL_NOTIFY_WEBHOOK: ${{ secrets.EVAL_NOTIFY_WEBHOOK }}
     steps:
-      - uses: actions/checkout@v6.1.0
-      - uses: shivammathur/setup-php@2.37.2
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: "8.3"
           extensions: gd, zip, pcntl, posix, pdo_pgsql
           tools: composer:v2
           coverage: none
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
       - uses: ./.github/actions/ollama
@@ -168,8 +166,10 @@ jobs:
           nohup php artisan serve --host=127.0.0.1 --port=8080 > serve.log 2>&1 &
           curl -sf --retry 30 --retry-delay 1 --retry-all-errors http://127.0.0.1:8080/up
       - name: Export the whole set, with the judge when a judge model is configured
+        env:
+          HAS_JUDGE_KEY: ${{ secrets.FRONTIER_KEY != '' }}
         run: |
-          if [ -n "$FRONTIER_MODEL" ] && [ -n "$OPENAI_API_KEY" ]; then
+          if [ -n "$FRONTIER_MODEL" ] && [ "$HAS_JUDGE_KEY" = "true" ]; then
             php artisan eval:export-promptfoo --subset=all --with-judge
           else
             echo "No FRONTIER_MODEL or key: running the gates without the judge."
@@ -180,17 +180,24 @@ jobs:
         env:
           PROMPTFOO_DISABLE_TELEMETRY: "1"
           PROMPTFOO_DISABLE_UPDATE: "1"
-      - name: Check, then report even when the check fails
+          OPENAI_API_KEY: ${{ secrets.FRONTIER_KEY }}
+      - name: Check the thresholds
+        id: check
+        continue-on-error: true
+        run: php artisan eval:check results.json --quality=0.95 --never=0
+      - name: Report to MLflow and the team channel, whether or not the check passed
+        env:
+          EVAL_NOTIFY_WEBHOOK: ${{ secrets.EVAL_NOTIFY_WEBHOOK }}
         run: |
-          status=0
-          php artisan eval:check results.json --quality=0.95 --never=0 || status=$?
           if [ -n "$MLFLOW_TRACKING_URI" ]; then
             php artisan eval:report --to=mlflow --notify='#ai-quality'
           else
             php artisan eval:report --notify='#ai-quality'
           fi
-          exit $status
-      - uses: actions/upload-artifact@v7.0.1
+      - name: Fail the job when the check failed
+        if: steps.check.outcome == 'failure'
+        run: exit 1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: nightly-results-${{ github.run_id }}

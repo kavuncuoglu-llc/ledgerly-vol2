@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ledgerly.test/contracts/eval-conversations.v1.json",
+  "title": "EvalConversations",
+  "type": "object",
+  "required": ["schema", "task_id", "request_id", "judge", "items"],
+  "additionalProperties": false,
+  "properties": {
+    "schema":     { "const": "eval-conversations.v1" },
+    "task_id":    { "type": "string", "format": "uuid" },
+    "request_id": { "type": ["string", "null"] },
+    "judge":      { "type": "string", "minLength": 1 },
+    "items": {
+      "type": "array", "minItems": 1, "maxItems": 100,
+      "items": {
+        "type": "object", "required": ["id", "turns"], "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^conversation:[0-9]+$" },
+          "turns": {
+            "type": "array", "minItems": 2,
+            "items": {
+              "type": "object", "required": ["role", "content"], "additionalProperties": false,
+              "properties": { "role": { "enum": ["user", "assistant"] }, "content": { "type": "string", "minLength": 1 } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

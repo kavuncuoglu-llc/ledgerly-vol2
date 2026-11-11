@@ -1,0 +1,1 @@
+{"schema":"eval-scores.v1","task_id":"4c9f1c64-2e6b-4c5e-9a53-6f2b8f1d7a10","request_id":null,"judge":"llama3.1:8b","elapsed_ms":1200,"items":[{"id":"message:41","metrics":{"faithfulness":0.8,"response_relevancy":0.9}},{"id":"conversation:5","metrics":{"conversation_completeness":1.0}}]}

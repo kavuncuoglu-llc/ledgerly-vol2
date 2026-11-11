@@ -12,7 +12,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/cache@v6.0.0
+    - uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
       with:
         path: ~/.ollama-cache
         key: ollama-${{ inputs.image }}-${{ inputs.models }}

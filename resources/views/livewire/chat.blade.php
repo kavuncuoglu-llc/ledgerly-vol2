@@ -27,6 +27,10 @@
         @foreach ($messages as $message)
             <div wire:key="message-{{ $message['id'] }}" class="bubble {{ $message['role'] }}">
                 <div class="text">{{ $message['content'] }}</div>
+
+                @if ($message['role'] === 'assistant' && $message['question'] !== null && $message['status'] === 'completed')
+                    <x-answer-feedback :reply-id="$message['id']" :rating="$message['feedback']" />
+                @endif
             </div>
         @endforeach
 

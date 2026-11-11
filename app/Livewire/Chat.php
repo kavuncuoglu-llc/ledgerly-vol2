@@ -57,7 +57,7 @@ class Chat extends Component
             ->where(fn ($query) => $query->where('status', 'completed')->orWhere('status', 'paused'))
             ->whereNotNull('content')
             ->orderBy('seq')
-            ->get(['id', 'role', 'content', 'status'])
+            ->get(['id', 'role', 'content', 'status', 'question', 'feedback'])
             ->toArray();
     }
 

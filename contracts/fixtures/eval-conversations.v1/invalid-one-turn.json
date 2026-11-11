@@ -1,0 +1,1 @@
+{"schema":"eval-conversations.v1","task_id":"4c9f1c64-2e6b-4c5e-9a53-6f2b8f1d7a10","request_id":null,"judge":"llama3.1:8b","items":[{"id":"conversation:5","turns":[{"role":"user","content":"Hi"}]}]}

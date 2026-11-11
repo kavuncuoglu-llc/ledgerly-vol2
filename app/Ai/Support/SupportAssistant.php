@@ -14,6 +14,7 @@ use App\Ai\Conversations\SummarizeConversation;
 use App\Ai\Events\ModelCalled;
 use App\Ai\Exceptions\CircuitOpen;
 use App\Ai\Exceptions\ProviderUnavailable;
+use App\Ai\Experiments\Experiment;
 use App\Ai\Health\ProviderHealth;
 use App\Ai\Memory\MemoryBlock;
 use App\Ai\Prompts\SupportPrompt;
@@ -83,7 +84,10 @@ final class SupportAssistant
 
         $history = $this->store->history($conversation, $allowance);               // windowed, compacted, whole exchanges
 
-        $eligible = $this->cacheable($question, $history);
+        [$variant, $candidate] = $this->assignment($user);
+
+        $eligible = $variant === null
+            && $this->cacheable($question, $history);                              // a cached answer was written by the control prompt: during an A/B test it would hide the difference
 
         $hit = $eligible
             ? $this->cache->find($question, $user->tenant_id)
@@ -113,6 +117,7 @@ final class SupportAssistant
             history: $history,
             user: $eligible ? null : $user,                                        // memories go into system(), but never into an answer that may be cached for others
             summary: $conversation->summary,
+            system: $candidate?->system,
         );
 
         $this->recordQuestion($conversation, $question, $reply);
@@ -120,7 +125,8 @@ final class SupportAssistant
         $options = [
             'profile' => config('ai.eval.enabled') ? config('ai.eval.profile', 'assistant') : 'assistant',    // Chapter 29: the gates run at temperature 0 with a seed
             'max_tokens' => config('ai.budget.answer'),
-            'prompt_version' => SupportPrompt::VERSION,
+            'prompt_version' => $candidate?->version ?? SupportPrompt::VERSION,
+            'variant' => $variant,
             'conversation_id' => $conversation->id,
             'context_breakdown' => $prompt->breakdown,
             'semantic_cache_hit' => $eligible ? false : null,                      // eligible and missed, versus never eligible
@@ -144,7 +150,7 @@ final class SupportAssistant
 
         $reply = $this->remember($conversation, $result, sent: $sent, reply: $reply);
 
-        $reply->update(['retrieved' => $this->retrievedOf($prompt)]);               // Chapter 29: what the model was shown, so a gate or a shadow run can look at the same sources
+        $reply->update(['retrieved' => $this->retrievedOf($prompt), 'prompt_version' => $candidate?->version ?? SupportPrompt::VERSION, 'experiment_variant' => $variant]);               // Chapter 29: what the model was shown, so a gate or a shadow run can look at the same sources
 
         if ($result->citations !== null && $result->citations->cited !== [] && ! $result->citations->hasErrors()) {
             $this->store->recordSources($reply, $result->citations->cited);
@@ -163,6 +169,22 @@ final class SupportAssistant
         }
 
         return $result;
+    }
+
+    // Chapter 30, Topic 4: during an A/B test a customer is sticky in one variant; the treatment brings its own system prompt. [null, null] when no test runs.
+    private function assignment(User $user): array
+    {
+        $settings = Experiment::running('support.reply', 'ab');
+
+        if ($settings === null || $user->customer === null) {
+            return [null, null];
+        }
+
+        $variant = Experiment::variant($user->customer, $settings['name']);
+
+        return $variant === Experiment::TREATMENT
+            ? [$variant, Experiment::candidateFor('support.reply')]
+            : [$variant, null];
     }
 
     private function route(User $user, string $question, array $history): Route

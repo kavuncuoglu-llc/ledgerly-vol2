@@ -1,0 +1,8 @@
+{
+    "description": "Three billing questions from one customer, the kind Chapter 29's golden set is made of.",
+    "messages": [
+        "Which of my invoices are overdue right now?",
+        "How is the late fee calculated?",
+        "Can I waive the late fee on one invoice?"
+    ]
+}
