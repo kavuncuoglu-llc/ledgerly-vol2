@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan test:*)",
+      "Bash(vendor/bin/pest:*)",
+      "Bash(vendor/bin/pint --test:*)",
+      "Bash(php artisan ai:contract-test:*)",
+      "Bash(php artisan eval:check:*)",
+      "Bash(git diff:*)",
+      "Bash(git status)"
+    ],
+    "ask": [
+      "Bash(composer require:*)",
+      "Bash(php artisan migrate:*)",
+      "Bash(php artisan tinker:*)",
+      "Bash(git push:*)",
+      "mcp__laravel-boost__database-query"
+    ],
+    "deny": [
+      "Read(.env.production)",
+      "Bash(php artisan db:wipe:*)",
+      "Bash(git push --force:*)",
+      "Bash(*deploy*)"
+    ]
+  }
+}

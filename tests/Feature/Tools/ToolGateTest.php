@@ -315,7 +315,7 @@ describe('the read tools are reads', function () {
     })->with(['lookup_invoice', 'list_invoices', 'account_status', 'check_payment_status', 'search_help_center']);
 
     it('lists exactly those five tools as the reads', function () {
-        expect(app(ToolRegistry::class)->ofRisk(Risk::Read)->keys()->sort()->values()->all())->toBe(['account_status', 'calculate_proration', 'check_payment_status', 'list_invoices', 'lookup_invoice', 'search_help_center']);
+        expect(app(ToolRegistry::class)->ofRisk(Risk::Read)->keys()->sort()->values()->all())->toBe(['account_status', 'calculate_proration', 'check_payment_status', 'list_invoices', 'look_up_plan_change', 'lookup_invoice', 'search_help_center']);
     });
 
     it('declares check_payment_status as a read and retry_payment as a high-risk write, split', function () {

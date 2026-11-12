@@ -102,7 +102,7 @@ describe('Router', function () {
     })->with([
         'howto' => ['howto', ['open_ticket'], null],
         'bug' => ['bug', ['open_ticket'], 'troubleshooting'],
-        'account' => ['account', ['account_status', 'change_billing_email', 'open_ticket'], 'account'],
+        'account' => ['account', ['account_status', 'look_up_plan_change', 'change_billing_email', 'open_ticket'], 'account'],
     ]);
 
     it('lets a how-to question use the cache, and escalates a bug after two rounds', function () {
@@ -252,7 +252,7 @@ describe('the router in front of the support assistant', function () {
 
         askRouted($this->user, 'Everything is wrong')->assertOk();
 
-        expect(collect(mainCalls()[0]['tools'])->pluck('function.name')->all())->toBe(['account_status', 'calculate_proration', 'change_billing_email', 'check_payment_status', 'issue_credit', 'list_invoices', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment']);
+        expect(collect(mainCalls()[0]['tools'])->pluck('function.name')->all())->toBe(['account_status', 'calculate_proration', 'change_billing_email', 'check_payment_status', 'issue_credit', 'list_invoices', 'look_up_plan_change', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment']);
     });
 
     it('routes only the first question of a conversation', function () {
@@ -267,7 +267,7 @@ describe('the router in front of the support assistant', function () {
         askRouted($this->user, 'And what about the next one?', $first->json('conversation_id'))->assertOk();
 
         expect($classifications())->toBe(3)
-            ->and(collect(mainCalls()[1]['tools'])->pluck('function.name')->all())->toBe(['account_status', 'calculate_proration', 'change_billing_email', 'check_payment_status', 'issue_credit', 'list_invoices', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment']);
+            ->and(collect(mainCalls()[1]['tools'])->pluck('function.name')->all())->toBe(['account_status', 'calculate_proration', 'change_billing_email', 'check_payment_status', 'issue_credit', 'list_invoices', 'look_up_plan_change', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment']);
     });
 
     it('still answers when the classifier is down', function () {

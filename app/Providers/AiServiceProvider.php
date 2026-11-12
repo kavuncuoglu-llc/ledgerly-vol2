@@ -42,6 +42,7 @@ use App\Ai\Tools\Credentials\ToolCredentials;
 use App\Ai\Tools\IssueCredit\IssueCredit;
 use App\Ai\Tools\ListInvoices\ListInvoices;
 use App\Ai\Tools\LookupInvoice\LookupInvoice;
+use App\Ai\Tools\LookUpPlanChange\LookUpPlanChange;
 use App\Ai\Tools\Mcp\LaravelMcpClient;
 use App\Ai\Tools\Mcp\McpToolSource;
 use App\Ai\Tools\OpenTicket\OpenTicket;
@@ -94,6 +95,7 @@ class AiServiceProvider extends ServiceProvider
                 ->add(new LookupInvoice)
                 ->add(new OpenTicket)
                 ->add(new AccountStatus)
+                ->add(new LookUpPlanChange)
                 ->add($app->make(ListInvoices::class))
                 ->add(new CheckPaymentStatus)
                 ->add(new CalculateProration)

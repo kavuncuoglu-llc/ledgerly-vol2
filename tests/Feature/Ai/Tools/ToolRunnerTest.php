@@ -59,7 +59,7 @@ describe('the loop', function () {
 
         $lookup = collect($tools)->firstWhere('function.name', 'lookup_invoice');
 
-        expect(collect($tools)->pluck('function.name')->all())->toBe(['account_status', 'calculate_proration', 'change_billing_email', 'check_payment_status', 'issue_credit', 'list_invoices', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment'])   // sorted by name: a stable prefix for the prompt cache
+        expect(collect($tools)->pluck('function.name')->all())->toBe(['account_status', 'calculate_proration', 'change_billing_email', 'check_payment_status', 'issue_credit', 'list_invoices', 'look_up_plan_change', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment'])   // sorted by name: a stable prefix for the prompt cache
             ->and($lookup['type'])->toBe('function')
             ->and($lookup['function']['parameters']['required'])->toBe(['invoice_number', 'month'])
             ->and($lookup['function']['parameters']['additionalProperties'])->toBeFalse()
@@ -282,7 +282,7 @@ describe('arguments are validated', function () {
         runTools($user);
 
         expect(json_decode(toolMessages(sentChatBodies()[1])[0]['content'], true)['error'])->toBe('unknown tool')
-            ->and(collect(sentChatBodies()[0]['tools'])->pluck('function.name')->all())->toBe(['account_status', 'calculate_proration', 'change_billing_email', 'check_payment_status', 'issue_credit', 'list_invoices', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment']);
+            ->and(collect(sentChatBodies()[0]['tools'])->pluck('function.name')->all())->toBe(['account_status', 'calculate_proration', 'change_billing_email', 'check_payment_status', 'issue_credit', 'list_invoices', 'look_up_plan_change', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment']);
     });
 });
 
@@ -578,5 +578,5 @@ it('keeps the registry free of tools it was not given', function () {
     expect(app(ToolRegistry::class)->get('lookup_invoice'))->not->toBeNull()
         ->and(app(ToolRegistry::class)->get('list_invoices'))->not->toBeNull()
         ->and(app(ToolRegistry::class)->get('search_help_center'))->toBeNull()
-        ->and(app(ToolRegistry::class)->native()->keys()->all())->toBe(['lookup_invoice', 'open_ticket', 'account_status', 'list_invoices', 'check_payment_status', 'calculate_proration', 'resend_invoices', 'retry_payment', 'change_billing_email', 'issue_credit', 'search_help_center']);
+        ->and(app(ToolRegistry::class)->native()->keys()->all())->toBe(['lookup_invoice', 'open_ticket', 'account_status', 'look_up_plan_change', 'list_invoices', 'check_payment_status', 'calculate_proration', 'resend_invoices', 'retry_payment', 'change_billing_email', 'issue_credit', 'search_help_center']);
 });

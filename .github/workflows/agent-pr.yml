@@ -1,0 +1,35 @@
+# Chapter 49, Topic 6: an agent-authored pull request has a named human owner, who reviews and merges it. The agent never merges its own work.
+# The same gates as every other change (ci.yml, ai-evals.yml) run on its branch. Nothing here needs a secret or checks out the pull request's code.
+name: Agent pull requests
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled, assigned, unassigned]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  human-owner:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: A pull request labeled agent-authored names a human owner
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          ASSIGNEES: ${{ toJSON(github.event.pull_request.assignees.*.login) }}
+        run: |
+          if ! echo "$LABELS" | jq -e 'index("agent-authored")' > /dev/null; then
+            echo "Not labeled agent-authored: nothing to check."
+            exit 0
+          fi
+          humans=$(echo "$ASSIGNEES" | jq '[.[] | select(endswith("[bot]") | not)] | length')
+          if [ "$humans" -lt 1 ]; then
+            echo "::error::An agent-authored pull request needs a human assignee: the owner who reviews and merges it."
+            exit 1
+          fi
+          echo "Agent-authored, owned by a person."
