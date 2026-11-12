@@ -34,10 +34,20 @@ def lora_config():
     return LoraConfig(r=16, lora_alpha=16, lora_dropout=0.05, target_modules="all-linear", task_type="CAUSAL_LM")
 
 
+def bf16_supported() -> bool:
+    import torch
+
+    if torch.cuda.is_available():
+        return torch.cuda.is_bf16_supported()
+
+    return torch.backends.mps.is_available()
+
+
 def sft_config(epochs: int = 2, report_to: str = "mlflow"):
     from trl import SFTConfig
 
     return SFTConfig(
+        bf16=bf16_supported(),
         output_dir=OUTPUT_DIR,
         num_train_epochs=epochs,
         learning_rate=2e-4,

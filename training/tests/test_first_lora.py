@@ -51,3 +51,14 @@ def test_the_run_uses_the_books_settings():
     assert config.num_train_epochs == 2
     assert config.per_device_train_batch_size * config.gradient_accumulation_steps == 16
     assert (config.eval_steps, config.logging_steps) == (10, 5)
+
+
+def test_the_config_builds_on_a_machine_without_a_bf16_device(monkeypatch):
+    import torch
+
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    monkeypatch.setattr(torch.backends.mps, "is_available", lambda: False)
+
+    config = sft_config(report_to="none")
+
+    assert config.bf16 is False
