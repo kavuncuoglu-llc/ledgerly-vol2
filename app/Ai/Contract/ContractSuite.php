@@ -8,9 +8,7 @@ use App\Ai\Contracts\ChatResponse;
 use App\Ai\Contracts\FinishReason;
 use App\Ai\Contracts\Stream\ToolCallArguments;
 use App\Ai\Contracts\Stream\ToolCallStarted;
-use App\Ai\Drivers\AiSdkDriver;
-use App\Ai\Drivers\OpenAiCompatibleDriver;
-use App\Ai\Drivers\PrismDriver;
+use App\Ai\Drivers\DriverFactory;
 use App\Ai\Exceptions\AiRequestFailed;
 use App\Ai\Exceptions\ContextTooLong;
 use App\Ai\Exceptions\InvalidRequest;
@@ -94,13 +92,13 @@ final class ContractSuite
                 : 'https://contract.example.com/v1',
         ];
 
-        return match ($driver) {
-            'raw' => new OpenAiCompatibleDriver($wire === 'ollama'
+        return DriverFactory::make($driver, match ($driver) {
+            'raw' => $wire === 'ollama'
                 ? $config + ['native' => 'ollama', 'keep_alive' => '5m']
-                : $config),
-            'prism' => new PrismDriver($config + ['prism_provider' => 'ollama']),
-            'ai-sdk' => new AiSdkDriver($config + ['sdk_driver' => $wire === 'ollama' ? 'ollama' : 'openai-compatible']),
-        };
+                : $config,
+            'prism' => $config + ['prism_provider' => 'ollama'],
+            'ai-sdk' => $config + ['sdk_driver' => $wire === 'ollama' ? 'ollama' : 'openai-compatible'],
+        });
     }
 
     /** @return list<ContractResult> */
