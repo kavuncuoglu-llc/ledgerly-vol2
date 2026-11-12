@@ -2,14 +2,12 @@
 
 namespace App\Ai\Encoding\Formats;
 
+use App\Ai\Context\Encoders\ToonEncoder;
 use App\Ai\Encoding\Format;
-use HelgeSverre\Toon\DecodeOptions;
-use HelgeSverre\Toon\EncodeOptions;
-use HelgeSverre\Toon\Toon;
 
 final class ToonFormat implements Format
 {
-    public function __construct(private string $delimiter = ',') {}
+    public function __construct(private string $delimiter = ',', private ?ToonEncoder $encoder = null) {}
 
     public function describe(): string
     {
@@ -22,13 +20,19 @@ final class ToonFormat implements Format
 
     public function write(array $rows, string $key): string
     {
-        return Toon::encode([$key => $rows], new EncodeOptions(delimiter: $this->delimiter));
+        return $this->encoder()->encode([$key => $rows]);
     }
 
     public function read(string $text): array
     {
-        $decoded = Toon::decode($text, DecodeOptions::default());
+        $decoded = $this->encoder()->decode($text);
 
         return array_values(reset($decoded) ?: []);
+    }
+
+    // Chapter 48: the encoder is the one pinned in config unless a format is built for a particular spec version (compact-v1 is the 3.3 profile Volume 1 shipped).
+    private function encoder(): ToonEncoder
+    {
+        return $this->encoder ?? ToonEncoder::pinned($this->delimiter);
     }
 }

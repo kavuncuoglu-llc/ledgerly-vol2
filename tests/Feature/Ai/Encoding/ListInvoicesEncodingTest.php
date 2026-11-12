@@ -143,5 +143,5 @@ it('returns no header and no rows for a customer with no invoices', function () 
 
     $bodies = askWithListInvoices($newcomer);
 
-    expect(toolMessages($bodies[1])[0]['content'])->toContain('invoices[0]:');
+    expect(toolMessages($bodies[1])[0]['content'])->toContain('invoices: []');
 });

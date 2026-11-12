@@ -12,6 +12,7 @@ use App\Ai\Retrieval\PgRetriever;
 use App\Evals\GoldenCase;
 use App\Evals\GoldenSet;
 use App\Evals\MlflowReporter;
+use App\Evals\RoleComparison\AccountDataTokens;
 use App\Evals\RoleComparison\FirstTokenProbe;
 use App\Evals\RoleComparison\RoleComparison;
 use App\Evals\RoleComparison\RoleResult;
@@ -29,7 +30,8 @@ class EvalCompare extends Command
         {--roles=frontier,frontier-billing-ft,cascade : Roles to compare: a tier (local, mid, frontier), a provider name, or cascade (the production route as configured)}
         {--with=gates,judge,injection,tripwire:generation : Checks: gates, judge, injection, tripwire:generation, tripwire:all}
         {--drivers= : raw,prism,ai-sdk: the same role reached through each driver (the roles in ai.drivers.roles), for the Chapter 47 comparison; replaces --roles}
-        {--metrics= : Only these rows: pass, facts, judge, input_tokens, cost, p50 (answer latency), ttft (time to first token)}
+        {--encoders= : json,compact-v1,toon-spec: the same role with account data written by each encoder (Chapter 48); compact-v1 is the 3.3 TOON profile Volume 1 shipped, toon-spec the spec version pinned in config. Replaces --roles}
+        {--metrics= : Only these rows: pass, facts, judge, input_tokens, cost, p50 (answer latency), ttft (time to first token), context_tokens}
         {--categories= : Only the cases of these categories, as ai.distillation.categories names them (howto,plans,integrations), or the golden set\'s own (Chapter 46)}
         {--retrieval= : live,shadow: run every role once on the live vectors and once on the shadow vectors the Python worker made, to see whether a tuned embedding model helps end to end (Chapter 46)}
         {--retrieval-model= : The shadow vectors\' model (default config ai.python.embed_model)}
@@ -56,9 +58,11 @@ class EvalCompare extends Command
 
             $sources = $this->list('retrieval');
 
-            $results = $sources === []
-                ? $comparison->run($cases, $roles, $checks, $progress)
-                : $this->acrossRetrieval($comparison, $cases, $roles, $checks, $sources, $progress);
+            $results = match (true) {
+                $this->list('encoders') !== [] => $this->acrossEncoders($comparison, $cases, $roles, $checks, $progress),
+                $sources === [] => $comparison->run($cases, $roles, $checks, $progress),
+                default => $this->acrossRetrieval($comparison, $cases, $roles, $checks, $sources, $progress),
+            };
         } catch (InvalidArgumentException $e) {
             $this->error($e->getMessage());
 
@@ -204,10 +208,52 @@ class EvalCompare extends Command
         };
     }
 
+    // Chapter 48: the same role and the same cases once per encoder. Each run is a column named for the encoder, with the tokens that encoder spends on a customer's account data.
+    /**
+     * @param  Collection<int, GoldenCase>  $cases
+     * @param  list<string>  $roles
+     * @param  list<string>  $checks
+     * @return list<RoleResult>
+     */
+    private function acrossEncoders(RoleComparison $comparison, Collection $cases, array $roles, array $checks, Closure $progress): array
+    {
+        $formats = ['json' => 'json', 'compact-v1' => 'compact-v1', 'toon-spec' => 'toon', 'toon' => 'toon', 'tsv' => 'tsv'];
+
+        $before = config('ai.encoding.default');
+
+        $results = [];
+
+        try {
+            foreach ($this->list('encoders') as $encoder) {
+                $format = $formats[$encoder] ?? throw new InvalidArgumentException("[{$encoder}] is not an encoder: ".implode(', ', array_keys($formats)).'.');
+
+                config(['ai.encoding.default' => $format]);
+
+                $measured = app(AccountDataTokens::class)->measure($format);
+
+                foreach ($comparison->run($cases, $roles, $checks, $progress) as $result) {
+                    $result->metrics['context_tokens'] = $measured['tokens'];
+
+                    $result->notes['context_tokens'] = "{$measured['rows']} invoices in the declared six fields, counted with {$measured['counter']}";
+
+                    $results[] = new RoleResult($encoder, $result->provider, $result->model, $result->metrics, $result->notes, $result->skipped);
+                }
+            }
+        } finally {
+            config(['ai.encoding.default' => $before]);
+        }
+
+        return $results;
+    }
+
     /** @return list<string> */
     private function roles(): array
     {
         $drivers = $this->list('drivers');
+
+        if ($drivers === [] && $this->list('encoders') !== [] && ! $this->input->hasParameterOption('--roles')) {
+            return [(string) app(AiManager::class)->providerFor('support.reply')];                      // an encoder comparison is one role, the feature's own
+        }
 
         if ($drivers === []) {
             return $this->list('roles');
@@ -283,6 +329,7 @@ class EvalCompare extends Command
             'Tripwire, all tasks (largest drop)' => fn (RoleResult $r) => $this->drop($r->metrics['tripwire_all_largest_drop'] ?? null),
             'Input tokens per answer' => fn (RoleResult $r) => isset($r->metrics['input_tokens_per_answer']) ? '~'.number_format($r->metrics['input_tokens_per_answer']) : '—',
             'Cost per answer' => fn (RoleResult $r) => isset($r->metrics['cost_per_answer_usd']) ? sprintf('$%.4f', $r->metrics['cost_per_answer_usd']) : '—',
+            'Account data, tokens' => fn (RoleResult $r) => isset($r->metrics['context_tokens']) ? '~'.number_format($r->metrics['context_tokens']) : '—',
             'Answer latency, p50' => fn (RoleResult $r) => isset($r->metrics['latency_p50_s']) ? sprintf('%.1f s', $r->metrics['latency_p50_s']) : '—',
             'Time to first token, p50' => fn (RoleResult $r) => isset($r->metrics['ttft_p50_s']) ? sprintf('%.3f s', $r->metrics['ttft_p50_s']) : '—',
         ];
@@ -313,6 +360,7 @@ class EvalCompare extends Command
         'cost' => 'Cost per answer',
         'p50' => 'Answer latency, p50',
         'ttft' => 'Time to first token, p50',
+        'context_tokens' => 'Account data, tokens',
     ];
 
     /** @param array<string, callable> $rows @return array<string, callable> */

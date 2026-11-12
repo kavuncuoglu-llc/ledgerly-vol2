@@ -523,6 +523,8 @@ return [
 
     // Chapter 35: a ceiling no setting elsewhere (top-k, chunk length) can raise. Sources are added best first until it is spent. call_budget is what ai:cost-audit holds a call's whole input to.
     'context' => [
+        // Chapter 48: the TOON wire format the app writes, beside the package that writes it (helgesverre/toon, pinned in composer.json). The spec's own fixtures for this version are in tests/Fixtures/toon-spec/<version>/ and ToonConformanceTest runs them; a version with no fixtures directory has no conformance claim.
+        'toon' => ['spec_version' => env('AI_TOON_SPEC_VERSION', '4.4')],
         'sources_max_tokens' => (int) env('AI_CONTEXT_SOURCES_MAX_TOKENS', 3_000),
         'call_budget' => (int) env('AI_CONTEXT_CALL_BUDGET', 6_000),
     ],

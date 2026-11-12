@@ -8,6 +8,7 @@ use App\Ai\Cache\HelpVersion;
 use App\Ai\Cache\PrefixCacheEstimator;
 use App\Ai\Cache\SemanticCache;
 use App\Ai\Context\ContextAssembler;
+use App\Ai\Context\Encoders\ToonEncoder;
 use App\Ai\Context\ProviderProfile;
 use App\Ai\Contracts\Reranker;
 use App\Ai\Conversations\ConversationStore;
@@ -94,6 +95,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(DataEncoder::class, fn () => new DataEncoder([
             'toon' => new ToonFormat,
+            'compact-v1' => new ToonFormat(encoder: ToonEncoder::forVersion('3.3')),
             'tsv' => new TsvFormat,
             'markdown' => new MarkdownFormat,
             'json' => new JsonFormat,
