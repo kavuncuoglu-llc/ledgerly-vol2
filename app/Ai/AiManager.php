@@ -15,8 +15,10 @@ use App\Ai\Decorators\RetryingEmbeddings;
 use App\Ai\Decorators\RetryingModel;
 use App\Ai\Decorators\TracingModel;
 use App\Ai\Decorators\UsageLoggingModel;
+use App\Ai\Drivers\AiSdkDriver;
 use App\Ai\Drivers\FakeDriver;
 use App\Ai\Drivers\OpenAiCompatibleDriver;
+use App\Ai\Drivers\PrismDriver;
 use App\Ai\Exceptions\ProviderNotConfigured;
 use App\Ai\Health\ProviderHealth;
 use App\Ai\Ledger\Costing;
@@ -163,7 +165,13 @@ final class AiManager
 
         $config = $this->config($name);
 
-        return new RetryingEmbeddings($this->makeDriver($name, $config));
+        $driver = $this->makeDriver($name, $config);
+
+        if (! $driver instanceof EmbeddingModel) {
+            throw ProviderNotConfigured::unsupportedDriver($name, (string) ($config['driver'] ?? ''));          // Chapter 47: the package drivers take chat; embeddings stay on the raw driver
+        }
+
+        return new RetryingEmbeddings($driver);
     }
 
     public function reranker(?string $name = null): Reranker
@@ -259,12 +267,14 @@ final class AiManager
         $this->fake()->assertNothingSent();
     }
 
-    private function makeDriver(string $name, ?array $config = null): ChatModel&EmbeddingModel
+    private function makeDriver(string $name, ?array $config = null): ChatModel
     {
         $config ??= $this->config($name);
 
         return match ($config['driver'] ?? null) {
             'openai-compatible' => $this->openAiCompatible($name, $config),
+            'prism' => new PrismDriver($this->complete($name, $config)),
+            'ai-sdk' => new AiSdkDriver($this->complete($name, $config)),
             'fake' => new FakeDriver($name, $this->fake(), (int) ($config['dimensions'] ?? 768)),
             null => throw ProviderNotConfigured::unknown($name),
             default => throw ProviderNotConfigured::unsupportedDriver($name, (string) $config['driver']),
@@ -272,6 +282,11 @@ final class AiManager
     }
 
     private function openAiCompatible(string $name, array $config): OpenAiCompatibleDriver
+    {
+        return new OpenAiCompatibleDriver($this->complete($name, $config));
+    }
+
+    private function complete(string $name, array $config): array
     {
         foreach (['base_url', 'model'] as $required) {
             if (blank($config[$required] ?? null)) {
@@ -283,7 +298,7 @@ final class AiManager
             throw ProviderNotConfigured::incomplete($name, 'api_key');
         }
 
-        return new OpenAiCompatibleDriver($config);
+        return $config;
     }
 
     // Cross-cutting, once, for every driver. Outermost first: one span, redaction inside it and outside the usage log (Chapter 34), and usage logged once, however many attempts the retries took.

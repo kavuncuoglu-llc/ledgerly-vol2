@@ -18,11 +18,6 @@ use App\Ai\Contracts\Stream\ToolCallStarted;
 use App\Ai\Contracts\Usage;
 use App\Ai\Debug\DebugLog;
 use App\Ai\Embeddings\EmbeddingFailed;
-use App\Ai\Exceptions\ContentFiltered;
-use App\Ai\Exceptions\ContextTooLong;
-use App\Ai\Exceptions\InvalidRequest;
-use App\Ai\Exceptions\ProviderUnavailable;
-use App\Ai\Exceptions\RateLimited;
 use App\Ai\Http\StreamTruncated;
 use Generator;
 use Illuminate\Http\Client\PendingRequest;
@@ -447,17 +442,7 @@ final class OpenAiCompatibleDriver implements ChatModel, EmbeddingModel, SendsRa
             return;
         }
 
-        $status = $response->status();
-        $text = strtolower((string) ($response->json('error.message') ?? $response->json('error') ?? $response->body()));
-        $code = strtolower((string) ($response->json('error.code') ?? ''));
-
-        throw match (true) {
-            $status === 429 => new RateLimited($response),
-            in_array($status, [408, 409, 425, 500, 502, 503, 504, 529], true) => new ProviderUnavailable($response),
-            $code === 'content_filter' => new ContentFiltered($response),
-            $status === 400 && (str_contains($text, 'context') || str_contains($text, 'too long') || str_contains($text, 'maximum')) => new ContextTooLong($response),
-            default => new InvalidRequest($response),
-        };
+        throw ProviderErrors::from($response);
     }
 
     private function readLine(StreamInterface $stream): string

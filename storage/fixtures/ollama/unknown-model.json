@@ -1,0 +1,33 @@
+{
+    "recorded_at": "2026-11-11T23:47:11+00:00",
+    "provider": "ollama 0.40.15, llama3.1:8b",
+    "driver": "ollama",
+    "note": "Recorded from a live Ollama; an error is {\"error\": \"...\"} with a status code.",
+    "request": {
+        "method": "POST",
+        "path": "/api/chat",
+        "body": {
+            "model": "no-such-model:1b",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a billing assistant. Answer in one short sentence."
+                },
+                {
+                    "role": "user",
+                    "content": "What is a late fee?"
+                }
+            ],
+            "stream": false
+        }
+    },
+    "response": {
+        "status": 404,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": {
+            "error": "model 'no-such-model:1b' not found"
+        }
+    }
+}

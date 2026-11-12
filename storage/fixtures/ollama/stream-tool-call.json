@@ -1,0 +1,55 @@
+{
+    "recorded_at": "2026-11-11T23:47:11+00:00",
+    "provider": "ollama 0.40.15, llama3.1:8b",
+    "driver": "ollama",
+    "note": "Recorded from a live Ollama; Ollama sends a tool call whole, in one chunk.",
+    "request": {
+        "method": "POST",
+        "path": "/api/chat",
+        "body": {
+            "model": "llama3.1:8b",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Why did invoice 4471 go up?"
+                }
+            ],
+            "tools": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "lookup_invoice",
+                        "description": "Look up an invoice the customer owns by its number",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "invoice_number": {
+                                    "type": "string",
+                                    "description": "The invoice number, such as 4471"
+                                },
+                                "month": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "description": "Optional month"
+                                }
+                            },
+                            "required": [
+                                "invoice_number"
+                            ]
+                        }
+                    }
+                }
+            ],
+            "stream": true
+        }
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "Content-Type": "application/x-ndjson"
+        },
+        "body": "{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:11.001032Z\",\"message\":{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"call_vconkvts\",\"function\":{\"index\":0,\"name\":\"lookup_invoice\",\"arguments\":{\"invoice_number\":\"4471\",\"month\":null}}}]},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:11.040948Z\",\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"done\":true,\"done_reason\":\"stop\",\"total_duration\":1073159041,\"load_duration\":1387375,\"prompt_eval_count\":191,\"prompt_eval_cached_count\":190,\"prompt_eval_duration\":43275000,\"eval_count\":24,\"eval_duration\":1022032000}\n"
+    }
+}

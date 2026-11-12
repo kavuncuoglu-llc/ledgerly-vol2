@@ -125,6 +125,12 @@ final class RoleComparison
             ? null
             : round($factsOk->count() / $withFacts->count(), 4);
 
+        $elapsed = $results->map(fn (CaseResult $r) => ($r->answer?->elapsedMs ?? 0) / 1000)->filter()->sort()->values();
+
+        if ($elapsed->isNotEmpty()) {
+            $result->metrics['latency_p50_s'] = round($elapsed[intdiv($elapsed->count(), 2)], 2);
+        }
+
         $result->metrics['never_failures'] = $results->reject(fn (CaseResult $r) => $r->passedNever())->count();
 
         $result->metrics['input_tokens_per_answer'] = (int) round($results->sum(fn (CaseResult $r) => $r->answer?->inputTokens ?? 0) / $count);

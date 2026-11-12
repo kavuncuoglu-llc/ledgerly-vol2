@@ -1,0 +1,64 @@
+{
+    "recorded_at": "2026-11-11T23:47:11+00:00",
+    "provider": "ollama 0.40.15, llama3.1:8b",
+    "driver": "ollama",
+    "note": "Recorded from a live Ollama; format takes the JSON Schema; the reply is JSON that validates against it.",
+    "request": {
+        "method": "POST",
+        "path": "/api/chat",
+        "body": {
+            "model": "llama3.1:8b",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Invoice 4472 is open and $100.00 is due. Give its status and amount due."
+                }
+            ],
+            "format": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "paid",
+                            "open",
+                            "overdue"
+                        ]
+                    },
+                    "amount_due": {
+                        "type": "number"
+                    }
+                },
+                "required": [
+                    "status",
+                    "amount_due"
+                ],
+                "additionalProperties": false
+            },
+            "stream": false
+        }
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": {
+            "model": "llama3.1:8b",
+            "created_at": "2026-11-11T23:47:11.928243Z",
+            "message": {
+                "role": "assistant",
+                "content": "{ \"status\": \"open\", \"amount_due\": 100.0 }"
+            },
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 886073333,
+            "load_duration": 726750,
+            "prompt_eval_count": 31,
+            "prompt_eval_cached_count": 2,
+            "prompt_eval_duration": 157212000,
+            "eval_count": 17,
+            "eval_duration": 723880000
+        }
+    }
+}

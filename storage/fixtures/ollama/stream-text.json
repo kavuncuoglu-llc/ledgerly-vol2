@@ -1,0 +1,31 @@
+{
+    "recorded_at": "2026-11-11T23:47:09+00:00",
+    "provider": "ollama 0.40.15, llama3.1:8b",
+    "driver": "ollama",
+    "note": "Recorded from a live Ollama; newline-delimited JSON, one object per chunk, the last with done true.",
+    "request": {
+        "method": "POST",
+        "path": "/api/chat",
+        "body": {
+            "model": "llama3.1:8b",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a billing assistant. Answer in one short sentence."
+                },
+                {
+                    "role": "user",
+                    "content": "What is a late fee?"
+                }
+            ],
+            "stream": true
+        }
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "Content-Type": "application/x-ndjson"
+        },
+        "body": "{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.12755Z\",\"message\":{\"role\":\"assistant\",\"content\":\"A\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.171656Z\",\"message\":{\"role\":\"assistant\",\"content\":\" late\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.211993Z\",\"message\":{\"role\":\"assistant\",\"content\":\" fee\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.253483Z\",\"message\":{\"role\":\"assistant\",\"content\":\" is\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.294411Z\",\"message\":{\"role\":\"assistant\",\"content\":\" a\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.339895Z\",\"message\":{\"role\":\"assistant\",\"content\":\" charge\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.390443Z\",\"message\":{\"role\":\"assistant\",\"content\":\" added\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.437908Z\",\"message\":{\"role\":\"assistant\",\"content\":\" to\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.485781Z\",\"message\":{\"role\":\"assistant\",\"content\":\" a\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.526091Z\",\"message\":{\"role\":\"assistant\",\"content\":\" bill\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.570883Z\",\"message\":{\"role\":\"assistant\",\"content\":\" when\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.613463Z\",\"message\":{\"role\":\"assistant\",\"content\":\" payment\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.652798Z\",\"message\":{\"role\":\"assistant\",\"content\":\" is\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.695253Z\",\"message\":{\"role\":\"assistant\",\"content\":\" received\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.73665Z\",\"message\":{\"role\":\"assistant\",\"content\":\" after\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.794819Z\",\"message\":{\"role\":\"assistant\",\"content\":\" the\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.835322Z\",\"message\":{\"role\":\"assistant\",\"content\":\" due\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.884549Z\",\"message\":{\"role\":\"assistant\",\"content\":\" date\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.926346Z\",\"message\":{\"role\":\"assistant\",\"content\":\".\"},\"done\":false}\n{\"model\":\"llama3.1:8b\",\"created_at\":\"2026-11-11T23:47:09.967016Z\",\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"done\":true,\"done_reason\":\"stop\",\"total_duration\":891106584,\"load_duration\":523084,\"prompt_eval_count\":33,\"prompt_eval_cached_count\":32,\"prompt_eval_duration\":41319000,\"eval_count\":20,\"eval_duration\":841737000}\n"
+    }
+}

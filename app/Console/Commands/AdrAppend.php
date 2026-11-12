@@ -73,6 +73,10 @@ class AdrAppend extends Command
         $lines[] = '| --- | '.implode(' | ', array_fill(0, count($roles), '---')).' |';
 
         foreach ($this->rows() as $label => [$key, $format]) {
+            if ($this->measuredByNone($roles, $key)) {
+                continue;
+            }
+
             $lines[] = "| {$label} | ".implode(' | ', array_map(fn (array $r) => $r['skipped'] !== null ? 'not measured' : $format($r['metrics'][$key] ?? null), $roles)).' |';
         }
 
@@ -85,6 +89,18 @@ class AdrAppend extends Command
         }
 
         return implode("\n", $lines)."\n";
+    }
+
+    // A row nobody measured says nothing, so it is left out (a driver comparison has no injection rate, an encoder comparison no tripwire).
+    private function measuredByNone(array $roles, string $key): bool
+    {
+        foreach ($roles as $role) {
+            if ($role['skipped'] === null && ($role['metrics'][$key] ?? null) !== null) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /** @return array<string, array{0: string, 1: callable}> */
@@ -103,6 +119,8 @@ class AdrAppend extends Command
             'Tripwire, all tasks' => ['tripwire_all_largest_drop', $drop],
             'Input tokens per answer' => ['input_tokens_per_answer', fn ($value) => $value === null ? '—' : '~'.number_format($value)],
             'Cost per answer' => ['cost_per_answer_usd', fn ($value) => $value === null ? '—' : sprintf('$%.4f', $value)],
+            'Answer latency, p50' => ['latency_p50_s', fn ($value) => $value === null ? '—' : sprintf('%.1f s', $value)],
+            'Time to first token, p50' => ['ttft_p50_s', fn ($value) => $value === null ? '—' : sprintf('%.3f s', $value)],
         ];
     }
 

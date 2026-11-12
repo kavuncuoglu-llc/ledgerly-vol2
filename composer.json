@@ -13,6 +13,7 @@
         "giggsey/libphonenumber-for-php": "9.0.42",
         "helgesverre/toon": "^3.3",
         "intervention/image-laravel": "^1.5",
+        "laravel/ai": "1.3.0",
         "laravel/framework": "^12.0",
         "laravel/horizon": "5.50.1",
         "laravel/mcp": "^1.1",
@@ -30,6 +31,7 @@
         "opis/json-schema": "2.6.2",
         "phpoffice/phpword": "^1.4",
         "predis/predis": "3.7.1",
+        "prism-php/prism": "0.101.0",
         "symfony/yaml": "^7.4",
         "yethee/tiktoken": "^1.1"
     },

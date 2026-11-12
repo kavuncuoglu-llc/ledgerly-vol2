@@ -12,6 +12,7 @@ use App\Ai\Retrieval\PgRetriever;
 use App\Evals\GoldenCase;
 use App\Evals\GoldenSet;
 use App\Evals\MlflowReporter;
+use App\Evals\RoleComparison\FirstTokenProbe;
 use App\Evals\RoleComparison\RoleComparison;
 use App\Evals\RoleComparison\RoleResult;
 use Closure;
@@ -27,6 +28,8 @@ class EvalCompare extends Command
         {--set=golden:billing : golden, or golden:<category> (golden:billing is the billing slice)}
         {--roles=frontier,frontier-billing-ft,cascade : Roles to compare: a tier (local, mid, frontier), a provider name, or cascade (the production route as configured)}
         {--with=gates,judge,injection,tripwire:generation : Checks: gates, judge, injection, tripwire:generation, tripwire:all}
+        {--drivers= : raw,prism,ai-sdk: the same role reached through each driver (the roles in ai.drivers.roles), for the Chapter 47 comparison; replaces --roles}
+        {--metrics= : Only these rows: pass, facts, judge, input_tokens, cost, p50 (answer latency), ttft (time to first token)}
         {--categories= : Only the cases of these categories, as ai.distillation.categories names them (howto,plans,integrations), or the golden set\'s own (Chapter 46)}
         {--retrieval= : live,shadow: run every role once on the live vectors and once on the shadow vectors the Python worker made, to see whether a tuned embedding model helps end to end (Chapter 46)}
         {--retrieval-model= : The shadow vectors\' model (default config ai.python.embed_model)}
@@ -43,7 +46,9 @@ class EvalCompare extends Command
         try {
             $cases = $this->cases($set);
 
-            $roles = $this->list('roles');
+            $roles = $this->roles();
+
+            $this->onlyMetrics([]);
 
             $checks = $this->list('with');
 
@@ -59,6 +64,8 @@ class EvalCompare extends Command
 
             return self::FAILURE;
         }
+
+        $results = $this->forDrivers($results);
 
         $this->save($results, $cases, $checks);
 
@@ -94,7 +101,7 @@ class EvalCompare extends Command
             $cases = $cases->filter(fn (GoldenCase $case) => $this->inCategories($case, $wanted))->values();
         }
 
-        if (str_contains($name, ':')) {
+        if (str_contains($name, ':') && $name !== 'golden:support') {                    // golden:support is the whole set: every case is a support reply
             $category = substr($name, strpos($name, ':') + 1);
 
             $cases = $cases->filter(fn (GoldenCase $case) => $case->category === $category)->values();
@@ -198,6 +205,49 @@ class EvalCompare extends Command
     }
 
     /** @return list<string> */
+    private function roles(): array
+    {
+        $drivers = $this->list('drivers');
+
+        if ($drivers === []) {
+            return $this->list('roles');
+        }
+
+        $known = config('ai.drivers.roles', []);
+
+        return array_map(fn (string $driver) => $known[$driver] ?? throw new InvalidArgumentException("[{$driver}] is not a driver: ".implode(', ', array_keys($known)).'.'), $drivers);
+    }
+
+    // Chapter 47: the columns are the drivers, so each result is named for its driver, and each gets the time to first token, which only a driver comparison asks for.
+    /** @param list<RoleResult> $results @return list<RoleResult> */
+    private function forDrivers(array $results): array
+    {
+        $drivers = $this->list('drivers');
+
+        if ($drivers === []) {
+            return $results;
+        }
+
+        $probe = app(FirstTokenProbe::class);
+
+        foreach ($results as $index => $result) {
+            $result->role = $drivers[$index];
+
+            if ($result->skipped !== null) {
+                continue;
+            }
+
+            $seconds = $probe->medianSeconds($result->provider, (int) config('ai.drivers.ttft_probes', 5));
+
+            if ($seconds !== null) {
+                $result->metrics['ttft_p50_s'] = $seconds;
+            }
+        }
+
+        return $results;
+    }
+
+    /** @return list<string> */
     private function list(string $option): array
     {
         return array_values(array_filter(array_map('trim', explode(',', (string) $this->option($option)))));
@@ -233,7 +283,11 @@ class EvalCompare extends Command
             'Tripwire, all tasks (largest drop)' => fn (RoleResult $r) => $this->drop($r->metrics['tripwire_all_largest_drop'] ?? null),
             'Input tokens per answer' => fn (RoleResult $r) => isset($r->metrics['input_tokens_per_answer']) ? '~'.number_format($r->metrics['input_tokens_per_answer']) : '—',
             'Cost per answer' => fn (RoleResult $r) => isset($r->metrics['cost_per_answer_usd']) ? sprintf('$%.4f', $r->metrics['cost_per_answer_usd']) : '—',
+            'Answer latency, p50' => fn (RoleResult $r) => isset($r->metrics['latency_p50_s']) ? sprintf('%.1f s', $r->metrics['latency_p50_s']) : '—',
+            'Time to first token, p50' => fn (RoleResult $r) => isset($r->metrics['ttft_p50_s']) ? sprintf('%.3f s', $r->metrics['ttft_p50_s']) : '—',
         ];
+
+        $rows = $this->onlyMetrics($rows);
 
         $this->table(
             ['', ...array_map(fn (RoleResult $r) => $r->skipped === null ? $r->role : "{$r->role} (skipped)", $results)],
@@ -249,6 +303,30 @@ class EvalCompare extends Command
                 $this->line("  {$result->role} · {$key}: {$note}");
             }
         }
+    }
+
+    private const METRIC_ROWS = [
+        'pass' => 'Golden pass rate',
+        'facts' => 'Required facts present',
+        'judge' => 'Judge pass rate',
+        'input_tokens' => 'Input tokens per answer',
+        'cost' => 'Cost per answer',
+        'p50' => 'Answer latency, p50',
+        'ttft' => 'Time to first token, p50',
+    ];
+
+    /** @param array<string, callable> $rows @return array<string, callable> */
+    private function onlyMetrics(array $rows): array
+    {
+        $wanted = $this->list('metrics');
+
+        if ($wanted === []) {
+            return $rows;
+        }
+
+        $labels = array_map(fn (string $metric) => self::METRIC_ROWS[$metric] ?? throw new InvalidArgumentException("[{$metric}] is not a metric: ".implode(', ', array_keys(self::METRIC_ROWS)).'.'), $wanted);
+
+        return array_intersect_key($rows, array_flip($labels));
     }
 
     private function percent(float|int|null $value): string

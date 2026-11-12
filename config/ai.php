@@ -30,6 +30,22 @@ $billingFt = [
     'privacy' => ['redact' => false, 'trains_on_api_data' => false, 'retention_days' => 0, 'zdr' => true, 'region' => env('BILLING_FT_REGION', 'local'), 'dpa_signed' => true, 'checked_on' => '2026-11-11', 'source' => 'Your own hardware, in the data\'s region: the data never leaves it.'],
 ];
 
+// Chapter 47: the `local` role on Ollama, kept in a variable so the package roles below can be the same server reached through another driver.
+$localOllama = [
+    'driver' => 'openai-compatible',
+    'base_url' => env('AI_BASE_URL', env('OLLAMA_URL', 'http://localhost:11434/v1')),
+    'api_key' => env('AI_API_KEY', 'ollama'),
+    'model' => env('AI_MODEL', 'llama3.1:8b'),
+    'timeout' => env('AI_TIMEOUT', 120),
+    'native' => 'ollama',                                                   // Chapter 22: the driver drops to /api/chat for num_ctx and keep_alive, and only for those
+    'keep_alive' => env('AI_KEEP_ALIVE'),                                   // empty = leave it to OLLAMA_KEEP_ALIVE on the server; "30m" or "-1" sends it with every request
+    'license' => 'Llama 3.1 Community License',
+    'license_reviewed' => '2026-11-02',
+    'pinned' => true,                                                       // Chapter 30, Topic 7: ai:models:audit compares this digest with what Ollama reports for the tag
+    'digest' => env('AI_LOCAL_DIGEST'),                                     // sha256 of the manifest, from `ollama show`; empty = not recorded yet
+    'privacy' => ['redact' => false, 'trains_on_api_data' => false, 'retention_days' => 0, 'zdr' => true, 'region' => 'local', 'dpa_signed' => true, 'checked_on' => '2026-11-03', 'source' => 'Your own hardware: the data never leaves it.'],
+];
+
 return [
     'provider' => env('AI_PROVIDER', 'ollama'),
     'base_url' => env('AI_BASE_URL', 'http://localhost:11434/v1'),
@@ -97,21 +113,11 @@ return [
             'llama', 'local-llama' => '@local-llama',
             'vllm' => '@vllm',
             'triton' => '@triton',
-            default => [
-                'driver' => 'openai-compatible',
-                'base_url' => env('AI_BASE_URL', env('OLLAMA_URL', 'http://localhost:11434/v1')),
-                'api_key' => env('AI_API_KEY', 'ollama'),
-                'model' => env('AI_MODEL', 'llama3.1:8b'),
-                'timeout' => env('AI_TIMEOUT', 120),
-                'native' => 'ollama',                                                   // Chapter 22: the driver drops to /api/chat for num_ctx and keep_alive, and only for those
-                'keep_alive' => env('AI_KEEP_ALIVE'),                                   // empty = leave it to OLLAMA_KEEP_ALIVE on the server; "30m" or "-1" sends it with every request
-                'license' => 'Llama 3.1 Community License',
-                'license_reviewed' => '2026-11-02',
-                'pinned' => true,                                                       // Chapter 30, Topic 7: ai:models:audit compares this digest with what Ollama reports for the tag
-                'digest' => env('AI_LOCAL_DIGEST'),                                     // sha256 of the manifest, from `ollama show`; empty = not recorded yet
-                'privacy' => ['redact' => false, 'trains_on_api_data' => false, 'retention_days' => 0, 'zdr' => true, 'region' => 'local', 'dpa_signed' => true, 'checked_on' => '2026-11-03', 'source' => 'Your own hardware: the data never leaves it.'],
-            ],
+            default => $localOllama,
         },
+        // Chapter 47: the same Ollama server, reached through a package. `driver` is the whole difference, so a call, a golden-set run or an experiment can move between them by role name, and every decorator (tracing, budgets, redaction, usage log) wraps all three alike.
+        'local-prism' => array_merge($localOllama, ['driver' => 'prism', 'prism_provider' => 'ollama', 'capabilities' => ['tools', 'structured', 'seed'], 'native' => null]),
+        'local-ai-sdk' => array_merge($localOllama, ['driver' => 'ai-sdk', 'sdk_driver' => 'ollama', 'capabilities' => ['tools', 'structured', 'seed'], 'native' => null]),
         'local-llama' => [
             'driver' => 'openai-compatible',
             'base_url' => env('LLAMA_URL', 'http://llama:8080/v1'),
@@ -313,7 +319,7 @@ return [
     'features' => [
         'ticket.classify' => ['provider' => 'local', 'profile' => 'deterministic'],
         'ticket.extract' => ['provider' => 'local', 'profile' => 'deterministic'],
-        'support.reply' => ['provider' => 'local', 'profile' => 'assistant', 'escalate_to' => 'frontier', 'allowed_providers' => ['local', 'local-70b', 'frontier', 'frontier-billing-ft', 'local-billing-ft', 'local-billing-ft@canary', 'local-billing-ft@shadow', 'mid-in-region', 'local-support-ft', 'local-support-ft@canary', 'local-support-ft@shadow'], 'requires' => ['dpa_signed'], 'ladder' => ['cheaper_role', 'tighter_limits', 'cache_only', 'search']],
+        'support.reply' => ['provider' => 'local', 'profile' => 'assistant', 'escalate_to' => 'frontier', 'allowed_providers' => ['local', 'local-prism', 'local-ai-sdk', 'local-70b', 'frontier', 'frontier-billing-ft', 'local-billing-ft', 'local-billing-ft@canary', 'local-billing-ft@shadow', 'mid-in-region', 'local-support-ft', 'local-support-ft@canary', 'local-support-ft@shadow'], 'requires' => ['dpa_signed'], 'ladder' => ['cheaper_role', 'tighter_limits', 'cache_only', 'search']],
         'triage.draft' => ['provider' => 'local', 'profile' => 'grounded', 'escalate_to' => 'frontier', 'background' => true],          // Chapter 36: nobody is waiting on a draft: over budget it pauses instead of degrading
         'invoice.extract' => ['provider' => 'vision', 'profile' => 'deterministic', 'allowed_providers' => ['local', 'vision']],   // scanned documents never leave
         'conversation.summarize' => ['provider' => 'local', 'profile' => 'deterministic', 'background' => true],
@@ -348,6 +354,12 @@ return [
         'conversations' => [],       // conversation ids, same
         'record_requests' => (bool) env('AI_RECORD_REQUESTS', false),   // keep each normalised request on its model_calls row so ai:compare --from-calls can replay it. Customer text: off by default
         'request_days' => 7,         // recorded requests are cleared after this long (conversations:retain)
+    ],
+
+    // Chapter 47: the same role reached through each driver. `eval:compare --drivers=raw,prism,ai-sdk` runs the golden set through these roles, one column each; `ai:contract-test` is the suite every driver must pass first.
+    'drivers' => [
+        'roles' => ['raw' => 'local', 'prism' => 'local-prism', 'ai-sdk' => 'local-ai-sdk'],
+        'ttft_probes' => 5,
     ],
 
     // Chapter 20: the three model tiers as provider names. Escalation only goes upward, and only to a provider that is set up.

@@ -1,0 +1,52 @@
+{
+    "recorded_at": "2026-11-11T23:47:07+00:00",
+    "provider": "ollama 0.40.15, llama3.1:8b",
+    "driver": "ollama",
+    "note": "Recorded from a live Ollama; a plain answer.",
+    "request": {
+        "method": "POST",
+        "path": "/api/chat",
+        "body": {
+            "model": "llama3.1:8b",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a billing assistant. Answer in one short sentence."
+                },
+                {
+                    "role": "user",
+                    "content": "What is a late fee?"
+                }
+            ],
+            "stream": false,
+            "options": {
+                "temperature": 0,
+                "seed": 7,
+                "num_predict": 60
+            }
+        }
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": {
+            "model": "llama3.1:8b",
+            "created_at": "2026-11-11T23:47:07.094153Z",
+            "message": {
+                "role": "assistant",
+                "content": "A late fee is a charge added to a bill when payment is received after the due date."
+            },
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 6815980875,
+            "load_duration": 5653814917,
+            "prompt_eval_count": 33,
+            "prompt_eval_cached_count": 0,
+            "prompt_eval_duration": 305380000,
+            "eval_count": 20,
+            "eval_duration": 846267000
+        }
+    }
+}

@@ -1,0 +1,73 @@
+{
+    "recorded_at": null,
+    "provider": "synthetic",
+    "driver": "openai-compatible",
+    "note": "Hand-written to the documented response shape; not recorded from a live provider. Replace with `php artisan ai:record`.",
+    "request": {
+        "method": "POST",
+        "path": "/chat/completions",
+        "body": {
+            "model": "example-model",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Invoice 4472 is open and $100.00 is due. Give its status and amount due."
+                }
+            ],
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "invoice_status",
+                    "strict": true,
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "status": {
+                                "type": "string",
+                                "enum": [
+                                    "paid",
+                                    "open",
+                                    "overdue"
+                                ]
+                            },
+                            "amount_due": {
+                                "type": "number"
+                            }
+                        },
+                        "required": [
+                            "status",
+                            "amount_due"
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": {
+            "id": "chatcmpl-fixture",
+            "object": "chat.completion",
+            "created": 1762000000,
+            "model": "example-model",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": "{\"status\":\"open\",\"amount_due\":100.0}"
+                    },
+                    "finish_reason": "stop"
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 68,
+                "completion_tokens": 19,
+                "total_tokens": 87
+            }
+        }
+    }
+}
