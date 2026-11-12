@@ -2,7 +2,7 @@
 
 The companion app for *Large Language Models for Laravel Developers, Volume 2 of 3: Running, Training, and Securing Large Language Models*. It is Ledgerly, a fictional invoicing product with a support assistant, exactly as Volume 1 leaves it. This volume adds evaluation, tracing, security, cost controls and fine-tuned models to it, one chapter at a time.
 
-This repository is public and free. You do not need an account, a claim code or proof of purchase to clone it.
+This repository is public and free. You do not need an account, a claim code or proof of purchase to clone it. **If you begin at Volume 3** (*Projects, Lifecycle, and Reference*), check out `vol3-start` and read "Set up `vol3-start`" below: it is this same app after Chapter 51, with everything Volume 2 added.
 
 The book: [Running, Training, and Securing Large Language Models](https://kavuncuoglu.com/books/llm/running-training-and-securing-large-language-models) (Volume 2 of 3). It continues the app that [The Foundations of Large Language Models](https://kavuncuoglu.com/books/llm/foundations-of-large-language-models) (Volume 1) builds; `vol2-start` below is that app, so you can start here without Volume 1's repository.
 
@@ -14,6 +14,7 @@ cd ledgerly
 
 git tag --list 'ch*'          # ch26 ... ch51
 git checkout vol2-start       # where Chapter 0 begins
+git checkout vol3-start       # where Volume 3 begins: this app after Chapter 51
 git diff ch28 ch29            # exactly what Chapter 29 added
 git checkout main             # back to the newest code
 ```
@@ -53,6 +54,74 @@ Each chapter of this volume is a tag, `ch26` through `ch51`, taken at the end of
 | `ch49` | AI-assisted Laravel development: `laravel/boost` 2.10.4 as a development dependency (`boost.json`, `.mcp.json`, the generated `AGENTS.md` and `.claude/skills/`), the project guideline `.ai/guidelines/ledgerly.blade.php` (also in `docs/agents/`), committed agent permission settings in `.claude/settings.json`, the read-only tool `look_up_plan_change` (with a `plan_changes` table and seeder), `php artisan dev:plant-log-injection` for the indirect-injection drill, and `.github/workflows/agent-pr.yml` with a pull request template. |
 | `ch50` | Keeping current: `config/ai-deprecations.php` (every dated dependency: hosted models, their fine-tunes, API versions, abandoned packages, review dates for local models) and `php artisan ai:deprecations` (daily in the scheduler, alerts at 90, 30 and 7 days; `--strict` is a CI step that fails when a retired model is still routed to), `php artisan ai:doctor --local` (local model digests against config and the registry), `config/ai-watch.php` (candidate models), per-price `checked` dates in `config/ai-pricing.php`, and `php artisan ai:quarterly-review` (writes `docs/reviews/<quarter>.md` with a section for each of the five stages; opened by the scheduler on the first working day of each quarter). |
 | `ch51` | Responsible deployment: `php artisan eval:fairness` (the counterfactual suite: `tests/fairness/base.jsonl`, five variation sets, paired bootstrap, nightly option, on the scorecard), `GoodwillCreditPolicy` and the `check_goodwill_credit` tool (the model explains a credit; the policy decides it), the AI disclosure and a way to a person on every assistant page (`/support/person`), the `claims_to_be_human` never-gate, `php artisan ai:feature-card` (internal card `docs/cards/support.reply.md` and the help article "About the assistant"), `php artisan ai:license-check` (`config/ai-licenses.php`), `SensitiveContentRouter` (safety to a person with a holding message, out-of-scope declined, false refusals escalated; 40 fixtures in `tests/Fixtures/sensitive/`) and the reliance metrics (`php artisan ai:reliance`). |
+| `vol3-start` | The app as Volume 2 leaves it, with this README written for readers who begin at Volume 3: the same four setup steps, the Compose profiles `python`, `mlflow`, `observability` and `privacy`, the `training/` project, what Volume 2 added to `.env`, the commands it added, and what needs a GPU. The code is `ch51`'s; only the README differs. |
+
+## Set up `vol3-start`
+
+Read this section if you begin at Volume 3 (*Projects, Lifecycle, and Reference*): `vol3-start` is the app exactly as the end of Volume 2 leaves it, with this README, so you do not need to have built it. It is the same four steps as `vol2-start`, with what Volume 2 added.
+
+```bash
+git clone https://github.com/kavuncuoglu-llc/ledgerly-vol2.git ledgerly && cd ledgerly
+git checkout vol3-start
+```
+
+1. **Set up.** `cp ops/compose/.env.example .env && composer install && php artisan key:generate`. Then open `.env` and set what your machine needs:
+   - `AI_LOCAL_PROVIDER` (`ollama`, `llama`, `vllm` or `triton`) and `AI_MODEL`. On a Mac, native Ollama with `AI_MODEL=llama3.1:8b` and `OLLAMA_URL=http://localhost:11434/v1` is the shortest path (`ollama pull llama3.1:8b` and `ollama pull nomic-embed-text`).
+   - `AI_TRAINING_HASH_KEY` if you will build a training set (Chapter 40): `php artisan tinker --execute='echo bin2hex(random_bytes(32));'`.
+   - Provider keys (`FRONTIER_*`) only if you have one and have read what leaving the network means. Nothing in the tests, the Builds or the commands below needs a key, a Hugging Face token or the internet beyond package downloads. Without `FRONTIER_MODEL` the hosted role simply does not exist.
+   - Every variable Volume 2 added is in `.env.example` under the chapter that introduced it (Appendix L, section L.6 lists them). Keep `ops/compose/.env.example` identical to it; a test checks.
+
+2. **Compose profiles.** Postgres (pgvector) and Redis start with any of these. Pick the model server for your machine, then add the Volume 2 profiles you want:
+
+   ```bash
+   # Linux, Ollama in a container (add -f ops/compose/ollama.gpu.yml for an NVIDIA GPU):
+   docker compose --env-file .env -f ops/compose/base.yml -f ops/compose/ollama.yml --profile ollama up -d
+   # a Mac developer, native Ollama for Metal and no inference profile:
+   docker compose --env-file .env -f ops/compose/base.yml -f ops/compose/macos.override.yml up -d
+   # everything Volume 2 added, on top (swap ollama.yml and --profile ollama for macos.override.yml on a Mac):
+   docker compose --env-file .env -f ops/compose/base.yml -f ops/compose/ollama.yml -f ops/compose/mlflow.yml -f ops/compose/observability.yml -f ops/compose/privacy.yml --profile ollama --profile python --profile mlflow --profile observability --profile privacy up -d --build
+   ```
+
+   | Profile | What it starts | Published on `127.0.0.1` | Chapter |
+   | --- | --- | --- | --- |
+   | `python` | `py-worker` (embedding worker over Redis streams) and `py-listen` | nothing | 27 |
+   | `mlflow` | MLflow tracking server (the image is pulled from `ghcr.io`) | 5050 | 28 |
+   | `observability` | OpenTelemetry collector and Jaeger | 16686 (Jaeger UI) | 31 |
+   | `privacy` | Presidio (names and addresses), built from `ops/privacy` | nothing | 34 |
+   | `ollama`, `llama`, `vllm`, `triton`, `monitoring`, `app` | as in Volume 1 | as in Volume 1 | |
+
+   `docker compose ... config` validates any combination before you start it. If a host port is taken, set its variable in `.env` (`DB_PORT`, `REDIS_PORT`, `MLFLOW_PORT`, ...).
+
+3. **Migrate, seed, ingest, check.**
+
+   ```bash
+   php artisan migrate --seed          # the seeded fictional business; plan history and the other Volume 2 tables included
+   php artisan help:ingest             # needs your embedding model (nomic-embed-text on Ollama)
+   php artisan ai:doctor               # providers, models, digests; add --local to compare each local model's digest with the one on record
+   vendor/bin/pest                     # the whole suite; no model server, GPU or key is needed (it uses the ledgerly_testing database in the same Postgres)
+   ```
+
+   The Python side is a second project, `training/`: `cd training && uv python install 3.12 && uv sync && uv run pytest`, then `uv run python scripts/hello_model.py` (it downloads a small model from the Hugging Face Hub on first use). `uv sync` takes the laptop (CPU or Apple Silicon) build; the extras `--extra cuda`, `--extra rocm` and `--extra mlx` choose a GPU build. The privacy sidecar's own tests run with `cd ops/privacy && uv run --no-project --python 3.12 --with pytest==8.4.2 --with fastapi==0.115.12 --with httpx==0.28.1 --with pydantic==2.12.5 pytest -q`.
+
+4. **Serve.** `php artisan serve`, `php artisan horizon` and `php artisan reverb:start` in three terminals, then open <http://127.0.0.1:8000/support> and sign in as `maya.okafor@acme-studios.example.com` with the password `password` (every seeded account uses it). The assistant opens with its AI disclosure and a link to a person. Jaeger (`http://127.0.0.1:16686`), MLflow (`http://127.0.0.1:5050`) and Pulse (`/pulse`, staff only) show what a request did. For a full request through the Python worker, add `php artisan py:listen`.
+
+### What needs a GPU, a key or money, and what does not
+
+| | Needs | Where it stops on a laptop |
+| --- | --- | --- |
+| Everything in the Pest suite and in `training/`'s tests | nothing | nothing stops |
+| The assistant, evaluation gates, the scorecard, `eval:fairness`, `ai:quarterly-review`, `ai:feature-card` | a local model server (Ollama is enough) | a smaller model is slower, not different |
+| Fine-tuning, small scale (`training/` Chapters 39, 42, 45, 46) | Apple Silicon (MLX or MPS) or a CPU for the tiny models | the 8B runs of Chapter 42 want 32 GB of unified memory; the tiny runs finish in minutes |
+| Fine-tuning on CUDA (Unsloth, Axolotl, the sweep: Chapter 43) | an NVIDIA GPU, a free notebook or a rented GPU; never run here | written and committed; the full runs are unverified |
+| vLLM, Triton, quantization kernels (Chapters 24, 44) | an NVIDIA GPU | the `vllm` and `triton` profiles do not start without one; the quantization ladder runs on a 135M model |
+| A hosted fine-tune (Chapter 41) | a provider account (it costs money) | an offline fake driver runs the whole pipeline without one |
+| `ghcr.io` images (MLflow) | access to `ghcr.io` | pull them yourself or set `MLFLOW_IMAGE` to an equivalent |
+
+### The commands Volume 2 added
+
+`py:listen`, `py:status`, `ai:reembed`, `ai:compare-vectors`, `ai:promote-vectors`, `dataset:validate` (27); `help:export` (28); `eval:gates`, `eval:check`, `eval:synthesize`, `eval:capture`, `prompts:lock` (29); `eval:sample`, `eval:scorecard`, `eval:tripwire`, `ai:experiment`, `ai:models:audit` (30); `ai:drift` (31); `eval:injection` (32); `user:forget` extended (34); `ai:cost-audit`, `ai:cost-replay` (35); `ai:spend`, `ai:showback`, `ai:reconcile`, `ai:kill` (36); `eval:route-table`, `ai:cost-breakdown`, `ai:cache-tune`, `ai:batch:*` (37); `eval:failure-modes` (38); `dataset:export|review|publish|show|forget|scan|allow|allows|distill|pairs|fixture` (40, 41, 46); `ai:template-check`; `ai:ft:prepare|submit|poll|cancel|register`, `eval:compare` (41 to 48); `registry:*`, `serve:fine-tune`, `eval:quant-ladder`, `ai:guardrails` (44); `eval:retrieval` (46); `ai:contract-test`, `adr:new`, `adr:append`, `ai:package-audit` (47, 48); `dev:plant-log-injection` (49); `ai:deprecations`, `ai:doctor --local`, `ai:quarterly-review` (50); `eval:fairness`, `ai:feature-card`, `ai:license-check`, `ai:reliance` (51). `php artisan list` shows them all with their descriptions.
+
+Chapter 0 of Volume 3 records a baseline of this app; the `Chapter tags` table below says what each tag added if you want to read how a piece came to be.
 
 ## Set up `vol2-start`
 
