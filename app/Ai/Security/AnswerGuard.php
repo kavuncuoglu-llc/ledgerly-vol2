@@ -3,6 +3,7 @@
 namespace App\Ai\Security;
 
 use App\Ai\Contracts\ChatRequest;
+use App\Evals\NeverGates;
 use App\Models\User;
 
 // Chapter 32, Topics 4 and 7: the checks an answer passes before anyone sees it. None of them asks the model anything.
@@ -20,6 +21,10 @@ final class AnswerGuard
 
         if ($reason !== null) {
             return new GuardVerdict(text: $answer, blockedBy: $reason);
+        }
+
+        if (NeverGates::claimsToBeHuman($answer)) {
+            return new GuardVerdict(text: $answer, blockedBy: NeverGates::CLAIMS_TO_BE_HUMAN);      // Chapter 51, Topic 4: whatever the model was talked into, it does not tell a customer it is a person
         }
 
         $foreign = $user->customer_id === null

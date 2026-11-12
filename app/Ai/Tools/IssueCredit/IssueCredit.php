@@ -2,7 +2,9 @@
 
 namespace App\Ai\Tools\IssueCredit;
 
+use App\Ai\Policy\GoodwillCreditPolicy;
 use App\Ai\Tools\Approver;
+use App\Ai\Tools\RefusesBeforeApproval;
 use App\Ai\Tools\Tool;
 use App\Ai\Tools\ToolContext;
 use App\Ai\Tools\ToolDefaults;
@@ -12,9 +14,11 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use Illuminate\Support\Facades\DB;
 
-final class IssueCredit implements Tool
+final class IssueCredit implements RefusesBeforeApproval, Tool
 {
     use ToolDefaults;
+
+    public function __construct(private GoodwillCreditPolicy $policy = new GoodwillCreditPolicy) {}
 
     public static function exampleArgs(): array
     {
@@ -58,6 +62,21 @@ final class IssueCredit implements Tool
         return sprintf('Issue a $%s credit to invoice %s for %s. Reason given: %s', number_format($args['amount_cents'] / 100, 2), $args['invoice_number'], $name, $args['reason']);
     }
 
+    public function refusal(array $args, ToolContext $ctx): ?string
+    {
+        $invoice = Invoice::query()->forTools()->where('customer_id', $ctx->customerId())->whereNumber((string) ($args['invoice_number'] ?? ''))->first();
+
+        $decision = $this->policy->decide($invoice, $ctx->customerId());
+
+        if ($decision->allows((int) ($args['amount_cents'] ?? 0))) {
+            return null;
+        }
+
+        return $decision->eligible
+            ? "The goodwill credit policy allows at most {$decision->maxCents} cents on this invoice. Explain the limit; do not offer more."
+            : 'The goodwill credit policy does not allow a credit here: '.$decision->explanation;
+    }
+
     public function handle(object $args, ToolContext $ctx): ToolResult
     {
         $invoice = Invoice::query()->forTools()->where('customer_id', $ctx->customerId())->whereNumber($args->invoice_number)->first();
@@ -68,6 +87,10 @@ final class IssueCredit implements Tool
 
         if ($args->amount_cents > (int) round((float) $invoice->total * 100)) {
             return ToolResult::error('credit larger than the invoice');
+        }
+
+        if (! $this->policy->decide($invoice, $ctx->customerId())->allows($args->amount_cents)) {
+            return ToolResult::error('not allowed by the goodwill credit policy');       // the same rule again, at the moment of writing: an approval does not widen it
         }
 
         $id = DB::table('invoice_credits')->insertGetId([

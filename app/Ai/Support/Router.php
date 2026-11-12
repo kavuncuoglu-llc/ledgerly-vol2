@@ -74,7 +74,7 @@ final class Router
 
         return match ($category) {
             Category::HowTo => Route::make($category, $agreement, tools: ['open_ticket'], area: null, cache: true),
-            Category::Billing => Route::make($category, $agreement, tools: ['lookup_invoice', 'list_invoices', 'check_payment_status', 'calculate_proration', 'resend_invoices', 'retry_payment', 'issue_credit', 'open_ticket'], area: 'billing'),
+            Category::Billing => Route::make($category, $agreement, tools: ['lookup_invoice', 'list_invoices', 'check_payment_status', 'calculate_proration', 'resend_invoices', 'retry_payment', 'check_goodwill_credit', 'issue_credit', 'open_ticket'], area: 'billing'),
             Category::Bug => Route::make($category, $agreement, tools: ['open_ticket'], area: 'troubleshooting', escalateAfterRounds: 2),
             Category::Account => Route::make($category, $agreement, tools: ['account_status', 'look_up_plan_change', 'change_billing_email', 'open_ticket'], area: 'account'),
             Category::Other => Route::decline($agreement),

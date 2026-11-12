@@ -195,14 +195,23 @@ describe('credits go to a support agent, not to the customer', function () {
             ->and(DB::table('invoice_credits')->value('amount_cents'))->toBe(1800);
     });
 
-    it('is refused by the tool when the credit is larger than the invoice', function () {
+    it('is refused by the policy before anyone is asked, when the invoice has no late fee to credit', function () {
         Invoice::factory()->for($this->customer)->create(['number' => 'INV-4500', 'subtotal' => 500, 'tax' => 0, 'total' => 500]);
 
-        $pending = requestAction('issue_credit', ['invoice_number' => 'INV-4500', 'amount_cents' => 100000] + $this->args, $this->user);
+        $result = app(ToolExecutor::class)->executeOne(app(ToolRegistry::class)->get('issue_credit'), ['invoice_number' => 'INV-4500'] + $this->args, new ToolContext($this->user));
 
-        $this->actingAs($this->agent)->postJson(route('staff.approvals.approve', $pending), ['token' => PendingAction::tokenFor($pending)])->assertOk()->assertJson(['ok' => false]);
+        expect($result->isPending())->toBeFalse()
+            ->and($result->error)->toContain('goodwill credit policy does not allow')
+            ->and(DB::table('pending_tool_actions')->count())->toBe(0)
+            ->and(sideEffects())->toBe([0, 0, 0]);
+    });
 
-        expect(sideEffects())->toBe([0, 0, 0]);
+    it('is refused by the policy before anyone is asked, when the amount is above what the policy allows', function () {
+        $result = app(ToolExecutor::class)->executeOne(app(ToolRegistry::class)->get('issue_credit'), ['amount_cents' => 100000] + $this->args, new ToolContext($this->user));
+
+        expect($result->isPending())->toBeFalse()
+            ->and($result->error)->toContain('allows at most 2160 cents')
+            ->and(DB::table('pending_tool_actions')->count())->toBe(0);
     });
 
     it('can be declined by an agent', function () {

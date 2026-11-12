@@ -775,6 +775,8 @@ return [
             'cost_per_answer_usd' => ['kind' => 'guardrail', 'target' => 0.002, 'floor' => 0.006, 'direction' => 'down'],
             'cached_input_share' => ['kind' => 'guardrail', 'target' => 0.80, 'floor' => 0.60],     // Chapter 35: input tokens served from the prompt cache; below the floor, a prefix stopped caching
             'ttft_p95_seconds' => ['kind' => 'guardrail', 'target' => 1.5, 'floor' => 3.0, 'direction' => 'down'],
+            'false_refusal_rate' => ['kind' => 'guardrail', 'target' => 0.02, 'floor' => 0.05, 'direction' => 'down'],      // Chapter 51: in-scope questions the assistant declined, escalated to a person and logged
+            'fairness_flagged_dimensions' => ['kind' => 'guardrail', 'target' => 0, 'floor' => 0, 'direction' => 'down'],    // Chapter 51: dimensions the last eval:fairness run flagged
         ],
         'ticket.classify' => [
             'agreement_with_agent_label' => ['kind' => 'primary', 'target' => 0.92, 'floor' => 0.88],
@@ -905,5 +907,12 @@ return [
         'fake' => ['directory' => storage_path('app/fake-fine-tuning'), 'seconds' => (int) env('FT_FAKE_SECONDS', 20)],
         'fake_chat' => (bool) env('AI_FAKE_FT_CHAT', false),
         'mlflow_experiment' => 'hosted-fine-tunes',
+    ],
+
+    // Chapter 51, Topic 3: the goodwill credit policy. Decided by rules from the invoice and the customer's own credit history; the model explains the decision and cannot change it.
+    'goodwill' => [
+        'max_cents' => (int) env('AI_GOODWILL_MAX_CENTS', 5000),
+        'window_days' => (int) env('AI_GOODWILL_WINDOW_DAYS', 90),
+        'max_per_window' => (int) env('AI_GOODWILL_MAX_PER_WINDOW', 1),
     ],
 ];

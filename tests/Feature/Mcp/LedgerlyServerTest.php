@@ -90,7 +90,7 @@ describe('the server', function () {
     it('lists the registry\'s native tools with their schemas and risk hints', function () {
         $tools = collect(mcp($this->token, 'tools/list')->assertOk()->json('result.tools'))->keyBy('name');
 
-        expect($tools->keys()->all())->toBe(['lookup_invoice', 'open_ticket', 'account_status', 'look_up_plan_change', 'list_invoices', 'check_payment_status', 'calculate_proration', 'resend_invoices', 'retry_payment', 'change_billing_email', 'issue_credit', 'search_help_center'])
+        expect($tools->keys()->all())->toBe(['lookup_invoice', 'open_ticket', 'account_status', 'look_up_plan_change', 'list_invoices', 'check_payment_status', 'calculate_proration', 'resend_invoices', 'retry_payment', 'change_billing_email', 'issue_credit', 'check_goodwill_credit', 'search_help_center'])
             ->and($tools['lookup_invoice']['inputSchema']['required'])->toBe(['invoice_number', 'month'])
             ->and($tools['lookup_invoice']['inputSchema']['additionalProperties'])->toBeFalse()
             ->and($tools['lookup_invoice']['annotations']['readOnlyHint'])->toBeTrue()

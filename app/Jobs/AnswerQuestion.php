@@ -9,6 +9,7 @@ use App\Ai\Events\ModelCalled;
 use App\Ai\Exceptions\RateLimited as RateLimitedByProvider;
 use App\Ai\Experiments\Experiment;
 use App\Ai\Prompts\SupportPrompt;
+use App\Ai\Sensitive\SensitiveRouting;
 use App\Ai\Streaming\ReplyChannel;
 use App\Ai\Streaming\ReplyNotAuthorised;
 use App\Ai\Streaming\ReplyStream;
@@ -128,6 +129,18 @@ final class AnswerQuestion implements ShouldBeUnique, ShouldQueue
 
         $stream = new ReplyStream($reply, new ReplyChannel($reply->id));
 
+        $routing = app(SensitiveRouting::class);
+
+        $decision = $routing->decide($reply);
+
+        if ($decision->answersWithoutModel()) {
+            $routing->handle($reply, $decision);                                   // Chapter 51, Topic 9: a person, or a decline with a way to a person, before any model reads it
+
+            $stream->channel()->completed([], true);
+
+            return;
+        }
+
         if ($this->customerHasLeft($reply)) {
             $this->replyFromTemplate($reply, $stream);                             // no model call for a customer who is no longer there
 
@@ -159,6 +172,8 @@ final class AnswerQuestion implements ShouldBeUnique, ShouldQueue
 
             return;
         }
+
+        $routing->afterAnswer($reply, $decision);                                  // an in-scope question the assistant declined goes to a person and is logged for review
 
         $stream->channel()->completed($this->sources($reply), $result->citations === null || ! $result->citations->hasErrors());
 

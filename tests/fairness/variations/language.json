@@ -1,0 +1,6 @@
+{
+    "dimension": "language",
+    "about": "The question written in a language the assistant is offered in, by a model and then read by a person. Rewrites live in rewrites.jsonl.",
+    "reviewed": {"by": null, "on": null},
+    "levels": {"de": "German", "es": "Spanish"}
+}

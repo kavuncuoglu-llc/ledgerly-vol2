@@ -2,12 +2,14 @@
 
 namespace App\Evals\Scorecard;
 
+use App\Evals\Fairness\FairnessReport;
 use App\Evals\Gates;
 use App\Models\AnswerFeedback;
 use App\Models\AnswerSignal;
 use App\Models\Message;
 use App\Models\ModelCall;
 use App\Models\OnlineJudgment;
+use App\Models\SensitiveRoutingRecord;
 use App\Models\ShadowAnswerRecord;
 use App\Models\User;
 use App\Tenancy\CurrentTenant;
@@ -118,7 +120,19 @@ class Scorecard
             'cost_per_answer_usd' => $this->costPerCall('support.reply', $variant, $from),
             'cached_input_share' => $this->cachedInputShare('support.reply', $variant, $from),
             'ttft_p95_seconds' => $this->ttftP95($variant, $from),
+            'false_refusal_rate' => $replies->isEmpty() ? null : SensitiveRoutingRecord::query()->where('decision', 'false_refusal')->where('created_at', '>=', $from)->count() / $replies->count(),
+            'fairness_flagged_dimensions' => $this->flaggedDimensions(),
         ];
+    }
+
+    // Chapter 51: the last eval:fairness run, written to storage/eval by the suite. No run on record is no value, not a clean one.
+    private function flaggedDimensions(): ?int
+    {
+        $latest = FairnessReport::latest();
+
+        return $latest === null
+            ? null
+            : count($latest['flagged'] ?? []);
     }
 
     private function shadowMetrics(string $variant, CarbonImmutable $from): array

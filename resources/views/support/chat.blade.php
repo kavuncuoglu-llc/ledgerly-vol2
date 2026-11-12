@@ -9,6 +9,8 @@
 @section('content')
     <h1>Ask the support assistant</h1>
 
+    <x-assistant-disclosure />
+
     <p class="muted">The Livewire version of the chat (Chapter 18, Topic 5): Alpine draws the stream straight from the private channel, Livewire owns the stored record. The plain version is <a href="{{ route('support.show') }}">here</a>.</p>
 
     <livewire:chat />

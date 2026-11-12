@@ -32,3 +32,6 @@ Schedule::command('ai:quarterly-review')                                        
     ->cron('0 9 * 1,4,7,10 1-5')
     ->when(fn () => QuarterlyReview::isFirstWorkingDayOfQuarter(CarbonImmutable::now()))
     ->onSuccess(fn () => Notification::route('team', config('ai.alerts.channel'))->notify(new QuarterlyReviewReady(QuarterlyReview::quarterOf(CarbonImmutable::now()), (string) config('ai-watch.owner'))));
+if (config('fairness.nightly')) {
+    Schedule::command('eval:fairness --base=golden:fairness-150 --dimensions=name,region,english,language,tier --runs=3')->dailyAt('01:30')->withoutOverlapping();       // Chapter 51: nightly, and on the scorecard
+}

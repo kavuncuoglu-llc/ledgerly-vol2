@@ -9,6 +9,8 @@
 @section('content')
     <h1>Ask the support assistant</h1>
 
+    <x-assistant-disclosure />
+
     <p class="muted">Your question is queued, a worker runs the model, and the answer streams in over a private channel (Chapter 18). If the socket is down, the page falls back to polling the stored reply. The Livewire version of this page is <a href="{{ route('support.chat') }}">here</a>.</p>
 
     <div id="thread" class="thread" aria-live="polite"></div>

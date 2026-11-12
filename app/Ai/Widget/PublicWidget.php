@@ -12,6 +12,7 @@ use App\Ai\Retrieval\Retriever;
 use App\Ai\Schemas\Category;
 use App\Ai\Security\AnswerRenderer;
 use App\Ai\Security\ExtractionGuard;
+use App\Ai\Sensitive\SensitiveRouting;
 use App\Ai\Support\ClassifyTicket;
 use Illuminate\Support\Str;
 use Throwable;
@@ -29,10 +30,17 @@ final class PublicWidget
         private WidgetBudget $budget,
         private ExtractionGuard $extraction,
         private AnswerRenderer $renderer,
+        private SensitiveRouting $sensitive,
     ) {}
 
     public function ask(string $question, string $session): WidgetAnswer
     {
+        $held = $this->sensitive->forAnonymous($question);                         // Chapter 51: before the budget, before anything else: a person's words, not a model's
+
+        if ($held !== null) {
+            return new WidgetAnswer(WidgetAnswer::TEMPLATE, $held);
+        }
+
         if (! $this->budget->sessionHasRoom($session)) {
             return new WidgetAnswer(WidgetAnswer::TEMPLATE, SupportPrompt::widgetSessionLimitMessage());
         }

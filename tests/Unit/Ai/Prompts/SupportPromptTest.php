@@ -9,12 +9,12 @@ it('fits the budget', function () {
 });
 
 it('is versioned with its text', function () {
-    expect(md5(SupportPrompt::base()))->toBe('aad007466f287d8aedcae345b70a0009');   // bump VERSION and this hash together; the canary is configuration, so it is not in the hash
+    expect(md5(SupportPrompt::base()))->toBe('815b96475901c839f3d1abe99c87ebe2');   // bump VERSION and this hash together; the canary is configuration, so it is not in the hash
 });
 
-it('is version 2026-11-06.1: the v6 text plus the untrusted-content paragraph (Chapter 32) and the canary line', function () {
-    expect(SupportPrompt::VERSION)->toBe('2026-11-06.1')
-        ->and(app(TokenCounter::class)->count(SupportPrompt::base()))->toBeLessThanOrEqual(430);
+it('is version 2026-11-11.1: the v6 text plus the untrusted-content paragraph (Chapter 32), the canary line and the rule that it never claims to be a person (Chapter 51)', function () {
+    expect(SupportPrompt::VERSION)->toBe('2026-11-11.1')
+        ->and(app(TokenCounter::class)->count(SupportPrompt::base()))->toBeLessThanOrEqual(440);
 });
 
 it('assembles messages as expected', function () {

@@ -86,7 +86,7 @@ describe('Router', function () {
         expect($route->kind)->toBe(Route::AUTOMATE)
             ->and($route->category)->toBe(Category::Billing)
             ->and($route->agreement)->toBe(1.0)
-            ->and($route->tools)->toBe(['lookup_invoice', 'list_invoices', 'check_payment_status', 'calculate_proration', 'resend_invoices', 'retry_payment', 'issue_credit', 'open_ticket'])
+            ->and($route->tools)->toBe(['lookup_invoice', 'list_invoices', 'check_payment_status', 'calculate_proration', 'resend_invoices', 'retry_payment', 'check_goodwill_credit', 'issue_credit', 'open_ticket'])
             ->and($route->area)->toBe('billing')
             ->and($route->cache)->toBeFalse()
             ->and($route->votes)->toBe(['billing', 'billing', 'billing']);
@@ -201,7 +201,7 @@ describe('the router in front of the support assistant', function () {
 
         askRouted($this->user, 'Why was I charged a late fee on invoice 4471?')->assertOk();
 
-        expect(collect(mainCalls()[0]['tools'])->pluck('function.name')->all())->toBe(['calculate_proration', 'check_payment_status', 'issue_credit', 'list_invoices', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment']);
+        expect(collect(mainCalls()[0]['tools'])->pluck('function.name')->all())->toBe(['calculate_proration', 'check_goodwill_credit', 'check_payment_status', 'issue_credit', 'list_invoices', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment']);
     });
 
     it('sends no tools key at all for a category with none, rather than an empty list', function () {
@@ -252,7 +252,7 @@ describe('the router in front of the support assistant', function () {
 
         askRouted($this->user, 'Everything is wrong')->assertOk();
 
-        expect(collect(mainCalls()[0]['tools'])->pluck('function.name')->all())->toBe(['account_status', 'calculate_proration', 'change_billing_email', 'check_payment_status', 'issue_credit', 'list_invoices', 'look_up_plan_change', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment']);
+        expect(collect(mainCalls()[0]['tools'])->pluck('function.name')->all())->toBe(['account_status', 'calculate_proration', 'change_billing_email', 'check_goodwill_credit', 'check_payment_status', 'issue_credit', 'list_invoices', 'look_up_plan_change', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment']);
     });
 
     it('routes only the first question of a conversation', function () {
@@ -267,7 +267,7 @@ describe('the router in front of the support assistant', function () {
         askRouted($this->user, 'And what about the next one?', $first->json('conversation_id'))->assertOk();
 
         expect($classifications())->toBe(3)
-            ->and(collect(mainCalls()[1]['tools'])->pluck('function.name')->all())->toBe(['account_status', 'calculate_proration', 'change_billing_email', 'check_payment_status', 'issue_credit', 'list_invoices', 'look_up_plan_change', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment']);
+            ->and(collect(mainCalls()[1]['tools'])->pluck('function.name')->all())->toBe(['account_status', 'calculate_proration', 'change_billing_email', 'check_goodwill_credit', 'check_payment_status', 'issue_credit', 'list_invoices', 'look_up_plan_change', 'lookup_invoice', 'open_ticket', 'resend_invoices', 'retry_payment']);
     });
 
     it('still answers when the classifier is down', function () {

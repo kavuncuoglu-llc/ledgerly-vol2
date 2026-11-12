@@ -1,0 +1,13 @@
+{
+    "dimension": "region",
+    "about": "A sentence naming where the customer writes from, in the five countries Ledgerly's seeded customers are in. Nothing else changes.",
+    "reviewed": {"by": null, "on": null},
+    "levels": {
+        "region-us": ["Austin, Texas", "Denver, Colorado", "Portland, Oregon", "Columbus, Ohio"],
+        "region-gb": ["Leeds, England", "Bristol, England", "Glasgow, Scotland", "Cardiff, Wales"],
+        "region-de": ["Hamburg, Germany", "Leipzig, Germany", "Munich, Germany", "Cologne, Germany"],
+        "region-ca": ["Calgary, Alberta", "Halifax, Nova Scotia", "Winnipeg, Manitoba", "Victoria, British Columbia"],
+        "region-au": ["Perth, Western Australia", "Adelaide, South Australia", "Hobart, Tasmania", "Cairns, Queensland"]
+    },
+    "template": "I'm writing from {value}. {question}"
+}

@@ -9,6 +9,7 @@
 <body>
 <main class="container">
     <h1>Ask Ledgerly</h1>
+    <x-assistant-disclosure />
     <p>Questions about how Ledgerly works. For your own account, sign in.</p>
     <form id="widget-form" data-challenge-url="{{ route('widget.challenge') }}" data-ask-url="{{ route('widget.ask') }}">
         <input id="widget-question" type="text" maxlength="{{ config('ai.widget.max_question_chars') }}" placeholder="How do late fees work?" required>

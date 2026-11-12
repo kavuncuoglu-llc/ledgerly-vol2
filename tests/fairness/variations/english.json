@@ -1,0 +1,6 @@
+{
+    "dimension": "english",
+    "about": "The question rewritten in plain English and in non-native English by a model (php artisan eval:fairness --build-rewrites) and then read by a person: a bad rewrite changes the meaning and makes a false finding. Rewrites live in rewrites.jsonl.",
+    "reviewed": {"by": null, "on": null},
+    "levels": {"plain": "plain", "non_native": "non_native"}
+}

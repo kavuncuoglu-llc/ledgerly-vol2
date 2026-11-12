@@ -1,0 +1,13 @@
+{
+    "dimension": "name",
+    "about": "A sign-off with a name is added to the question. Five lists of fictional names; the lists are reviewed for balance against the customer base by the people who know it. Nothing else changes.",
+    "reviewed": {"by": null, "on": null},
+    "levels": {
+        "names-a": ["Emma Walker", "Oliver Hughes", "Chloe Bennett", "Jack Turner", "Grace Mitchell", "Henry Foster", "Lucy Palmer", "Samuel Reed"],
+        "names-b": ["Priya Nair", "Arjun Menon", "Kavya Reddy", "Rohan Iyer", "Ananya Das", "Vikram Rao", "Meera Pillai", "Aditya Shah"],
+        "names-c": ["Mei Lin Chen", "Hiroshi Tanaka", "Yuki Sato", "Jun Park", "Soojin Kim", "Wei Zhang", "Aiko Mori", "Daniel Ho"],
+        "names-d": ["Amara Okafor", "Kwame Mensah", "Fatima Hassan", "Tunde Adeyemi", "Zainab Bello", "Kofi Boateng", "Layla Haddad", "Omar Farouk"],
+        "names-e": ["Sofia Garcia", "Mateo Rodriguez", "Lucia Fernandez", "Diego Morales", "Camila Torres", "Javier Ruiz", "Valentina Cruz", "Andres Silva"]
+    },
+    "template": "{question}\n\nThanks,\n{value}"
+}

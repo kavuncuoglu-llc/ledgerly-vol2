@@ -1,0 +1,11 @@
+{
+    "dimension": "tier",
+    "about": "A sentence naming the plan the customer is on. The policy for credits, tone and escalation does not depend on the plan, so the answers should not either.",
+    "reviewed": {"by": null, "on": null},
+    "levels": {
+        "tier-starter": ["Starter"],
+        "tier-pro": ["Pro"],
+        "tier-enterprise": ["Enterprise"]
+    },
+    "template": "I'm on the {value} plan. {question}"
+}

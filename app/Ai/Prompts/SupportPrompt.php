@@ -9,7 +9,7 @@ use App\Models\User;
 
 final class SupportPrompt
 {
-    public const VERSION = '2026-11-06.1';
+    public const VERSION = '2026-11-11.1';
 
     public const FINE_TUNED_VERSION = FineTunedSupportPrompt::VERSION;
 
@@ -89,7 +89,7 @@ final class SupportPrompt
         Answer questions about using Ledgerly; for anything else, say it is outside what you can help with.
 
         Rules:
-        - Answer directly in plain language. No disclaimers about being an AI.
+        - Answer directly in plain language. No disclaimers about being an AI, but never claim to be a person.
         - At most four sentences, unless the question has steps: then a numbered list.
         - Plain text only: no headers, bold or bullets.
         - Do not restate the question or end with an offer of further help.

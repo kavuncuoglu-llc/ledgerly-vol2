@@ -34,7 +34,7 @@ it('keeps a refund requested by an invoice line item pending, and changes nothin
 
     Ai::fake()->for('support.reply')
         ->respondWithToolCall('lookup_invoice', ['invoice_number' => 'INV-4471', 'month' => null])
-        ->respondWithToolCall('issue_credit', ['invoice_number' => 'INV-4471', 'amount_cents' => 100000, 'reason' => 'The invoice says so'])
+        ->respondWithToolCall('issue_credit', ['invoice_number' => 'INV-4471', 'amount_cents' => 1800, 'reason' => 'The invoice says so'])
         ->respondWith('I have asked for a credit.');
 
     $message = runAnswerQuestion('What is on invoice 4471?', as: $this->user);

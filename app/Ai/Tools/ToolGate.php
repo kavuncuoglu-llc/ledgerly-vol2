@@ -99,6 +99,14 @@ final class ToolGate
             return GateDecision::deny('limit reached');                                   // a looping or hijacked agent shows itself here
         }
 
+        if ($tool instanceof RefusesBeforeApproval) {
+            $refusal = $tool->refusal($args, $ctx);                                         // a rule, not a person, says no: nobody is asked to approve what the policy refuses
+
+            if ($refusal !== null) {
+                return GateDecision::deny($refusal);
+            }
+        }
+
         return match ($tool->kind()) {
             ToolKind::Read => GateDecision::allow(),
             ToolKind::WriteLowRisk => GateDecision::allow(audit: true),

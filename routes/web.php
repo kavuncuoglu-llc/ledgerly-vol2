@@ -11,6 +11,7 @@ use App\Http\Controllers\HelpController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MemoryController;
 use App\Http\Controllers\OpsMetricsController;
+use App\Http\Controllers\PersonRequestController;
 use App\Http\Controllers\ReplyController;
 use App\Http\Controllers\StaffApprovalController;
 use App\Http\Controllers\SupportController;
@@ -40,6 +41,8 @@ Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
 
 Route::get('support', [SupportController::class, 'show'])->middleware('auth')->name('support.show');
 Route::view('support/chat', 'support.chat')->middleware('auth')->name('support.chat');
+Route::get('support/person', [PersonRequestController::class, 'show'])->middleware('auth')->name('support.person');
+Route::post('support/person', [PersonRequestController::class, 'store'])->middleware(['auth', 'throttle:10,1'])->name('support.person.store');
 Route::post('support/ask', [SupportController::class, 'ask'])->middleware(['auth', 'throttle:ai'])->name('support.ask');
 
 Route::get('replies/{reply}', [ReplyController::class, 'show'])->middleware('auth')->name('replies.show');

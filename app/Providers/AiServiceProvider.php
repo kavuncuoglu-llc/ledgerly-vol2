@@ -36,9 +36,13 @@ use App\Ai\Quantization\OllamaLadderBackend;
 use App\Ai\Review\CandidateEvaluator;
 use App\Ai\Review\RoleComparisonEvaluator;
 use App\Ai\Sandbox\SandboxRunner;
+use App\Ai\Sensitive\LocalModelClassifier;
+use App\Ai\Sensitive\NullClassifier;
+use App\Ai\Sensitive\SensitiveClassifier;
 use App\Ai\Tools\AccountStatus\AccountStatus;
 use App\Ai\Tools\CalculateProration\CalculateProration;
 use App\Ai\Tools\ChangeBillingEmail\ChangeBillingEmail;
+use App\Ai\Tools\CheckGoodwillCredit\CheckGoodwillCredit;
 use App\Ai\Tools\CheckPaymentStatus\CheckPaymentStatus;
 use App\Ai\Tools\Credentials\ToolCredentials;
 use App\Ai\Tools\IssueCredit\IssueCredit;
@@ -55,6 +59,8 @@ use App\Ai\Tools\ToolKind;
 use App\Ai\Tools\ToolRegistry;
 use App\Ai\Training\HubUploader;
 use App\Ai\Training\HuggingFaceHub;
+use App\Evals\Fairness\GateVariantRunner;
+use App\Evals\Fairness\VariantRunner;
 use App\Evals\MlflowReporter;
 use App\Evals\Sweep\SweepReport;
 use App\Livewire\Pulse\AiBudgets;
@@ -90,6 +96,12 @@ class AiServiceProvider extends ServiceProvider
 
         $this->app->bind(CandidateEvaluator::class, RoleComparisonEvaluator::class);
 
+        $this->app->bind(VariantRunner::class, GateVariantRunner::class);
+
+        $this->app->bind(SensitiveClassifier::class, fn () => config('sensitive-content.classifier.enabled')
+            ? new LocalModelClassifier
+            : new NullClassifier);
+
         $this->app->bind(LadderBackend::class, OllamaLadderBackend::class);
         $this->app->bind(SandboxRunner::class, fn () => SandboxRunner::fromConfig());
         $this->app->bind(ToolCredentials::class, fn () => ToolCredentials::fromConfig());
@@ -107,6 +119,7 @@ class AiServiceProvider extends ServiceProvider
                 ->add(new RetryPayment)
                 ->add(new ChangeBillingEmail)
                 ->add(new IssueCredit)
+                ->add(new CheckGoodwillCredit)
                 ->addMcpOnly($app->make(SearchHelpCenter::class));
 
             foreach (config('ai.mcp_servers', []) as $server) {

@@ -86,7 +86,13 @@ it('refuses a question without a solved challenge, and a challenge used twice', 
 
     $solved = solvedChallenge();
 
-    widgetPost('How do late fees work?', ['nonce' => 'wrong'] + $solved)->assertStatus(422);
+    $wrong = 'wrong';
+
+    while (str_starts_with(hash('sha256', $solved['token'].':'.$wrong), '00')) {        // at difficulty 2 the word "wrong" is a valid answer for one token in 256: pick a nonce that is not
+        $wrong .= 'x';
+    }
+
+    widgetPost('How do late fees work?', ['nonce' => $wrong] + $solved)->assertStatus(422);
 
     widgetPost('How do late fees work?', $solved)->assertOk();
 
