@@ -33,6 +33,8 @@ use App\Ai\Privacy\VaultFactory;
 use App\Ai\Privacy\VaultStore;
 use App\Ai\Quantization\LadderBackend;
 use App\Ai\Quantization\OllamaLadderBackend;
+use App\Ai\Review\CandidateEvaluator;
+use App\Ai\Review\RoleComparisonEvaluator;
 use App\Ai\Sandbox\SandboxRunner;
 use App\Ai\Tools\AccountStatus\AccountStatus;
 use App\Ai\Tools\CalculateProration\CalculateProration;
@@ -85,6 +87,8 @@ class AiServiceProvider extends ServiceProvider
             : RedisCounters::fromConfig());
 
         $this->app->bind(HubUploader::class, HuggingFaceHub::class);
+
+        $this->app->bind(CandidateEvaluator::class, RoleComparisonEvaluator::class);
 
         $this->app->bind(LadderBackend::class, OllamaLadderBackend::class);
         $this->app->bind(SandboxRunner::class, fn () => SandboxRunner::fromConfig());

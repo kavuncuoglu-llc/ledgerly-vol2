@@ -1,8 +1,12 @@
 <?php
 
+use App\Ai\Review\QuarterlyReview;
 use App\Jobs\ComputeOnlineSignals;
+use App\Notifications\QuarterlyReviewReady;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -23,3 +27,8 @@ Schedule::command('registry:retire')->dailyAt('05:00');                         
 Schedule::command('ai:ft:poll')->everyFiveMinutes()->withoutOverlapping();                    // Chapter 41: hosted fine-tuning jobs, until they end
 Schedule::command('ai:batch:poll --collect')->everyTenMinutes();                          // Chapter 37: batches submitted for work nobody is waiting on
 Schedule::job(new ComputeOnlineSignals)->dailyAt('02:30');     // Chapter 30: yesterday's re-asks, follow-up tickets, escalations and resolutions
+Schedule::command('ai:deprecations --notify')->dailyAt('06:00');                                  // Chapter 50: alerts at 90, 30 and 7 days before anything with a date
+Schedule::command('ai:quarterly-review')                                                                      // Chapter 50: opened on the first working day of each quarter and assigned to the feature's owner
+    ->cron('0 9 * 1,4,7,10 1-5')
+    ->when(fn () => QuarterlyReview::isFirstWorkingDayOfQuarter(CarbonImmutable::now()))
+    ->onSuccess(fn () => Notification::route('team', config('ai.alerts.channel'))->notify(new QuarterlyReviewReady(QuarterlyReview::quarterOf(CarbonImmutable::now()), (string) config('ai-watch.owner'))));

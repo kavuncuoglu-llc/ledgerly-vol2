@@ -11,6 +11,7 @@ use App\Models\AiLedgerEntry;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Throwable;
 
 class AiReconcile extends Command
@@ -67,6 +68,8 @@ class AiReconcile extends Command
                 $row['ok'] ? '✓ '.$row['diagnosis'] : '✗ '.$row['diagnosis'],
             ], $rows),
         );
+
+        Cache::forever('ai.reconcile.last', ['provider' => $provider, 'date' => $date, 'gap_share' => (float) collect($rows)->max('gap_share')]);       // Chapter 50: the quarterly review reports the last gap
 
         return collect($rows)->contains(fn (array $row) => ! $row['ok']);
     }

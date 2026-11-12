@@ -14,6 +14,7 @@ if (filled(env('FRONTIER_MODEL')) && (float) env('FRONTIER_RATE_IN', 0) > 0) {
         'cache_write' => (float) env('FRONTIER_RATE_CACHE_WRITE', env('FRONTIER_RATE_IN')),
         'per' => 1_000_000,
         'source' => env('FRONTIER_PRICING_URL', ''),
+        'checked' => env('FRONTIER_PRICING_CHECKED'),          // Chapter 50: the day you read the price off the provider's page (YYYY-MM-DD); ai:quarterly-review flags one older than 90 days
     ];
 }
 
@@ -27,6 +28,7 @@ if (filled(env('BILLING_FT_MODEL')) && (float) env('BILLING_FT_RATE_IN', 0) > 0)
         'cache_write' => (float) env('BILLING_FT_RATE_IN'),
         'per' => 1_000_000,
         'source' => env('FRONTIER_PRICING_URL', ''),
+        'checked' => env('BILLING_FT_PRICING_CHECKED', env('FRONTIER_PRICING_CHECKED')),
     ];
 }
 
@@ -45,6 +47,7 @@ $models['illustrative-frontier'] = [
     'cache_write' => 3.75,
     'per' => 1_000_000,
     'source' => 'illustrative: the round numbers of Chapters 35 to 37',
+    'illustrative' => true,
 ];
 
 return [

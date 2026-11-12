@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Ai\AiManager;
 use App\Ai\Doctor\Check;
 use App\Ai\Doctor\LlamaServerChecks;
+use App\Ai\Doctor\LocalDigests;
 use App\Ai\Doctor\OllamaChecks;
 use App\Ai\Doctor\PortProbe;
 use App\Ai\Doctor\ProfileChecks;
@@ -27,6 +28,7 @@ class AiDoctor extends Command
 {
     protected $signature = 'ai:doctor
         {--provider=local : The provider (or tier) whose server to check: local, local-llama, vllm, ...}
+        {--local : The digest of every local model against the one on record: config for a base model, the registry for a fine-tune (Chapter 50)}
         {--health : Only reachable, loaded and warm (and the circuit breaker): the probe a deploy script or a readiness check runs}
         {--profile= : Check a Compose profile (ollama, llama, vllm, triton, monitoring) against this machine before you start it}
         {--size : Do the sizing sum for a model: weights + KV cache + headroom against the memory this machine can give a model}
@@ -46,6 +48,10 @@ class AiDoctor extends Command
     {
         if ($this->option('size')) {
             return $this->size($resolver, $sum, $host);
+        }
+
+        if ($this->option('local')) {
+            return $this->local(app(LocalDigests::class));
         }
 
         if ($this->option('profile')) {
@@ -171,6 +177,23 @@ class AiDoctor extends Command
         } catch (ProviderNotConfigured) {
             return false;
         }
+    }
+
+    private function local(LocalDigests $digests): int
+    {
+        $rows = $digests->rows();
+
+        foreach ($rows as $row) {
+            $this->line($row->line());
+        }
+
+        if ($rows === []) {
+            $this->line('No local model is configured with an Ollama server.');
+        }
+
+        return collect($rows)->contains(fn ($row) => $row->isProblem())
+            ? self::FAILURE
+            : self::SUCCESS;
     }
 
     private function profile(HostProbe $host): int

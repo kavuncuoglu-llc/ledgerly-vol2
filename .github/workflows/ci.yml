@@ -59,6 +59,8 @@ jobs:
           psql -h 127.0.0.1 -U ledgerly -d ledgerly -c "CREATE DATABASE ledgerly_testing OWNER ledgerly"
           psql -h 127.0.0.1 -U ledgerly -d ledgerly_testing -c "CREATE EXTENSION IF NOT EXISTS vector"
       - run: vendor/bin/pint --test
+      - name: Nothing routes to a model that has retired (Chapter 50)
+        run: php artisan ai:deprecations --strict
       - run: vendor/bin/pest
 
   python:
